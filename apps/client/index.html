@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hayashi</title>
+  </head>
+  <body>
+    <div id="root">
+      <div id="hayashi-fallback" style="display:flex;align-items:center;justify-content:center;height:100vh;width:100vw;background:#fcecbf;color:#111d11;font-family:sans-serif;">
+        <div style="text-align:center;">
+          <img src="/hayashi-logo.png" alt="Hayashi" style="height:4rem;width:4rem;margin-bottom:1rem;display:inline-block;" />
+          <div style="font-size:1.2rem;font-weight:bold;">hayashi</div>
+          <div style="margin-top:0.5rem;opacity:0.6;font-size:0.9rem;">Loading...</div>
+          <div id="hayashi-error" style="margin-top:1rem;color:#f87171;font-size:0.85rem;max-width:300px;display:none;"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Pre-React diagnostics: log to a visible element so we can see errors even if React crashes
+      window.__hayashiLog = function(msg) {
+        try {
+          var el = document.getElementById('hayashi-error');
+          if (el) { el.style.display = 'block'; el.textContent += msg + '\n'; }
+        } catch(e) {}
+        try { console.log('[HayashiHTML]', msg); } catch(e) {}
+      };
+      window.__hayashiLog('HTML loaded. frame_id=' + (new URLSearchParams(location.search).has('frame_id') ? 'yes' : 'no'));
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,44 @@
+
+<h2>Collaborative Code Editor — Discord Activity</h2>
+<p class="subtitle">Real-time multi-user code editing inside Discord</p>
+
+<div class="mockup">
+  <div class="mockup-header">Discord Activity Preview</div>
+  <div class="mockup-body" style="padding: 0; display: flex; flex-direction: column; height: 400px; background: #1e1e1e; color: #d4d4d4; font-family: monospace;">
+    <!-- Toolbar -->
+    <div style="background: #252526; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333;">
+      <span style="color: #fff; font-weight: bold;">hayashi</span>
+      <span style="color: #888; font-size: 12px;">collaborative-editor</span>
+      <div style="margin-left: auto; display: flex; gap: 6px;">
+        <div style="width: 24px; height: 24px; border-radius: 50%; background: #4a9eff; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff;">JD</div>
+        <div style="width: 24px; height: 24px; border-radius: 50%; background: #ff6b6b; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff;">AL</div>
+        <div style="width: 24px; height: 24px; border-radius: 50%; background: #51cf66; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff;">+2</div>
+      </div>
+    </div>
+    <!-- Editor Area -->
+    <div style="display: flex; flex: 1;">
+      <div style="width: 48px; background: #1e1e1e; border-right: 1px solid #333; padding: 8px 0; text-align: right; color: #858585; font-size: 12px; line-height: 20px; padding-right: 12px;">
+        1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10
+      </div>
+      <div style="flex: 1; padding: 8px 12px; font-size: 13px; line-height: 20px; position: relative;">
+        <span style="color: #c586c0;">function</span> <span style="color: #dcdcaa;">buildApp</span>() {<br>
+        &nbsp;&nbsp;<span style="color: #c586c0;">const</span> <span style="color: #9cdcfe;">editor</span> = <span style="color: #c586c0;">new</span> <span style="color: #4ec9b0;">CollaborativeEditor</span>();<br>
+        &nbsp;&nbsp;<span style="color: #6a9955;">// Users editing together in Discord!</span><br>
+        &nbsp;&nbsp;<span style="color: #c586c0;">return</span> <span style="color: #9cdcfe;">editor</span>.<span style="color: #dcdcaa;">render</span>();<br>
+        }<br>
+        <br>
+        <span style="color: #c586c0;">export</span> <span style="color: #c586c0;">default</span> <span style="color: #dcdcaa;">buildApp</span>;<br>
+        <!-- Cursor indicators -->
+        <div style="position: absolute; left: 180px; top: 45px; width: 2px; height: 18px; background: #4a9eff; animation: blink 1s infinite;"></div>
+        <div style="position: absolute; left: 180px; top: 45px; background: #4a9eff; color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px 3px 3px 0; transform: translateY(-100%);">JD</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+</style>

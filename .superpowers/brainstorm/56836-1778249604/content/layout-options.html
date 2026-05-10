@@ -1,0 +1,37 @@
+
+<h2>Editor Layout Options</h2>
+<p class="subtitle">How should the workspace be arranged?</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="height: 200px; background: #1e1e1e; display: flex; padding: 8px; gap: 4px;">
+      <!-- File tree -->
+      <div style="width: 60px; background: #252526; border-radius: 4px;"></div>
+      <!-- Editor -->
+      <div style="flex: 1; background: #1e1e1e; border-radius: 4px; position: relative;">
+        <div style="position: absolute; bottom: 8px; right: 8px; width: 32px; height: 32px; background: #4a9eff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px;">▶</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Editor-First (v0-style)</h3>
+      <p>File tree left, Monaco center. Press ▶ to open preview in a drawer/pane below or beside the editor. Terminal is a bottom panel.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="height: 200px; background: #1e1e1e; display: flex; flex-direction: column; padding: 8px; gap: 4px;">
+      <div style="display: flex; flex: 1; gap: 4px;">
+        <div style="width: 60px; background: #252526; border-radius: 4px;"></div>
+        <div style="flex: 1; background: #1e1e1e; border-radius: 4px;"></div>
+      </div>
+      <!-- Bottom panel: terminal + preview tabs -->
+      <div style="height: 80px; background: #252526; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;">
+        terminal / preview tabs
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. IDE-Style (VS Code-style)>/h3>
+      <p>File tree left, editor center, bottom panel with tabs for Terminal and Preview. Preview tab opens when ▶ is pressed.</p>
+    </div>
+  </div>
+</div>
