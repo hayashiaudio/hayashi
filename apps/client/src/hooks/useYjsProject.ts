@@ -112,7 +112,7 @@ export function useYjsProject(
 
           if (target === rootMap) {
             // Root map change: entity added or removed
-            for (const [id, change] of (event as Y.YMapEvent<unknown>).keysChanged.entries()) {
+            for (const [id, change] of (event as Y.YMapEvent<unknown>).changes.keys.entries()) {
               if (change.action === 'delete') {
                 switch (entityType) {
                   case 'node': store.removeNode(id); break;
@@ -136,17 +136,16 @@ export function useYjsProject(
             }
           } else {
             // Nested map change: property updated on existing entity
-            for (const [id, entityMap] of rootMap.entries()) {
-              if (entityMap === target) {
-                const entity = ymapToObject(entityMap);
-                switch (entityType) {
-                  case 'node': store.setNodes({ ...store.nodes, [id]: entity as PatchNode }); break;
-                  case 'edge': store.setEdges({ ...store.edges, [id]: entity as PatchEdge }); break;
-                  case 'clip': store.setClips({ ...store.clips, [id]: entity as Clip }); break;
-                  case 'track': store.setTracks({ ...store.tracks, [id]: entity as Track }); break;
-                  case 'asset': store.setAssets({ ...store.assets, [id]: entity as Asset }); break;
-                }
-                break;
+            const id = event.path[0] as string;
+            const entityMap = rootMap.get(id);
+            if (entityMap) {
+              const entity = ymapToObject(entityMap);
+              switch (entityType) {
+                case 'node': store.setNodes({ ...store.nodes, [id]: entity as PatchNode }); break;
+                case 'edge': store.setEdges({ ...store.edges, [id]: entity as PatchEdge }); break;
+                case 'clip': store.setClips({ ...store.clips, [id]: entity as Clip }); break;
+                case 'track': store.setTracks({ ...store.tracks, [id]: entity as Track }); break;
+                case 'asset': store.setAssets({ ...store.assets, [id]: entity as Asset }); break;
               }
             }
           }
