@@ -525,7 +525,7 @@ export function useYjsProject(
     provider.awareness.setLocalStateField('focus', { nodeId, param });
   }, []);
 
-  return { broadcastCursor, broadcastFocus, collabReady, remoteStateLoaded };
+  return { broadcastCursor, broadcastFocus, collabReady, remoteStateLoaded, ydocRef };
 }
 
 function stringToColor(str: string): string {

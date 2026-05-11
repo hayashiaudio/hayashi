@@ -20,7 +20,7 @@ import { Crown } from 'lucide-react';
 import { openExternalUrl } from './hooks/useDiscordSdk';
 import { SERVER_BASE_URL } from './lib/constants';
 import type { BillingSnapshot } from './types/billing';
-import { getHasRemoteRealtimeState } from './lib/projectSync';
+import { getHasRemoteRealtimeState, hydrateYjsFromSnapshot, createRealtimeSnapshot } from './lib/projectSync';
 
 function App() {
   const params = new URLSearchParams(window.location.search);
@@ -283,7 +283,7 @@ function App() {
     window.localStorage.setItem(storageKey, projectId);
   }, [projectId, storageKey]);
 
-  const { collabReady, remoteStateLoaded } = useYjsProject(channelId, projectId, participants);
+  const { collabReady, remoteStateLoaded, ydocRef } = useYjsProject(channelId, projectId, participants);
 
   useEffect(() => {
     let cancelled = false;
@@ -322,6 +322,21 @@ function App() {
           | undefined;
 
         if (snapshot) {
+          const fullSnapshot = createRealtimeSnapshot({
+            projectTitle: snapshot.projectTitle ?? 'Untitled Jam',
+            localTransport: snapshot.localTransport ?? localTransport,
+            nodes: snapshot.nodes ?? {},
+            edges: snapshot.edges ?? {},
+            assets: snapshot.assets ?? {},
+            clips: snapshot.clips ?? {},
+            tracks: snapshot.tracks ?? {},
+          });
+
+          const ydoc = ydocRef.current;
+          if (ydoc) {
+            hydrateYjsFromSnapshot(fullSnapshot, ydoc);
+          }
+
           if (snapshot.projectTitle) setProjectTitle(snapshot.projectTitle);
           if (snapshot.localTransport) updateLocalTransport(snapshot.localTransport);
           setNodes(snapshot.nodes ?? {});
