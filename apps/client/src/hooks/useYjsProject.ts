@@ -5,21 +5,13 @@ import { useProjectStore } from '@/stores/projectStore';
 import { getWsUrl, IS_LOCAL_DEV, SERVER_BASE_URL } from '@/lib/constants';
 import type { DiscordParticipant } from './useDiscordSdk';
 import { createRealtimeSnapshot, setHasRemoteRealtimeState, type RealtimeProjectSnapshot } from '@/lib/projectSync';
+import type { PatchNode, PatchEdge, Clip, Track, Asset, TransportState } from '@/types/project';
 
 const SNAPSHOT_KEY = 'snapshot';
 const LOCAL_ORIGIN = 'hayashi-local-sync';
 
 function encodeSnapshot(snapshot: RealtimeProjectSnapshot): string {
   return JSON.stringify(snapshot);
-}
-
-function decodeSnapshot(raw: string | null | undefined): RealtimeProjectSnapshot | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as RealtimeProjectSnapshot;
-  } catch {
-    return null;
-  }
 }
 
 export function useYjsProject(
@@ -44,22 +36,6 @@ export function useYjsProject(
 
   const participantsRef = useRef(discordParticipants);
   participantsRef.current = discordParticipants;
-
-  const applyRealtimeSnapshot = useCallback((snapshot: RealtimeProjectSnapshot) => {
-    suppressStoreSyncRef.current = true;
-    try {
-      const state = useProjectStore.getState();
-      state.setProjectTitle(snapshot.projectTitle);
-      state.updateLocalTransport(snapshot.localTransport);
-      state.setNodes(snapshot.nodes ?? {});
-      state.setEdges(snapshot.edges ?? {});
-      state.setAssets(snapshot.assets ?? {});
-      state.setClips(snapshot.clips ?? {});
-      state.setTracks(snapshot.tracks ?? {});
-    } finally {
-      suppressStoreSyncRef.current = false;
-    }
-  }, []);
 
   /* ── Merge Yjs awareness with Discord participants ── */
   const mergeCollaborators = useCallback(
@@ -111,6 +87,79 @@ export function useYjsProject(
     [setCollaborators]
   );
 
+  function ymapToObject<T>(ymap: Y.Map<unknown>): T {
+    const obj: Record<string, unknown> = {};
+    for (const [key, value] of ymap.entries()) {
+      obj[key] = value;
+    }
+    return obj as T;
+  }
+
+  function setupIncomingEntitySync(
+    rootMap: Y.Map<Y.Map<unknown>>,
+    entityType: 'node' | 'edge' | 'clip' | 'track' | 'asset',
+    suppressRef: React.MutableRefObject<boolean>
+  ): () => void {
+    const handleChange = (events: Y.YEvent[], transaction: Y.Transaction) => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+
+      suppressRef.current = true;
+      try {
+        const store = useProjectStore.getState();
+
+        for (const event of events) {
+          const target = event.target as Y.Map<unknown>;
+
+          if (target === rootMap) {
+            // Root map change: entity added or removed
+            for (const [id, change] of event.keysChanged.entries()) {
+              if (change.action === 'delete') {
+                switch (entityType) {
+                  case 'node': store.removeNode(id); break;
+                  case 'edge': store.removeEdge(id); break;
+                  case 'clip': store.removeClip(id); break;
+                  case 'track': store.removeTrack(id); break;
+                  case 'asset': store.removeAsset(id); break;
+                }
+              } else {
+                const entityMap = rootMap.get(id);
+                if (!entityMap) continue;
+                const entity = ymapToObject(entityMap);
+                switch (entityType) {
+                  case 'node': store.addNode(entity as PatchNode); break;
+                  case 'edge': store.addEdge(entity as PatchEdge); break;
+                  case 'clip': store.addClip(entity as Clip); break;
+                  case 'track': store.addTrack(entity as Track); break;
+                  case 'asset': store.addAsset(entity as Asset); break;
+                }
+              }
+            }
+          } else {
+            // Nested map change: property updated on existing entity
+            for (const [id, entityMap] of rootMap.entries()) {
+              if (entityMap === target) {
+                const entity = ymapToObject(entityMap);
+                switch (entityType) {
+                  case 'node': store.setNodes({ ...store.nodes, [id]: entity as PatchNode }); break;
+                  case 'edge': store.setEdges({ ...store.edges, [id]: entity as PatchEdge }); break;
+                  case 'clip': store.setClips({ ...store.clips, [id]: entity as Clip }); break;
+                  case 'track': store.setTracks({ ...store.tracks, [id]: entity as Track }); break;
+                  case 'asset': store.setAssets({ ...store.assets, [id]: entity as Asset }); break;
+                }
+                break;
+              }
+            }
+          }
+        }
+      } finally {
+        suppressRef.current = false;
+      }
+    };
+
+    rootMap.observeDeep(handleChange);
+    return () => rootMap.unobserveDeep(handleChange);
+  }
+
   /* ── Create / destroy provider when room identity changes ── */
   useEffect(() => {
     if (!channelId || !projectId) return;
@@ -121,12 +170,16 @@ export function useYjsProject(
     setRemoteStateLoaded(false);
     setHasRemoteRealtimeState(false);
     syncReadyRef.current = false;
-    lastSerializedRef.current = '';
 
     const ydoc = new Y.Doc();
     const wsUrl = getWsUrl();
     const provider = new WebsocketProvider(wsUrl, roomName, ydoc);
-    const projectMap = ydoc.getMap<string>('projectState');
+    const projectMeta = ydoc.getMap<unknown>('projectMeta');
+    const nodesMap = ydoc.getMap<Y.Map<unknown>>('nodes');
+    const edgesMap = ydoc.getMap<Y.Map<unknown>>('edges');
+    const clipsMap = ydoc.getMap<Y.Map<unknown>>('clips');
+    const tracksMap = ydoc.getMap<Y.Map<unknown>>('tracks');
+    const assetsMap = ydoc.getMap<Y.Map<unknown>>('assets');
 
     provider.on('status', (event: { status: string }) => {
       console.log('[Hayashi] Yjs project status:', event.status, 'room:', roomName);
@@ -137,28 +190,20 @@ export function useYjsProject(
       mergeCollaborators(states);
     };
 
-    const handleProjectStateChange = (_event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
-      const snapshot = decodeSnapshot(projectMap.get(SNAPSHOT_KEY));
-      if (!snapshot) return;
-      lastSerializedRef.current = encodeSnapshot(snapshot);
-
-      if (transaction.origin === LOCAL_ORIGIN) return;
-
-      applyRealtimeSnapshot(snapshot);
-      setRemoteStateLoaded(true);
-      setHasRemoteRealtimeState(true);
-    };
-
     provider.awareness.on('change', handleAwarenessChange);
-    projectMap.observe(handleProjectStateChange);
 
     const handleSync = (isSynced: boolean) => {
       if (!isSynced) return;
 
-      const snapshot = decodeSnapshot(projectMap.get(SNAPSHOT_KEY));
-      if (snapshot) {
-        lastSerializedRef.current = encodeSnapshot(snapshot);
-        applyRealtimeSnapshot(snapshot);
+      const hasRemote =
+        nodesMap.size > 0 ||
+        edgesMap.size > 0 ||
+        clipsMap.size > 0 ||
+        tracksMap.size > 0 ||
+        assetsMap.size > 0 ||
+        projectMeta.size > 0;
+
+      if (hasRemote) {
         setRemoteStateLoaded(true);
         setHasRemoteRealtimeState(true);
       } else {
@@ -174,27 +219,64 @@ export function useYjsProject(
     provider.on('sync', handleSync);
     handleAwarenessChange();
 
+    const unsubNodes = setupIncomingEntitySync(nodesMap, 'node', suppressStoreSyncRef);
+    const unsubEdges = setupIncomingEntitySync(edgesMap, 'edge', suppressStoreSyncRef);
+    const unsubClips = setupIncomingEntitySync(clipsMap, 'clip', suppressStoreSyncRef);
+    const unsubTracks = setupIncomingEntitySync(tracksMap, 'track', suppressStoreSyncRef);
+    const unsubAssets = setupIncomingEntitySync(assetsMap, 'asset', suppressStoreSyncRef);
+
+    const unsubMeta = (() => {
+      const handleMetaChange = (event: Y.YMapEvent<unknown>, transaction: Y.Transaction) => {
+        if (transaction.origin === LOCAL_ORIGIN) return;
+        suppressStoreSyncRef.current = true;
+        try {
+          const store = useProjectStore.getState();
+          const title = projectMeta.get('title') as string | undefined;
+          const transport: Partial<TransportState> = {};
+          if (projectMeta.has('playing')) transport.playing = projectMeta.get('playing') as boolean;
+          if (projectMeta.has('bpm')) transport.bpm = projectMeta.get('bpm') as number;
+          if (projectMeta.has('beatOffset')) transport.beatOffset = projectMeta.get('beatOffset') as number;
+          if (projectMeta.has('timeSignature')) transport.timeSignature = projectMeta.get('timeSignature') as [number, number];
+          if (projectMeta.has('key')) transport.key = projectMeta.get('key') as string;
+          if (projectMeta.has('scene')) transport.scene = projectMeta.get('scene') as string;
+
+          if (title !== undefined && title !== store.projectTitle) {
+            store.setProjectTitle(title);
+          }
+          if (Object.keys(transport).length > 0) {
+            store.updateLocalTransport(transport);
+          }
+        } finally {
+          suppressStoreSyncRef.current = false;
+        }
+      };
+      projectMeta.observe(handleMetaChange);
+      return () => projectMeta.unobserve(handleMetaChange);
+    })();
+
     providerRef.current = provider;
     ydocRef.current = ydoc;
-    projectMapRef.current = projectMap;
 
     return () => {
-      provider.off('sync', handleSync);
       provider.awareness.off('change', handleAwarenessChange);
-      projectMap.unobserve(handleProjectStateChange);
       provider.destroy();
       ydoc.destroy();
       providerRef.current = null;
       ydocRef.current = null;
-      projectMapRef.current = null;
       syncReadyRef.current = false;
+      unsubNodes();
+      unsubEdges();
+      unsubClips();
+      unsubTracks();
+      unsubAssets();
+      unsubMeta();
       setCollabReady(false);
       setRemoteStateLoaded(false);
       setHasRemoteRealtimeState(false);
       setBroadcastCursor(null);
       setBroadcastFocus(null);
     };
-  }, [channelId, projectId, mergeCollaborators, setBroadcastCursor, setBroadcastFocus, applyRealtimeSnapshot]);
+  }, [channelId, projectId, mergeCollaborators, setBroadcastCursor, setBroadcastFocus]);
 
   /* ── Push local project state into Yjs ── */
   useEffect(() => {
