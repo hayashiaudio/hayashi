@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import type { PatchNode as PatchNodeType } from '@/types/project';
-import { LayoutGrid, Maximize2 } from 'lucide-react';
+import { Clapperboard, Maximize2 } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 
 export const WorkstationNode = memo(function WorkstationNodeComponent(props: NodeProps) {
@@ -16,7 +16,7 @@ export const WorkstationNode = memo(function WorkstationNodeComponent(props: Nod
 
       <div className="hayashi-patch-node-head">
         <div className="hayashi-node-badge">
-          <LayoutGrid size={14} />
+          <Clapperboard size={14} />
           Workstation
         </div>
         <button
@@ -27,10 +27,15 @@ export const WorkstationNode = memo(function WorkstationNodeComponent(props: Nod
           <Maximize2 size={14} />
         </button>
       </div>
-      <h3 className="text-sm font-semibold mt-1" style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {data.id}
-      </h3>
-      <div className="text-xs mt-1 opacity-70">Click expand to edit clips</div>
+      <div className="hayashi-workstation-node-card">
+        <div className="hayashi-workstation-node-icon" aria-hidden="true">
+          <Clapperboard size={18} />
+        </div>
+        <div className="hayashi-workstation-node-meta">
+          <h3 title={data.id}>{data.id}</h3>
+          <span>Clip arrangement and print lanes</span>
+        </div>
+      </div>
     </div>
   );
 });

@@ -5,6 +5,7 @@ import { resolve } from 'path';
 
 const TEST_PROJECTS_DIR = '/tmp/hayashi/projects';
 const TEST_ASSETS_DIR = '/tmp/hayashi/assets';
+const TEST_BILLING_DIR = '/tmp/hayashi/billing';
 
 describe('routes', () => {
   beforeEach(() => {
@@ -15,6 +16,9 @@ describe('routes', () => {
     if (existsSync(TEST_ASSETS_DIR)) {
       rmSync(TEST_ASSETS_DIR, { recursive: true });
     }
+    if (existsSync(TEST_BILLING_DIR)) {
+      rmSync(TEST_BILLING_DIR, { recursive: true });
+    }
   });
 
   afterEach(() => {
@@ -24,6 +28,9 @@ describe('routes', () => {
     }
     if (existsSync(TEST_ASSETS_DIR)) {
       rmSync(TEST_ASSETS_DIR, { recursive: true });
+    }
+    if (existsSync(TEST_BILLING_DIR)) {
+      rmSync(TEST_BILLING_DIR, { recursive: true });
     }
   });
 
@@ -147,6 +154,76 @@ describe('routes', () => {
         globalThis.fetch = originalFetch;
         delete process.env.DISCORD_CLIENT_ID;
         delete process.env.DISCORD_CLIENT_SECRET;
+      }
+    });
+  });
+
+  describe('billing', () => {
+    it('bootstraps a free user and tracks daily export limits', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        if (url.includes('/users/@me')) {
+          return new Response(JSON.stringify({
+            id: 'discord-user-1',
+            username: 'hayashi',
+            global_name: 'Hayashi Tester',
+            avatar: null,
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(null, { status: 404 });
+      }) as typeof fetch;
+
+      try {
+        const bootstrapRes = await app.request('/billing/bootstrap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accessToken: 'discord-token',
+            guildId: 'guild-1',
+            channelId: 'channel-1',
+          }),
+        });
+
+        expect(bootstrapRes.status).toBe(200);
+        const bootstrapBody = await bootstrapRes.json();
+        expect(bootstrapBody.plan).toBe('free');
+        expect(bootstrapBody.entitlements.activeNodeLimit).toBe(8);
+        expect(bootstrapBody.usage.dailyExportsRemaining).toBe(3);
+
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          const exportRes = await app.request('/billing/export/authorize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              accessToken: 'discord-token',
+              guildId: 'guild-1',
+              channelId: 'channel-1',
+            }),
+          });
+          expect(exportRes.status).toBe(200);
+          const exportBody = await exportRes.json();
+          expect(exportBody.usage.dailyExportsUsed).toBe(attempt);
+        }
+
+        const blockedRes = await app.request('/billing/export/authorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accessToken: 'discord-token',
+            guildId: 'guild-1',
+            channelId: 'channel-1',
+          }),
+        });
+
+        expect(blockedRes.status).toBe(403);
+        const blockedBody = await blockedRes.json();
+        expect(blockedBody.contextAccess.reason).toBe('export_limit');
+      } finally {
+        globalThis.fetch = originalFetch;
       }
     });
   });

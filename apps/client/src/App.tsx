@@ -1,13 +1,26 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDiscordSdk } from './hooks/useDiscordSdk';
 import { useProjectStore } from './stores/projectStore';
 import { useYjsProject } from './hooks/useYjsProject';
-import { loadProjectSnapshot, saveProjectSnapshot } from './lib/api';
+import {
+  bootstrapBilling,
+  createBillingCheckout,
+  createBillingPortal,
+  createBillingStreamToken,
+  loadProjectSnapshot,
+  saveProjectSnapshot,
+} from './lib/api';
 import { BrandGuidelinesPage } from './components/BrandGuidelinesPage';
 import { CoreWorkspaceMockupPage } from './components/CoreWorkspaceMockupPage';
 import { PerformanceWorkspaceMockupPage } from './components/PerformanceWorkspaceMockupPage';
 import { SessionEntryScreen } from './components/SessionEntryScreen';
 import { StudioScreen } from './components/StudioScreen';
+import { BillingModal } from './components/BillingModal';
+import { Crown } from 'lucide-react';
+import { openExternalUrl } from './hooks/useDiscordSdk';
+import { SERVER_BASE_URL } from './lib/constants';
+import type { BillingSnapshot } from './types/billing';
+import { getHasRemoteRealtimeState } from './lib/projectSync';
 
 function App() {
   const params = new URLSearchParams(window.location.search);
@@ -19,9 +32,16 @@ function App() {
   if (mockupMode) return <CoreWorkspaceMockupPage />;
   if (performanceMockupMode) return <PerformanceWorkspaceMockupPage />;
 
-  const { ready, channelId, error, user, participants } = useDiscordSdk();
+  const { ready, channelId, guildId, error, user, participants, accessToken } = useDiscordSdk();
   const setChannelId = useProjectStore((s) => s.setChannelId);
+  const setGuildId = useProjectStore((s) => s.setGuildId);
+  const setAccessToken = useProjectStore((s) => s.setAccessToken);
   const setUser = useProjectStore((s) => s.setUser);
+  const billing = useProjectStore((s) => s.billing);
+  const setBillingLoading = useProjectStore((s) => s.setBillingLoading);
+  const setBillingSnapshot = useProjectStore((s) => s.setBillingSnapshot);
+  const setBillingError = useProjectStore((s) => s.setBillingError);
+  const openPaywall = useProjectStore((s) => s.openPaywall);
   const projectId = useProjectStore((s) => s.projectId);
   const setProjectId = useProjectStore((s) => s.setProjectId);
   const projectTitle = useProjectStore((s) => s.projectTitle);
@@ -40,6 +60,7 @@ function App() {
   const setTracks = useProjectStore((s) => s.setTracks);
   const hydratedRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
+  const [installationAction, setInstallationAction] = useState<'checkout' | 'portal' | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -139,8 +160,115 @@ function App() {
   }, [channelId, setChannelId]);
 
   useEffect(() => {
+    setGuildId(guildId);
+  }, [guildId, setGuildId]);
+
+  useEffect(() => {
+    setAccessToken(accessToken);
+  }, [accessToken, setAccessToken]);
+
+  useEffect(() => {
     if (user) setUser(user);
   }, [user, setUser]);
+
+  useEffect(() => {
+    if (!ready || !user || !accessToken || !channelId) return;
+    let cancelled = false;
+    setBillingLoading(true);
+
+    bootstrapBilling({ accessToken, guildId, channelId })
+      .then((snapshot) => {
+        if (cancelled) return;
+        setBillingSnapshot(snapshot);
+        if (!snapshot.contextAccess.allowed && snapshot.contextAccess.reason && snapshot.contextAccess.message) {
+          openPaywall(snapshot.contextAccess.reason, snapshot.contextAccess.message);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setBillingError(err instanceof Error ? err.message : 'Failed to load billing');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    accessToken,
+    channelId,
+    guildId,
+    openPaywall,
+    ready,
+    setBillingError,
+    setBillingLoading,
+    setBillingSnapshot,
+    user,
+  ]);
+
+  useEffect(() => {
+    if (!ready || !user || !accessToken || !channelId) return;
+
+    let eventSource: EventSource | null = null;
+    let cancelled = false;
+    let reconnectTimer: number | null = null;
+
+    const handleSnapshot = (snapshot: BillingSnapshot) => {
+      setBillingSnapshot(snapshot);
+      if (snapshot.contextAccess.allowed) {
+        useProjectStore.getState().closePaywall();
+      } else if (snapshot.contextAccess.reason && snapshot.contextAccess.message) {
+        openPaywall(snapshot.contextAccess.reason, snapshot.contextAccess.message);
+      }
+    };
+
+    const connect = () => {
+      createBillingStreamToken({ accessToken, guildId, channelId })
+        .then(({ token }) => {
+          if (cancelled) return;
+          eventSource = new EventSource(`${SERVER_BASE_URL}/billing/events?token=${encodeURIComponent(token)}`);
+
+          const onReady = (event: MessageEvent) => {
+            const snapshot = JSON.parse(event.data) as BillingSnapshot;
+            handleSnapshot(snapshot);
+          };
+
+          const onUpdated = (event: MessageEvent) => {
+            const snapshot = JSON.parse(event.data) as BillingSnapshot;
+            handleSnapshot(snapshot);
+          };
+
+          eventSource.addEventListener('billing.ready', onReady as EventListener);
+          eventSource.addEventListener('billing.updated', onUpdated as EventListener);
+          eventSource.onerror = () => {
+            eventSource?.close();
+            if (!cancelled) {
+              reconnectTimer = window.setTimeout(connect, 2500);
+            }
+          };
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            console.warn('[Hayashi] Failed to attach billing SSE stream:', err);
+            reconnectTimer = window.setTimeout(connect, 4000);
+          }
+        });
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      eventSource?.close();
+    };
+  }, [
+    accessToken,
+    channelId,
+    guildId,
+    openPaywall,
+    ready,
+    setBillingSnapshot,
+    user,
+  ]);
 
   useEffect(() => {
     if (!storageKey || projectId) return;
@@ -155,11 +283,23 @@ function App() {
     window.localStorage.setItem(storageKey, projectId);
   }, [projectId, storageKey]);
 
+  const { collabReady, remoteStateLoaded } = useYjsProject(channelId, projectId, participants);
+
   useEffect(() => {
     let cancelled = false;
 
     if (!projectId) {
       hydratedRef.current = false;
+      return;
+    }
+
+    if (!collabReady) {
+      hydratedRef.current = false;
+      return;
+    }
+
+    if (remoteStateLoaded || getHasRemoteRealtimeState()) {
+      hydratedRef.current = true;
       return;
     }
 
@@ -201,7 +341,9 @@ function App() {
       cancelled = true;
     };
   }, [
+    collabReady,
     projectId,
+    remoteStateLoaded,
     setAssets,
     setClips,
     setEdges,
@@ -241,8 +383,6 @@ function App() {
       }
     };
   }, [projectId, projectTitle, localTransport, nodes, edges, assets, clips, tracks]);
-
-  useYjsProject(channelId, projectId, participants);
 
   if (!ready) {
     return (
@@ -286,7 +426,75 @@ function App() {
     );
   }
 
-  return projectId ? <StudioScreen /> : <SessionEntryScreen />;
+  const installationBlocked =
+    billing.snapshot?.contextAccess.allowed === false && billing.snapshot.contextAccess.reason === 'installation_limit';
+
+  if (installationBlocked) {
+    const handleUpgrade = async () => {
+      if (!accessToken) return;
+      setInstallationAction('checkout');
+      try {
+        const result = await createBillingCheckout({ accessToken, guildId, channelId });
+        setBillingSnapshot(result.snapshot);
+        if (result.url) await openExternalUrl(result.url);
+      } finally {
+        setInstallationAction(null);
+      }
+    };
+
+    const handleManage = async () => {
+      if (!accessToken || !billing.snapshot?.stripeCustomerId) return;
+      setInstallationAction('portal');
+      try {
+        const result = await createBillingPortal(accessToken);
+        if (result.url) await openExternalUrl(result.url);
+      } finally {
+        setInstallationAction(null);
+      }
+    };
+
+    return (
+      <>
+        <div className="hayashi-app-bg hayashi-app-grain relative flex h-screen w-screen items-center justify-center p-6">
+          <div className="hayashi-surface max-w-xl p-8 text-center">
+            <h1 className="hayashi-title-display mb-2 text-2xl">Upgrade Required</h1>
+            <p className="hayashi-body text-sm">
+              {billing.snapshot?.contextAccess.message ?? 'This Discord installation is outside the free plan limits.'}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                className="hayashi-action"
+                type="button"
+                onClick={handleUpgrade}
+                disabled={!accessToken || installationAction !== null}
+              >
+                <Crown size={15} />
+                {installationAction === 'checkout' ? 'Opening checkout…' : 'Upgrade to Unlimited'}
+              </button>
+              {billing.snapshot?.stripeCustomerId && (
+                <button
+                  className="hayashi-secondary-action"
+                  type="button"
+                  onClick={handleManage}
+                  disabled={!accessToken || installationAction !== null}
+                >
+                  {installationAction === 'portal' ? 'Opening portal…' : 'Manage billing'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <BillingModal accessToken={accessToken} guildId={guildId} channelId={channelId} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {projectId ? <StudioScreen /> : <SessionEntryScreen />}
+      <BillingModal accessToken={accessToken} guildId={guildId} channelId={channelId} />
+    </>
+  );
 }
 
 export default App;

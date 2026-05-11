@@ -5,13 +5,16 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "db:push": "drizzle-kit push --config drizzle.config.ts",
     "start": "node dist/server.js",
     "test": "vitest run",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.2",
+    "drizzle-orm": "^0.44.4",
     "hono": "^4.4.0",
+    "postgres": "^3.4.7",
     "uuid": "^9.0.0",
     "ws": "^8.17.0",
     "y-websocket": "^2.0.0",
@@ -20,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/ws": "^8.5.0",
+    "drizzle-kit": "^0.31.4",
     "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.0.0"

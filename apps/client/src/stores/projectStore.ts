@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 import type { TransportState, UserPresence, Asset, PatchNode, PatchEdge, Clip, Track } from '@/types/project';
+import type { BillingBlockReason, BillingSnapshot, BillingState } from '@/types/billing';
 
 interface ProjectState {
   channelId: string | null;
+  guildId: string | null;
+  accessToken: string | null;
   projectId: string | null;
   projectTitle: string;
   user: { id: string; username: string; avatar: string | null } | null;
@@ -24,8 +27,11 @@ interface ProjectState {
   edges: Record<string, PatchEdge>;
   clips: Record<string, Clip>;
   tracks: Record<string, Track>;
+  billing: BillingState;
 
   setChannelId: (id: string | null) => void;
+  setGuildId: (id: string | null) => void;
+  setAccessToken: (token: string | null) => void;
   setProjectId: (id: string | null) => void;
   setProjectTitle: (title: string) => void;
   setUser: (user: { id: string; username: string; avatar: string | null } | null) => void;
@@ -46,6 +52,11 @@ interface ProjectState {
   setBroadcastCursor: (fn: ((x: number, y: number) => void) | null) => void;
   broadcastFocus: ((nodeId: string | null, param?: string) => void) | null;
   setBroadcastFocus: (fn: ((nodeId: string | null, param?: string) => void) | null) => void;
+  setBillingLoading: (loading: boolean) => void;
+  setBillingSnapshot: (snapshot: BillingSnapshot | null) => void;
+  setBillingError: (error: string | null) => void;
+  openPaywall: (reason: BillingBlockReason, message: string) => void;
+  closePaywall: () => void;
 
   setAssets: (assets: Record<string, Asset>) => void;
   addAsset: (asset: Asset) => void;
@@ -79,6 +90,8 @@ interface ProjectState {
 
 export const useProjectStore = create<ProjectState>((set) => ({
   channelId: null,
+  guildId: null,
+  accessToken: null,
   projectId: null,
   projectTitle: 'Untitled Jam',
   user: null,
@@ -105,8 +118,18 @@ export const useProjectStore = create<ProjectState>((set) => ({
   edges: {},
   clips: {},
   tracks: {},
+  billing: {
+    loading: false,
+    snapshot: null,
+    error: null,
+    paywallOpen: false,
+    paywallReason: null,
+    paywallMessage: null,
+  },
 
   setChannelId: (id) => set({ channelId: id }),
+  setGuildId: (id) => set({ guildId: id }),
+  setAccessToken: (token) => set({ accessToken: token }),
   setProjectId: (id) => set({ projectId: id }),
   setProjectTitle: (title) => set({ projectTitle: title }),
   setUser: (user) => set({ user }),
@@ -134,6 +157,35 @@ export const useProjectStore = create<ProjectState>((set) => ({
   updateLocalTransport: (t) => set((s) => ({ localTransport: { ...s.localTransport, ...t } })),
   setBroadcastCursor: (fn) => set({ broadcastCursor: fn }),
   setBroadcastFocus: (fn) => set({ broadcastFocus: fn }),
+  setBillingLoading: (loading) => set((s) => ({ billing: { ...s.billing, loading } })),
+  setBillingSnapshot: (snapshot) =>
+    set((s) => ({
+      billing: {
+        ...s.billing,
+        snapshot,
+        loading: false,
+        error: null,
+      },
+    })),
+  setBillingError: (error) => set((s) => ({ billing: { ...s.billing, loading: false, error } })),
+  openPaywall: (reason, message) =>
+    set((s) => ({
+      billing: {
+        ...s.billing,
+        paywallOpen: true,
+        paywallReason: reason,
+        paywallMessage: message,
+      },
+    })),
+  closePaywall: () =>
+    set((s) => ({
+      billing: {
+        ...s.billing,
+        paywallOpen: false,
+        paywallReason: null,
+        paywallMessage: null,
+      },
+    })),
 
   setAssets: (assets) => set({ assets }),
   addAsset: (asset) => set((s) => ({ assets: { ...s.assets, [asset.id]: asset } })),

@@ -109,33 +109,33 @@ const PresenceCursors = memo(function PresenceCursorsComponent() {
               className="hayashi-remote-cursor-badge"
               style={{
                 position: 'absolute',
-                left: 14,
-                top: 14,
+                left: 12,
+                top: 10,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
-                padding: '2px 8px 2px 2px',
+                gap: 6,
+                padding: '2px 10px 2px 2px',
                 borderRadius: 999,
-                background: color,
-                border: '1px solid rgba(255,255,255,0.3)',
-                boxShadow: `0 2px 8px ${color}44`,
+                background: 'rgba(255,255,255,0.96)',
+                border: `1px solid ${color}55`,
+                boxShadow: `0 8px 18px ${color}22`,
               }}
             >
               <img
                 src={person.avatarUrl ?? 'https://cdn.discordapp.com/embed/avatars/0.png'}
                 alt={person.name}
                 style={{
-                  width: 16,
-                  height: 16,
+                  width: 20,
+                  height: 20,
                   borderRadius: '50%',
-                  border: '1px solid rgba(255,255,255,0.5)',
+                  border: `1px solid ${color}66`,
                 }}
               />
               <span
                 style={{
                   fontSize: 10,
                   fontFamily: "'IBM Plex Mono', monospace",
-                  color: '#fff',
+                  color: '#10261d',
                   whiteSpace: 'nowrap',
                   letterSpacing: '0.02em',
                 }}

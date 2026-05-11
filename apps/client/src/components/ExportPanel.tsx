@@ -3,6 +3,7 @@ import { exportWav } from '@/export/offlineBounce';
 import { renderGraphOffline } from '@/audio/graphCompiler';
 import { useProjectStore } from '@/stores/projectStore';
 import { useTransport } from '@/hooks/useTransport';
+import { authorizeExport } from '@/lib/api';
 import { X, Waves } from 'lucide-react';
 
 export function ExportPanel() {
@@ -10,14 +11,27 @@ export function ExportPanel() {
   const [progress, setProgress] = useState(0);
   const toggleExportPanel = useProjectStore((s) => s.toggleExportPanel);
   const projectTitle = useProjectStore((s) => s.projectTitle);
+  const channelId = useProjectStore((s) => s.channelId);
+  const guildId = useProjectStore((s) => s.guildId);
+  const accessToken = useProjectStore((s) => s.accessToken);
   const nodes = useProjectStore((s) => s.nodes);
   const edges = useProjectStore((s) => s.edges);
+  const setBillingSnapshot = useProjectStore((s) => s.setBillingSnapshot);
+  const openPaywall = useProjectStore((s) => s.openPaywall);
   const { bpm } = useTransport();
 
   const handleExport = useCallback(async () => {
+    if (!accessToken) return;
     setExporting(true);
     setProgress(0);
     try {
+      const snapshot = await authorizeExport({ accessToken, guildId, channelId });
+      setBillingSnapshot(snapshot);
+      if (!snapshot.contextAccess.allowed) {
+        openPaywall(snapshot.contextAccess.reason ?? 'export_limit', snapshot.contextAccess.message ?? 'Upgrade required to export.');
+        return;
+      }
+
       const duration = 16;
       const seconds = (duration * 4 * 60) / bpm;
       const blob = await exportWav((ctx) => renderGraphOffline(ctx, nodes, edges), seconds);
@@ -32,7 +46,7 @@ export function ExportPanel() {
       setExporting(false);
       setProgress(100);
     }
-  }, [bpm, edges, nodes, projectTitle]);
+  }, [accessToken, bpm, channelId, edges, guildId, nodes, openPaywall, projectTitle, setBillingSnapshot]);
 
   return (
     <section className="hayashi-mockup-panel hayashi-visual-panel max-w-md w-full">

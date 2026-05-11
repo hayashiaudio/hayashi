@@ -7,7 +7,7 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev/)
   [![Yjs](https://img.shields.io/badge/Collaboration-Yjs-111827)](https://yjs.dev/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-22C55E.svg)](LICENSE.md)
+  [![License: Commercial-EAB308.svg](https://img.shields.io/badge/License-Commercial-EAB308.svg)](LICENSE.md)
 </div>
 
 ---
@@ -243,4 +243,4 @@ Playback and export are rendered locally in the browser. Shared collaboration st
 
 ## License
 
-MIT — see [LICENSE.md](LICENSE.md) for details.
+Commercial proprietary software — see [LICENSE.md](LICENSE.md) for the End User License Agreement.

@@ -3,8 +3,32 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import { fetchDiscordIdentity } from './billing/discord.js';
+import {
+  addBillingSubscriber,
+  consumeBillingStreamToken,
+  mintBillingStreamToken,
+  publishBillingUpdate,
+  removeBillingSubscriber,
+} from './billing/events.js';
+import { getBillingRepository } from './billing/repository.js';
+import { BillingService, buildBillingContext } from './billing/service.js';
+import {
+  createBillingPortalSession,
+  createCheckoutSession,
+  createStripeCustomer,
+  extractSubscriptionPatch,
+  updateStripeCustomerEmail,
+  verifyStripeWebhookSignature,
+} from './billing/stripe.js';
 
 const app = new Hono();
+const billingRepository = getBillingRepository();
+const billing = new BillingService(billingRepository);
+
+function isStripeMissingCustomerError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('No such customer:');
+}
 
 app.get('/health', (c) => c.json({ status: 'ok', mode: 'music-lab' }));
 
@@ -52,6 +76,332 @@ app.post('/discord/token', async (c) => {
     expires_in: tokenPayload.expires_in ?? null,
     scope: tokenPayload.scope ?? '',
   });
+});
+
+app.post('/billing/bootstrap', async (c) => {
+  const body = await c.req.json<{ accessToken?: string; guildId?: string | null; channelId?: string | null }>();
+  if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
+
+  try {
+    const identity = await fetchDiscordIdentity(body.accessToken);
+    const context = buildBillingContext(body.guildId, body.channelId);
+    const user = await billing.getOrCreateUser(identity);
+    const snapshot = await billing.registerContext(user, context);
+    return c.json(snapshot);
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Billing bootstrap failed' }, 401);
+  }
+});
+
+app.post('/billing/checkout', async (c) => {
+  const body = await c.req.json<{ accessToken?: string; guildId?: string | null; channelId?: string | null }>();
+  if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
+
+  try {
+    const identity = await fetchDiscordIdentity(body.accessToken);
+    const context = buildBillingContext(body.guildId, body.channelId);
+    let user = await billing.getOrCreateUser(identity);
+    const snapshot = await billing.buildSnapshot(user, context);
+
+    if (!snapshot.contextAccess.allowed && snapshot.contextAccess.reason !== 'installation_limit') {
+      return c.json(snapshot, 403);
+    }
+
+    if (!user.stripeCustomerId) {
+      const customer = await createStripeCustomer({
+        discordUserId: user.discordUserId,
+        username: user.discordUsername,
+        email: user.email,
+      });
+      user = await billing.updateStripeCustomer(user, customer.id);
+    } else if (user.email) {
+      try {
+        await updateStripeCustomerEmail({
+          customerId: user.stripeCustomerId,
+          email: user.email,
+          username: user.discordUsername,
+        });
+      } catch (error) {
+        if (!isStripeMissingCustomerError(error)) throw error;
+        await billing.setStripeCustomerId(user, null);
+        const customer = await createStripeCustomer({
+          discordUserId: user.discordUserId,
+          username: user.discordUsername,
+          email: user.email,
+        });
+        user = await billing.updateStripeCustomer(user, customer.id);
+      }
+    }
+
+    const baseUrl = new URL(c.req.url).origin;
+    let session;
+    try {
+      session = await createCheckoutSession({
+        customerId: user.stripeCustomerId!,
+        discordUserId: user.discordUserId,
+        successUrl: `${baseUrl}/?billing=success`,
+        cancelUrl: `${baseUrl}/?billing=cancel`,
+      });
+    } catch (error) {
+      if (!isStripeMissingCustomerError(error)) throw error;
+
+      await billing.setStripeCustomerId(user, null);
+      const customer = await createStripeCustomer({
+        discordUserId: user.discordUserId,
+        username: user.discordUsername,
+        email: user.email,
+      });
+      user = await billing.updateStripeCustomer(user, customer.id);
+      session = await createCheckoutSession({
+        customerId: user.stripeCustomerId!,
+        discordUserId: user.discordUserId,
+        successUrl: `${baseUrl}/?billing=success`,
+        cancelUrl: `${baseUrl}/?billing=cancel`,
+      });
+    }
+
+    await billing.attachCheckoutToUser(user.discordUserId, {
+      stripeCustomerId: session.customer ?? user.stripeCustomerId,
+    });
+    await billingRepository.recordCheckoutSession({
+      stripeCheckoutSessionId: session.id,
+      userId: user.discordUserId,
+      stripeCustomerId: session.customer ?? user.stripeCustomerId,
+      status: 'open',
+      checkoutUrl: session.url ?? null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return c.json({ url: session.url, snapshot: await billing.buildSnapshot(user, context) });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Unable to create checkout session' }, 500);
+  }
+});
+
+app.post('/billing/portal', async (c) => {
+  const body = await c.req.json<{ accessToken?: string }>();
+  if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
+
+  try {
+    const identity = await fetchDiscordIdentity(body.accessToken);
+    const user = await billing.getOrCreateUser(identity);
+    if (!user.stripeCustomerId) {
+      return c.json({ error: 'No Stripe customer found for this account' }, 404);
+    }
+    const baseUrl = new URL(c.req.url).origin;
+    let portal;
+    try {
+      portal = await createBillingPortalSession({
+        customerId: user.stripeCustomerId,
+        returnUrl: `${baseUrl}/`,
+      });
+    } catch (error) {
+      if (!isStripeMissingCustomerError(error)) throw error;
+      await billing.setStripeCustomerId(user, null);
+      return c.json({ error: 'Stripe customer was deleted. Start a new checkout session to restore billing.' }, 404);
+    }
+    return c.json({ url: portal.url });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Unable to create portal session' }, 500);
+  }
+});
+
+app.post('/billing/stream-token', async (c) => {
+  const body = await c.req.json<{ accessToken?: string; guildId?: string | null; channelId?: string | null }>();
+  if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
+
+  try {
+    const identity = await fetchDiscordIdentity(body.accessToken);
+    const context = buildBillingContext(body.guildId, body.channelId);
+    const user = await billing.getOrCreateUser(identity);
+    const token = mintBillingStreamToken(user.discordUserId, context);
+    return c.json({ token });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Unable to create stream token' }, 500);
+  }
+});
+
+app.get('/billing/events', async (c) => {
+  const token = c.req.query('token');
+  if (!token) return c.json({ error: 'Missing billing stream token' }, 400);
+
+  const streamToken = consumeBillingStreamToken(token);
+  if (!streamToken) return c.json({ error: 'Invalid or expired billing stream token' }, 401);
+
+  const user = await billingRepository.getUser(streamToken.discordUserId);
+  if (!user) return c.json({ error: 'Billing user not found' }, 404);
+
+  let subscriberId = '';
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      const send = (event: string, payload: unknown) => {
+        controller.enqueue(encoder.encode(`event: ${event}\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+      };
+
+      Promise.resolve(billing.buildSnapshot(user, streamToken.context)).then((snapshot) => {
+        send('billing.ready', snapshot);
+      }).catch(() => {
+        try {
+          controller.error(new Error('Failed to initialize billing stream'));
+        } catch {
+          // no-op
+        }
+      });
+
+      subscriberId = addBillingSubscriber({
+        discordUserId: streamToken.discordUserId,
+        context: streamToken.context,
+        send: (event, snapshot) => send(event, snapshot),
+        close: () => {
+          if (heartbeat) clearInterval(heartbeat);
+          try {
+            controller.close();
+          } catch {
+            // stream already closed
+          }
+        },
+      });
+
+      heartbeat = setInterval(() => {
+        controller.enqueue(encoder.encode(`: keepalive\n\n`));
+      }, 15000);
+    },
+    cancel() {
+      if (heartbeat) clearInterval(heartbeat);
+      if (subscriberId) removeBillingSubscriber(subscriberId);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  });
+});
+
+app.post('/billing/export/authorize', async (c) => {
+  const body = await c.req.json<{ accessToken?: string; guildId?: string | null; channelId?: string | null }>();
+  if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
+
+  try {
+    const identity = await fetchDiscordIdentity(body.accessToken);
+    const context = buildBillingContext(body.guildId, body.channelId);
+    const user = await billing.getOrCreateUser(identity);
+    const snapshot = await billing.authorizeExport(user, context);
+    return c.json(snapshot, snapshot.contextAccess.allowed ? 200 : 403);
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Unable to authorize export' }, 500);
+  }
+});
+
+app.post('/stripe/webhook', async (c) => {
+  const payload = await c.req.text();
+  const signature = c.req.header('Stripe-Signature');
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!endpointSecret) return c.json({ error: 'Stripe webhook secret is not configured' }, 500);
+  if (!verifyStripeWebhookSignature(payload, signature, endpointSecret)) {
+    return c.json({ error: 'Invalid Stripe signature' }, 400);
+  }
+
+  const event = JSON.parse(payload) as {
+    id?: string;
+    type?: string;
+    data?: { object?: Record<string, unknown> };
+  };
+  const eventObject = event.data?.object;
+  const customerId = typeof eventObject?.customer === 'string' ? eventObject.customer : null;
+  const subscriptionId =
+    typeof eventObject?.id === 'string'
+      ? eventObject.id
+      : typeof eventObject?.subscription === 'string'
+        ? eventObject.subscription
+        : null;
+
+  if (event.id) {
+    const result = await billingRepository.recordBillingEvent({
+      stripeEventId: event.id,
+      eventType: event.type ?? 'unknown',
+      customerId,
+      subscriptionId,
+      payloadJson: payload,
+      status: 'received',
+      processedAt: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    if (result === 'unchanged') {
+      return c.json({ received: true, duplicate: true });
+    }
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data?.object as {
+      id?: string | null;
+      customer?: string | null;
+      subscription?: string | null;
+      client_reference_id?: string | null;
+      customer_details?: { email?: string | null } | null;
+    } | undefined;
+    const discordUserId = session?.client_reference_id ?? null;
+    if (discordUserId) {
+      await billing.attachCheckoutToUser(discordUserId, {
+        stripeCustomerId: session?.customer ?? null,
+        stripeSubscriptionId: session?.subscription ?? null,
+        email: session?.customer_details?.email ?? null,
+      });
+      if (session?.id) {
+        await billingRepository.recordCheckoutSession({
+          stripeCheckoutSessionId: session.id,
+          userId: discordUserId,
+          stripeCustomerId: session.customer ?? null,
+          status: 'completed',
+          checkoutUrl: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+  }
+
+  if (
+    event.type === 'customer.subscription.created' ||
+    event.type === 'customer.subscription.updated' ||
+    event.type === 'customer.subscription.deleted'
+  ) {
+    const patch = extractSubscriptionPatch(event);
+    if (patch?.customerId) {
+      const updated = await billing.upsertSubscriptionForCustomer(patch.customerId, {
+        subscriptionId: patch.subscriptionId,
+        priceId: patch.priceId,
+        status: patch.status,
+        currentPeriodEnd: patch.currentPeriodEnd,
+      });
+      if (updated) await publishBillingUpdate(billing, updated);
+    }
+  }
+
+  if (event.id) {
+    await billingRepository.recordBillingEvent({
+      stripeEventId: event.id,
+      eventType: event.type ?? 'unknown',
+      customerId,
+      subscriptionId,
+      payloadJson: payload,
+      status: 'processed',
+      processedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
+  return c.json({ received: true });
 });
 
 app.post('/project/save', async (c) => {
@@ -124,7 +474,9 @@ app.get('*', (c) => {
   const path = c.req.path;
   if (
     path.startsWith('/health') ||
-    path.startsWith('/project')
+    path.startsWith('/project') ||
+    path.startsWith('/billing') ||
+    path.startsWith('/stripe')
   ) {
     return c.notFound();
   }

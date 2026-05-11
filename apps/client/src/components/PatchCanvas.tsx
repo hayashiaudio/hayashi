@@ -25,6 +25,7 @@ import { audioEngine } from '@/audio/engine';
 import type { PatchNode as PatchNodeType, PatchEdge as PatchEdgeType } from '@/types/project';
 import { getNodeDefinition } from '@/nodes/registry';
 import { CustomEdge } from './CustomEdge';
+import { canAddNode } from '@/lib/billing';
 
 const nodeTypes: import('@xyflow/react').NodeTypes = {
   patchNode: PatchNode as unknown as import('@xyflow/react').NodeTypes[string],
@@ -77,6 +78,7 @@ interface FlowInnerProps {
   onNodeClick: (_: React.MouseEvent, node: { id: string }) => void;
   onPaneClick: () => void;
   onNodeRemove: (nodeId: string) => void;
+  onNodeDrag: (_: React.MouseEvent, node: { id: string; position: { x: number; y: number } }) => void;
   onNodeDragStop: (_: React.MouseEvent, node: { id: string; position: { x: number; y: number } }) => void;
   onEdgeRemove: (edgeId: string) => void;
   onDrop: (e: React.DragEvent) => void;
@@ -94,6 +96,7 @@ const FlowInner = memo(function FlowInnerComponent({
   onNodeClick,
   onPaneClick,
   onNodeRemove,
+  onNodeDrag,
   onNodeDragStop,
   onEdgeRemove,
   onDrop,
@@ -206,6 +209,7 @@ const FlowInner = memo(function FlowInnerComponent({
           onConnectEnd={onConnectEnd}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -241,6 +245,8 @@ export function PatchCanvas() {
   const removeNode = useProjectStore((s) => s.removeNode);
   const removeEdge = useProjectStore((s) => s.removeEdge);
   const addNode = useProjectStore((s) => s.addNode);
+  const billingSnapshot = useProjectStore((s) => s.billing.snapshot);
+  const openPaywall = useProjectStore((s) => s.openPaywall);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const ensureOutputNode = useCallback(
@@ -333,6 +339,13 @@ export function PatchCanvas() {
     [updateNodePosition]
   );
 
+  const onNodeDrag = useCallback(
+    (_: React.MouseEvent, node: { id: string; position: { x: number; y: number } }) => {
+      updateNodePosition(node.id, node.position);
+    },
+    [updateNodePosition]
+  );
+
   const onDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault();
@@ -345,6 +358,11 @@ export function PatchCanvas() {
       /* Sample drop */
       const assetId = e.dataTransfer.getData('application/hayashi-asset');
       if (assetId) {
+        const nodeGate = canAddNode(billingSnapshot, useProjectStore.getState().nodes, 'sampler');
+        if (!nodeGate.allowed) {
+          openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
+          return;
+        }
         const node: PatchNodeType = {
           id: `sampler-${crypto.randomUUID().slice(0, 8)}`,
           kind: 'sampler',
@@ -364,6 +382,11 @@ export function PatchCanvas() {
       if (nodePayload) {
         try {
           const { kind } = JSON.parse(nodePayload) as { kind: string };
+          const nodeGate = canAddNode(billingSnapshot, useProjectStore.getState().nodes, kind as PatchNodeType['kind']);
+          if (!nodeGate.allowed) {
+            openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
+            return;
+          }
           const def = getNodeDefinition(kind as PatchNodeType['kind']);
           const node: PatchNodeType = {
             id: `${kind}-${crypto.randomUUID().slice(0, 8)}`,
@@ -387,6 +410,11 @@ export function PatchCanvas() {
       const faustPayload = e.dataTransfer.getData('application/hayashi-faust');
       if (faustPayload) {
         try {
+          const nodeGate = canAddNode(billingSnapshot, useProjectStore.getState().nodes, 'faust');
+          if (!nodeGate.allowed) {
+            openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
+            return;
+          }
           const { faustModuleId } = JSON.parse(faustPayload) as { faustModuleId: string };
           const node: PatchNodeType = {
             id: `faust-${crypto.randomUUID().slice(0, 8)}`,
@@ -411,6 +439,11 @@ export function PatchCanvas() {
             kind: string;
             params: Record<string, number | string | boolean>;
           };
+          const nodeGate = canAddNode(billingSnapshot, useProjectStore.getState().nodes, kind as PatchNodeType['kind']);
+          if (!nodeGate.allowed) {
+            openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
+            return;
+          }
           const node: PatchNodeType = {
             id: `${kind}-${crypto.randomUUID().slice(0, 8)}`,
             kind: kind as PatchNodeType['kind'],
@@ -428,7 +461,7 @@ export function PatchCanvas() {
         }
       }
     },
-    [addNode, connectIfMissing, ensureOutputNode]
+    [addNode, billingSnapshot, connectIfMissing, ensureOutputNode, openPaywall]
   );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -449,6 +482,7 @@ export function PatchCanvas() {
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           onNodeRemove={removeNode}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onEdgeRemove={removeEdge}
           onDrop={onDrop}

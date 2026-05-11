@@ -2,6 +2,8 @@ import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import type { PatchNode as PatchNodeType } from '@/types/project';
+import { useProjectStore } from '@/stores/projectStore';
+import { getNodeDefinition } from '@/nodes/registry';
 import {
   Music2,
   SlidersHorizontal,
@@ -70,12 +72,35 @@ const kindLabels: Record<string, string> = {
   workstation: 'Workstation',
 };
 
-function MiniMeter() {
+function SamplerWaveform({ peaks }: { peaks: number[] }) {
+  const barCount = 40;
+  const bars =
+    peaks.length > 0
+      ? Array.from({ length: barCount }, (_, i) => {
+          const idx = Math.floor((i / barCount) * peaks.length);
+          return peaks[Math.min(idx, peaks.length - 1)] ?? 0.28;
+        })
+      : Array.from({ length: barCount }, (_, i) => 0.18 + Math.sin(i * 0.55) * 0.12 + (i % 5 === 0 ? 0.12 : 0.04));
+
   return (
-    <div className="flex items-end gap-px h-3">
-      {[40, 70, 55, 90, 60].map((h, i) => (
-        <span key={i} className="w-1 rounded-md" style={{ height: `${h}%`, background: 'var(--hayashi-leaf)' }} />
-      ))}
+    <div className="hayashi-sampler-waveform" aria-hidden="true">
+      <svg viewBox={`0 0 ${barCount * 3} 30`} preserveAspectRatio="none">
+        {bars.map((value, index) => {
+          const normalized = Math.max(0.12, Math.min(1, value));
+          const height = normalized * 22;
+          const y = (30 - height) / 2;
+          return (
+            <rect
+              key={index}
+              x={index * 3}
+              y={y}
+              width="2"
+              height={height}
+              rx="1"
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -83,7 +108,14 @@ function MiniMeter() {
 export const PatchNode = memo(function PatchNodeComponent(props: NodeProps) {
   const { data } = props as unknown as { data: PatchNodeType };
   const Icon = kindIcons[data.kind] ?? Music2;
+  const definition = getNodeDefinition(data.kind);
   const label = kindLabels[data.kind] ?? data.kind;
+  const isOutput = data.kind === 'output';
+  const isSourceNode = definition?.category === 'source';
+  const samplerAssetId = data.kind === 'sampler' && typeof data.params.assetId === 'string' ? data.params.assetId : null;
+  const samplerAsset = useProjectStore((s) => (samplerAssetId ? s.assets[samplerAssetId] : undefined));
+  const samplerTitle = samplerAsset?.name ?? (data.kind === 'sampler' ? 'Drop sample' : data.id);
+  const samplerPeaks = samplerAsset?.waveformPeaks ?? [];
 
   return (
     <div className={`hayashi-patch-node hayashi-patch-node-${data.kind}`}>
@@ -97,11 +129,32 @@ export const PatchNode = memo(function PatchNodeComponent(props: NodeProps) {
         </div>
         <div className={`hayashi-node-dot ${data.muted ? 'hayashi-node-dot-muted' : ''}`} />
       </div>
-      <h3 className="text-sm font-semibold mt-1">{data.id}</h3>
+      {isOutput ? (
+        <div className="hayashi-output-node-body" aria-hidden="true">
+          <Icon size={26} strokeWidth={1.85} />
+        </div>
+      ) : isSourceNode ? (
+        <div className="hayashi-source-node-card">
+          <div className="hayashi-source-node-icon" aria-hidden="true">
+            <Icon size={18} />
+          </div>
+          <div className="hayashi-source-node-meta">
+            <h3 title={data.kind === 'sampler' ? samplerTitle : definition?.label}>{data.kind === 'sampler' ? samplerTitle : definition?.label ?? data.id}</h3>
+            <span>{definition?.description ?? data.id}</span>
+          </div>
+          {data.kind === 'sampler' ? <SamplerWaveform peaks={samplerPeaks} /> : null}
+        </div>
+      ) : data.kind === 'sampler' ? (
+        <>
+          <h3 className="text-sm font-semibold mt-1" title={samplerTitle}>{samplerTitle}</h3>
+          <SamplerWaveform peaks={samplerPeaks} />
+        </>
+      ) : (
+        <h3 className="text-sm font-semibold mt-1">{data.id}</h3>
+      )}
       {data.kind === 'oscillator' && (
         <div className="text-xs mt-1 opacity-70">{(data.params.frequency as number) ?? 440} Hz</div>
       )}
-      {data.kind === 'sampler' && <MiniMeter />}
       {data.kind === 'faust' && data.faustModuleId && (
         <div className="text-xs mt-1 opacity-70">{data.faustModuleId}</div>
       )}

@@ -35,6 +35,7 @@ interface DiscordContext {
   channelId: string | null;
   guildId: string | null;
   user: { id: string; username: string; avatar: string | null } | null;
+  accessToken: string | null;
   error: string | null;
   participants: DiscordParticipant[];
 }
@@ -42,6 +43,25 @@ interface DiscordContext {
 export function isRunningInDiscord(): boolean {
   const params = new URLSearchParams(window.location.search);
   return params.has('frame_id');
+}
+
+export async function openExternalUrl(url: string): Promise<boolean> {
+  const sdk = getDiscordSdk();
+  if (sdk && isRunningInDiscord()) {
+    try {
+      const result = await sdk.commands.openExternalLink({ url });
+      return Boolean(result?.opened);
+    } catch (error) {
+      console.warn('[Hayashi] openExternalLink failed, falling back to browser navigation:', error);
+    }
+  }
+
+  const popup = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!popup) {
+    window.location.assign(url);
+    return true;
+  }
+  return true;
 }
 
 function getAvatarUrl(userId: string, avatar: string | null | undefined): string {
@@ -94,6 +114,7 @@ export function useDiscordSdk(): DiscordContext {
     channelId: null,
     guildId: null,
     user: null,
+    accessToken: null,
     error: null,
     participants: [],
   });
@@ -135,6 +156,7 @@ export function useDiscordSdk(): DiscordContext {
           channelId,
           guildId,
           user: { id: userId, username, avatar: null },
+          accessToken: 'local-dev-access-token',
           error: null,
           participants: mockParticipants,
         });
@@ -159,6 +181,7 @@ export function useDiscordSdk(): DiscordContext {
           channelId: params.get('channel_id') ?? 'unknown-channel',
           guildId: params.get('guild_id') ?? null,
           user: { id: 'unknown-user', username: 'Unknown', avatar: null },
+          accessToken: null,
           error: 'VITE_DISCORD_CLIENT_ID is missing. Add it to apps/client/.env and reload.',
           participants: [],
         });
@@ -188,7 +211,7 @@ export function useDiscordSdk(): DiscordContext {
           response_type: 'code',
           state: '',
           prompt: 'none',
-          scope: ['identify'],
+          scope: ['identify', 'email'],
         });
         const token = await exchangeDiscordAuthCode(authCode.code);
         accessToken = token.access_token;
@@ -283,6 +306,7 @@ export function useDiscordSdk(): DiscordContext {
               avatar: user.avatar ?? null,
             }
           : null,
+        accessToken,
         error: null,
         participants,
       });

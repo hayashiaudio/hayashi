@@ -10,6 +10,7 @@ import {
 import { uploadAsset } from '@/lib/api';
 import { BUILTIN_NODES, getNodeDefinition, type NodeCategory } from '@/nodes/registry';
 import type { Asset, PatchNode } from '@/types/project';
+import { canAddNode } from '@/lib/billing';
 import {
   Search,
   Upload,
@@ -33,6 +34,7 @@ import {
   Flame,
   ArrowDownNarrowWide,
   Binary,
+  Clapperboard,
 } from 'lucide-react';
 
 /* ─────────────────────────── Icon mapping ─────────────────────────── */
@@ -58,6 +60,7 @@ const kindIcons: Record<string, React.ElementType> = {
   pingPongDelay: Clock,
   faust: Code2,
   output: Waves,
+  workstation: Clapperboard,
 };
 const AUDIBLE_SOURCE_KINDS = new Set<PatchNode['kind']>(['oscillator', 'noise', 'sampler', 'drumPad', 'micInput']);
 
@@ -133,6 +136,8 @@ export function AssetLibrary() {
   const assetList = Object.values(assets).filter((a) => a.kind === 'sample');
 
   const addNode = useProjectStore((s) => s.addNode);
+  const billingSnapshot = useProjectStore((s) => s.billing.snapshot);
+  const openPaywall = useProjectStore((s) => s.openPaywall);
   const addEdgeToStore = useProjectStore((s) => s.addEdge);
 
   /* ---- Sample hydration from IndexedDB ---- */
@@ -267,6 +272,11 @@ export function AssetLibrary() {
   const handleAddNode = useCallback(
     (kind: string, params?: Record<string, number | string | boolean>) => {
       const state = useProjectStore.getState();
+      const nodeGate = canAddNode(billingSnapshot, state.nodes, kind as PatchNode['kind']);
+      if (!nodeGate.allowed) {
+        openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
+        return;
+      }
       const id = `${kind}-${crypto.randomUUID().slice(0, 8)}`;
       const count = Object.values(state.nodes).filter((n) => n.kind === kind).length;
       const def = getNodeDefinition(kind as PatchNode['kind']);
@@ -308,7 +318,7 @@ export function AssetLibrary() {
 
       audioEngine.resume().catch(() => {});
     },
-    [addEdgeToStore, addNode]
+    [addEdgeToStore, addNode, billingSnapshot, openPaywall]
   );
 
   /* ---- Render helpers ---- */

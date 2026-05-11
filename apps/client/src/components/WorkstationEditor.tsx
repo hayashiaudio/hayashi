@@ -543,13 +543,13 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
                 fontFamily: "'Poppins', Arial, sans-serif",
                 fontSize: '0.72rem',
                 letterSpacing: '0.02em',
-                color: 'rgba(245,230,200,0.9)',
+                color: 'rgba(16, 38, 29, 0.9)',
               }}
             >
               {track.name}
             </span>
             {asset && (
-              <span title={asset.name} style={{ flexShrink: 0, color: 'rgba(245,230,200,0.45)' }}>
+              <span title={asset.name} style={{ flexShrink: 0, color: 'rgba(16, 38, 29, 0.42)' }}>
                 <Disc3 size={10} />
               </span>
             )}
@@ -560,7 +560,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
                   fontSize: '0.58rem',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
-                  color: 'rgba(245,230,200,0.45)',
+                  color: 'rgba(16, 38, 29, 0.45)',
                 }}
               >
                 {source?.kind}
@@ -650,7 +650,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
                 onClick={() => handleRemoveTrack(track)}
                 type="button"
                 title="Remove track"
-                style={{ width: 22, height: 22, padding: 0, justifyContent: 'center', color: 'rgba(199,91,91,0.7)' }}
+                style={{ width: 22, height: 22, padding: 0, justifyContent: 'center', color: 'rgba(165,67,67,0.75)' }}
               >
                 <Trash2 size={11} />
               </button>

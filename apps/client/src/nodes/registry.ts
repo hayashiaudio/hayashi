@@ -227,7 +227,7 @@ export const BUILTIN_NODES: NodeDefinition[] = [
     label: 'Workstation',
     description: 'DAW-style clip arrangement block',
     category: 'utility',
-    icon: 'LayoutGrid',
+    icon: 'Clapperboard',
     defaultParams: { gain: 1 },
     inputs: 2,
     outputs: 1,

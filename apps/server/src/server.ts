@@ -4,11 +4,13 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
 import { getRequestListener } from '@hono/node-server';
-import { app } from './routes.js';
 import { setupYjsConnection } from './yjs/connection.js';
+import { hasDatabaseUrl } from './db/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '../.env') });
+
+const { app } = await import('./routes.js');
 
 const server = createServer(getRequestListener(app.fetch));
 const wss = new WebSocketServer({ server });
@@ -24,7 +26,7 @@ wss.on('connection', (ws, req) => {
 const PORT = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 3001;
 if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT} (${hasDatabaseUrl() ? 'billing: postgres' : 'billing: file'})`);
   });
 }
 

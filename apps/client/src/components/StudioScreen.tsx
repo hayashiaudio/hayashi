@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { PatchCanvas } from './PatchCanvas';
-import { RoomPresenceRail } from './RoomPresenceRail';
+import { HeaderPresenceStack } from './RoomPresenceRail';
 import { AssetLibrary } from './AssetLibrary';
 import { ExportPanel } from './ExportPanel';
 import { WorkstationEditor } from './WorkstationEditor';
@@ -9,7 +8,7 @@ import { NodeInspector } from './NodeInspector';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useTransportScheduler } from '@/hooks/useTransportScheduler';
-import { Save, Share2, Waves, PanelRight, Headphones } from 'lucide-react';
+import { Save, Share2, Waves, Headphones } from 'lucide-react';
 
 export function StudioScreen() {
   const projectTitle = useProjectStore((s) => s.projectTitle);
@@ -23,8 +22,6 @@ export function StudioScreen() {
   const closeDrumKitEditor = useProjectStore((s) => s.closeDrumKitEditor);
   const { ready: audioReady } = useAudioEngine();
   useTransportScheduler();
-
-  const [presenceOpen, setPresenceOpen] = useState(true);
 
   return (
     <main className="hayashi-canvas-app">
@@ -41,10 +38,13 @@ export function StudioScreen() {
         </div>
 
         <div className="hayashi-canvas-actions">
-          <span className="hayashi-canvas-status">
-            <Headphones size={12} />
-            {audioReady ? 'Audio ready' : 'Initializing…'}
-          </span>
+          <div className="hayashi-canvas-presence-strip">
+            <span className="hayashi-canvas-status">
+              <Headphones size={12} />
+              {audioReady ? 'Audio ready' : 'Initializing…'}
+            </span>
+            <HeaderPresenceStack />
+          </div>
           <button className="hayashi-canvas-btn" type="button">
             <Save size={13} />
             Save
@@ -63,22 +63,6 @@ export function StudioScreen() {
       {/* Canvas area */}
       <div className="hayashi-canvas-body">
         <PatchCanvas />
-
-        {/* Floating right panel: Presence only */}
-        <div className={`hayashi-float-panel hayashi-float-right ${presenceOpen ? '' : 'collapsed'}`}>
-          <button
-            className="hayashi-float-toggle"
-            onClick={() => setPresenceOpen(!presenceOpen)}
-            title={presenceOpen ? 'Collapse presence' : 'Expand presence'}
-          >
-            <PanelRight size={14} />
-          </button>
-          {presenceOpen && (
-            <div className="hayashi-float-content">
-              <RoomPresenceRail />
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Bottom asset bar */}
