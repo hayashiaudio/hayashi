@@ -52,6 +52,7 @@ export function hydrateYjsFromSnapshot(
   const assets = ydoc.getMap<Y.Map>('assets');
 
   ydoc.transact(() => {
+    projectMeta.clear();
     projectMeta.set('title', snapshot.projectTitle);
     for (const [key, value] of Object.entries(snapshot.localTransport)) {
       projectMeta.set(key, value);
