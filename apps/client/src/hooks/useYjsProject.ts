@@ -100,7 +100,7 @@ export function useYjsProject(
     entityType: 'node' | 'edge' | 'clip' | 'track' | 'asset',
     suppressRef: React.MutableRefObject<boolean>
   ): () => void {
-    const handleChange = (events: Y.YEvent[], transaction: Y.Transaction) => {
+    const handleChange = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
       if (transaction.origin === LOCAL_ORIGIN) return;
 
       suppressRef.current = true;
@@ -112,7 +112,7 @@ export function useYjsProject(
 
           if (target === rootMap) {
             // Root map change: entity added or removed
-            for (const [id, change] of event.keysChanged.entries()) {
+            for (const [id, change] of (event as Y.YMapEvent<unknown>).keysChanged.entries()) {
               if (change.action === 'delete') {
                 switch (entityType) {
                   case 'node': store.removeNode(id); break;
@@ -226,7 +226,7 @@ export function useYjsProject(
     const unsubAssets = setupIncomingEntitySync(assetsMap, 'asset', suppressStoreSyncRef);
 
     const unsubMeta = (() => {
-      const handleMetaChange = (event: Y.YMapEvent<unknown>, transaction: Y.Transaction) => {
+      const handleMetaChange = (_event: Y.YMapEvent<unknown>, transaction: Y.Transaction) => {
         if (transaction.origin === LOCAL_ORIGIN) return;
         suppressStoreSyncRef.current = true;
         try {
