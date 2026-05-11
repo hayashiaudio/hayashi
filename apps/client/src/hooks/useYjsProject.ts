@@ -4,15 +4,10 @@ import { WebsocketProvider } from 'y-websocket';
 import { useProjectStore } from '@/stores/projectStore';
 import { getWsUrl, IS_LOCAL_DEV, SERVER_BASE_URL } from '@/lib/constants';
 import type { DiscordParticipant } from './useDiscordSdk';
-import { createRealtimeSnapshot, setHasRemoteRealtimeState, type RealtimeProjectSnapshot } from '@/lib/projectSync';
+import { setHasRemoteRealtimeState } from '@/lib/projectSync';
 import type { PatchNode, PatchEdge, Clip, Track, Asset, TransportState } from '@/types/project';
 
-const SNAPSHOT_KEY = 'snapshot';
 const LOCAL_ORIGIN = 'hayashi-local-sync';
-
-function encodeSnapshot(snapshot: RealtimeProjectSnapshot): string {
-  return JSON.stringify(snapshot);
-}
 
 export function useYjsProject(
   channelId: string | null,
@@ -21,10 +16,8 @@ export function useYjsProject(
 ) {
   const providerRef = useRef<WebsocketProvider | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
-  const projectMapRef = useRef<Y.Map<string> | null>(null);
   const syncReadyRef = useRef(false);
   const suppressStoreSyncRef = useRef(false);
-  const lastSerializedRef = useRef('');
 
   const [collabReady, setCollabReady] = useState(false);
   const [remoteStateLoaded, setRemoteStateLoaded] = useState(false);
@@ -93,6 +86,39 @@ export function useYjsProject(
       obj[key] = value;
     }
     return obj as T;
+  }
+
+  function diffRecord<T>(
+    prev: Record<string, T>,
+    next: Record<string, T>
+  ): { added: Record<string, T>; removed: string[]; updated: Array<{ id: string; changes: Partial<T> }> } {
+    const added: Record<string, T> = {};
+    const removed: string[] = [];
+    const updated: Array<{ id: string; changes: Partial<T> }> = [];
+
+    for (const [id, entity] of Object.entries(next)) {
+      if (!prev[id]) {
+        added[id] = entity;
+      } else {
+        const changes: Partial<T> = {};
+        const entityRecord = entity as Record<string, unknown>;
+        const prevRecord = prev[id] as Record<string, unknown>;
+        for (const key of Object.keys(entityRecord)) {
+          if (JSON.stringify(prevRecord[key]) !== JSON.stringify(entityRecord[key])) {
+            (changes as Record<string, unknown>)[key] = entityRecord[key];
+          }
+        }
+        if (Object.keys(changes).length > 0) {
+          updated.push({ id, changes });
+        }
+      }
+    }
+
+    for (const id of Object.keys(prev)) {
+      if (!next[id]) removed.push(id);
+    }
+
+    return { added, removed, updated };
   }
 
   function setupIncomingEntitySync(
@@ -277,28 +303,174 @@ export function useYjsProject(
     };
   }, [channelId, projectId, mergeCollaborators, setBroadcastCursor, setBroadcastFocus]);
 
-  /* ── Push local project state into Yjs ── */
+  /* ── Outgoing: push local changes into Yjs (granular) ── */
   useEffect(() => {
+    let prevState = useProjectStore.getState();
+
     const unsubscribe = useProjectStore.subscribe((state) => {
-      const projectMap = projectMapRef.current;
-      if (!projectMap || !syncReadyRef.current || suppressStoreSyncRef.current) return;
+      const wasSuppressed = suppressStoreSyncRef.current;
+      const ydoc = ydocRef.current;
+      if (!ydoc || !syncReadyRef.current) {
+        prevState = state;
+        return;
+      }
 
-      const snapshot = createRealtimeSnapshot({
-        projectTitle: state.projectTitle,
-        localTransport: state.localTransport,
-        nodes: state.nodes,
-        edges: state.edges,
-        assets: state.assets,
-        clips: state.clips,
-        tracks: state.tracks,
-      });
-      const serialized = encodeSnapshot(snapshot);
-      if (serialized === lastSerializedRef.current) return;
+      const nodesMap = ydoc.getMap<Y.Map<unknown>>('nodes');
+      const edgesMap = ydoc.getMap<Y.Map<unknown>>('edges');
+      const clipsMap = ydoc.getMap<Y.Map<unknown>>('clips');
+      const tracksMap = ydoc.getMap<Y.Map<unknown>>('tracks');
+      const assetsMap = ydoc.getMap<Y.Map<unknown>>('assets');
+      const projectMeta = ydoc.getMap<unknown>('projectMeta');
 
-      lastSerializedRef.current = serialized;
-      projectMap.doc?.transact(() => {
-        projectMap.set(SNAPSHOT_KEY, serialized);
-      }, LOCAL_ORIGIN);
+      if (!wasSuppressed) {
+        // --- nodes ---
+        const nodeDiff = diffRecord(prevState.nodes, state.nodes);
+        if (Object.keys(nodeDiff.added).length > 0 || nodeDiff.removed.length > 0 || nodeDiff.updated.length > 0) {
+          ydoc.transact(() => {
+            for (const [id, node] of Object.entries(nodeDiff.added)) {
+              const nodeMap = new Y.Map<unknown>();
+              for (const [k, v] of Object.entries(node)) {
+                nodeMap.set(k, v);
+              }
+              nodesMap.set(id, nodeMap);
+            }
+            for (const id of nodeDiff.removed) {
+              nodesMap.delete(id);
+            }
+            for (const { id, changes } of nodeDiff.updated) {
+              const nodeMap = nodesMap.get(id);
+              if (nodeMap) {
+                for (const [k, v] of Object.entries(changes)) {
+                  nodeMap.set(k, v);
+                }
+              }
+            }
+          }, LOCAL_ORIGIN);
+        }
+
+        // --- edges ---
+        const edgeDiff = diffRecord(prevState.edges, state.edges);
+        if (Object.keys(edgeDiff.added).length > 0 || edgeDiff.removed.length > 0 || edgeDiff.updated.length > 0) {
+          ydoc.transact(() => {
+            for (const [id, edge] of Object.entries(edgeDiff.added)) {
+              const edgeMap = new Y.Map<unknown>();
+              for (const [k, v] of Object.entries(edge)) {
+                edgeMap.set(k, v);
+              }
+              edgesMap.set(id, edgeMap);
+            }
+            for (const id of edgeDiff.removed) {
+              edgesMap.delete(id);
+            }
+            for (const { id, changes } of edgeDiff.updated) {
+              const edgeMap = edgesMap.get(id);
+              if (edgeMap) {
+                for (const [k, v] of Object.entries(changes)) {
+                  edgeMap.set(k, v);
+                }
+              }
+            }
+          }, LOCAL_ORIGIN);
+        }
+
+        // --- clips ---
+        const clipDiff = diffRecord(prevState.clips, state.clips);
+        if (Object.keys(clipDiff.added).length > 0 || clipDiff.removed.length > 0 || clipDiff.updated.length > 0) {
+          ydoc.transact(() => {
+            for (const [id, clip] of Object.entries(clipDiff.added)) {
+              const clipMap = new Y.Map<unknown>();
+              for (const [k, v] of Object.entries(clip)) {
+                clipMap.set(k, v);
+              }
+              clipsMap.set(id, clipMap);
+            }
+            for (const id of clipDiff.removed) {
+              clipsMap.delete(id);
+            }
+            for (const { id, changes } of clipDiff.updated) {
+              const clipMap = clipsMap.get(id);
+              if (clipMap) {
+                for (const [k, v] of Object.entries(changes)) {
+                  clipMap.set(k, v);
+                }
+              }
+            }
+          }, LOCAL_ORIGIN);
+        }
+
+        // --- tracks ---
+        const trackDiff = diffRecord(prevState.tracks, state.tracks);
+        if (Object.keys(trackDiff.added).length > 0 || trackDiff.removed.length > 0 || trackDiff.updated.length > 0) {
+          ydoc.transact(() => {
+            for (const [id, track] of Object.entries(trackDiff.added)) {
+              const trackMap = new Y.Map<unknown>();
+              for (const [k, v] of Object.entries(track)) {
+                trackMap.set(k, v);
+              }
+              tracksMap.set(id, trackMap);
+            }
+            for (const id of trackDiff.removed) {
+              tracksMap.delete(id);
+            }
+            for (const { id, changes } of trackDiff.updated) {
+              const trackMap = tracksMap.get(id);
+              if (trackMap) {
+                for (const [k, v] of Object.entries(changes)) {
+                  trackMap.set(k, v);
+                }
+              }
+            }
+          }, LOCAL_ORIGIN);
+        }
+
+        // --- assets ---
+        const assetDiff = diffRecord(prevState.assets, state.assets);
+        if (Object.keys(assetDiff.added).length > 0 || assetDiff.removed.length > 0 || assetDiff.updated.length > 0) {
+          ydoc.transact(() => {
+            for (const [id, asset] of Object.entries(assetDiff.added)) {
+              const assetMap = new Y.Map<unknown>();
+              for (const [k, v] of Object.entries(asset)) {
+                assetMap.set(k, v);
+              }
+              assetsMap.set(id, assetMap);
+            }
+            for (const id of assetDiff.removed) {
+              assetsMap.delete(id);
+            }
+            for (const { id, changes } of assetDiff.updated) {
+              const assetMap = assetsMap.get(id);
+              if (assetMap) {
+                for (const [k, v] of Object.entries(changes)) {
+                  assetMap.set(k, v);
+                }
+              }
+            }
+          }, LOCAL_ORIGIN);
+        }
+
+        // --- projectMeta ---
+        const metaChanges: Record<string, unknown> = {};
+        if (state.projectTitle !== prevState.projectTitle) {
+          metaChanges.title = state.projectTitle;
+        }
+        const transportKeys: (keyof TransportState)[] = [
+          'playing', 'bpm', 'beatOffset', 'timeSignature', 'key', 'scene',
+        ];
+        for (const key of transportKeys) {
+          if (JSON.stringify(state.localTransport[key]) !== JSON.stringify(prevState.localTransport[key])) {
+            metaChanges[key] = state.localTransport[key];
+          }
+        }
+        if (Object.keys(metaChanges).length > 0) {
+          ydoc.transact(() => {
+            for (const [k, v] of Object.entries(metaChanges)) {
+              projectMeta.set(k, v);
+            }
+          }, LOCAL_ORIGIN);
+        }
+      }
+
+      prevState = state;
     });
 
     return () => unsubscribe();
