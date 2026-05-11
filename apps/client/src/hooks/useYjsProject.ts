@@ -9,6 +9,39 @@ import type { PatchNode, PatchEdge, Clip, Track, Asset, TransportState } from '@
 
 const LOCAL_ORIGIN = 'hayashi-local-sync';
 
+export function diffRecord<T>(
+  prev: Record<string, T>,
+  next: Record<string, T>
+): { added: Record<string, T>; removed: string[]; updated: Array<{ id: string; changes: Partial<T> }> } {
+  const added: Record<string, T> = {};
+  const removed: string[] = [];
+  const updated: Array<{ id: string; changes: Partial<T> }> = [];
+
+  for (const [id, entity] of Object.entries(next)) {
+    if (!prev[id]) {
+      added[id] = entity;
+    } else {
+      const changes: Partial<T> = {};
+      const entityRecord = entity as Record<string, unknown>;
+      const prevRecord = prev[id] as Record<string, unknown>;
+      for (const key of Object.keys(entityRecord)) {
+        if (JSON.stringify(prevRecord[key]) !== JSON.stringify(entityRecord[key])) {
+          (changes as Record<string, unknown>)[key] = entityRecord[key];
+        }
+      }
+      if (Object.keys(changes).length > 0) {
+        updated.push({ id, changes });
+      }
+    }
+  }
+
+  for (const id of Object.keys(prev)) {
+    if (!next[id]) removed.push(id);
+  }
+
+  return { added, removed, updated };
+}
+
 export function useYjsProject(
   channelId: string | null,
   projectId: string | null,
@@ -86,39 +119,6 @@ export function useYjsProject(
       obj[key] = value;
     }
     return obj as T;
-  }
-
-  function diffRecord<T>(
-    prev: Record<string, T>,
-    next: Record<string, T>
-  ): { added: Record<string, T>; removed: string[]; updated: Array<{ id: string; changes: Partial<T> }> } {
-    const added: Record<string, T> = {};
-    const removed: string[] = [];
-    const updated: Array<{ id: string; changes: Partial<T> }> = [];
-
-    for (const [id, entity] of Object.entries(next)) {
-      if (!prev[id]) {
-        added[id] = entity;
-      } else {
-        const changes: Partial<T> = {};
-        const entityRecord = entity as Record<string, unknown>;
-        const prevRecord = prev[id] as Record<string, unknown>;
-        for (const key of Object.keys(entityRecord)) {
-          if (JSON.stringify(prevRecord[key]) !== JSON.stringify(entityRecord[key])) {
-            (changes as Record<string, unknown>)[key] = entityRecord[key];
-          }
-        }
-        if (Object.keys(changes).length > 0) {
-          updated.push({ id, changes });
-        }
-      }
-    }
-
-    for (const id of Object.keys(prev)) {
-      if (!next[id]) removed.push(id);
-    }
-
-    return { added, removed, updated };
   }
 
   function setupIncomingEntitySync(
