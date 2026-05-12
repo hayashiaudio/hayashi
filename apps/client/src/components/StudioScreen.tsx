@@ -7,6 +7,7 @@ import { DrumKitEditor } from './DrumKitEditor';
 import { NodeInspector } from './NodeInspector';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
+import { openInviteDialog } from '@/hooks/useDiscordSdk';
 import { useTransportScheduler } from '@/hooks/useTransportScheduler';
 import { Save, Share2, Waves, Headphones } from 'lucide-react';
 
@@ -49,7 +50,7 @@ export function StudioScreen() {
             <Save size={13} />
             Save
           </button>
-          <button className="hayashi-canvas-btn" type="button">
+          <button className="hayashi-canvas-btn" type="button" onClick={() => openInviteDialog()}>
             <Share2 size={13} />
             Invite
           </button>
@@ -66,7 +67,7 @@ export function StudioScreen() {
       </div>
 
       {/* Bottom asset bar */}
-      <div className={`hayashi-canvas-footer ${selectedNodeId ? 'hayashi-canvas-footer-focus' : ''}`}>
+      <div className={`hayashi-canvas-footer ${selectedNodeId && !drumKitEditorNodeId ? 'hayashi-canvas-footer-focus' : ''}`}>
         {selectedNodeId ? (
           <NodeInspector embedded onClose={() => selectNode(null)} />
         ) : (

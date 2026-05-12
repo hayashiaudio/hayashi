@@ -65,6 +65,16 @@ export const BUILTIN_NODES: NodeDefinition[] = [
     inputs: 0,
     outputs: 1,
   },
+  {
+    kind: 'midiBridge',
+    label: 'MIDI Bridge',
+    description: 'Capture MIDI from hardware and synthesize audio',
+    category: 'source',
+    icon: 'AudioLines',
+    defaultParams: { waveform: 'sine', attack: 0.01, decay: 0.3, sustain: 0.6, release: 0.5, gain: 0.8, channelFilter: 'all', pairingId: '' },
+    inputs: 0,
+    outputs: 1,
+  },
   // Processors
   {
     kind: 'gain',

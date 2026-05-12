@@ -2853,8 +2853,8 @@
   .hayashi-patch-node-oscillator,
   .hayashi-patch-node-noise,
   .hayashi-patch-node-sampler,
-  .hayashi-patch-node-drumPad,
-  .hayashi-patch-node-micInput {
+  .hayashi-patch-node-micInput,
+  .hayashi-patch-node-midiBridge {
     --hayashi-node-accent: var(--hayashi-leaf);
     --hayashi-node-accent-soft: rgba(143, 177, 58, 0.14);
   }
@@ -2862,8 +2862,8 @@
   .hayashi-patch-node-oscillator,
   .hayashi-patch-node-noise,
   .hayashi-patch-node-sampler,
-  .hayashi-patch-node-drumPad,
-  .hayashi-patch-node-micInput {
+  .hayashi-patch-node-micInput,
+  .hayashi-patch-node-midiBridge {
     background: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(16, 38, 29, 0.08);
     box-shadow: 0 4px 12px rgba(16, 38, 29, 0.06);
@@ -2872,24 +2872,24 @@
   .hayashi-patch-node-oscillator::before,
   .hayashi-patch-node-noise::before,
   .hayashi-patch-node-sampler::before,
-  .hayashi-patch-node-drumPad::before,
-  .hayashi-patch-node-micInput::before {
+  .hayashi-patch-node-micInput::before,
+  .hayashi-patch-node-midiBridge::before {
     display: none;
   }
 
   .hayashi-patch-node-oscillator .hayashi-patch-node-head,
   .hayashi-patch-node-noise .hayashi-patch-node-head,
   .hayashi-patch-node-sampler .hayashi-patch-node-head,
-  .hayashi-patch-node-drumPad .hayashi-patch-node-head,
-  .hayashi-patch-node-micInput .hayashi-patch-node-head {
+  .hayashi-patch-node-micInput .hayashi-patch-node-head,
+  .hayashi-patch-node-midiBridge .hayashi-patch-node-head {
     margin-bottom: 10px;
   }
 
   .hayashi-patch-node-oscillator .hayashi-node-badge,
   .hayashi-patch-node-noise .hayashi-node-badge,
   .hayashi-patch-node-sampler .hayashi-node-badge,
-  .hayashi-patch-node-drumPad .hayashi-node-badge,
-  .hayashi-patch-node-micInput .hayashi-node-badge {
+  .hayashi-patch-node-micInput .hayashi-node-badge,
+  .hayashi-patch-node-midiBridge .hayashi-node-badge {
     background: rgba(106, 155, 61, 0.12);
     border-color: rgba(106, 155, 61, 0.16);
     color: #4b6628;
@@ -2915,6 +2915,7 @@
 
   .hayashi-patch-node-output,
   .hayashi-patch-node-workstation,
+  .hayashi-patch-node-drumPad,
   .hayashi-patch-node-drum,
   .hayashi-patch-node-mic {
     --hayashi-node-accent: var(--hayashi-signal);
@@ -4539,7 +4540,8 @@
   border: 1px solid var(--hayashi-moss);
 }
 
-.hayashi-patch-node-workstation {
+.hayashi-patch-node-workstation,
+.hayashi-patch-node-drumPad {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(247, 241, 227, 0.9)),
     rgba(250, 249, 245, 0.82);
@@ -4549,7 +4551,8 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
-.hayashi-patch-node-workstation::before {
+.hayashi-patch-node-workstation::before,
+.hayashi-patch-node-drumPad::before {
   background:
     linear-gradient(62deg, transparent 0 18%, rgba(90, 143, 184, 0.45) 18% 21%, transparent 21% 38%, rgba(90, 143, 184, 0.45) 38% 41%, transparent 41% 100%),
     linear-gradient(-62deg, transparent 0 18%, rgba(90, 143, 184, 0.45) 18% 21%, transparent 21% 38%, rgba(90, 143, 184, 0.45) 38% 41%, transparent 41% 100%);
@@ -5080,26 +5083,208 @@
   border-color: rgba(237,146,47,0.20);
 }
 
-/* Drum Pads */
+/* Drum Pads — premium hardware feel */
 .hayashi-drum-pad {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(250,247,240,0.9) 100%);
+  border: 1px solid rgba(16,38,29,0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 2px 4px rgba(16,38,29,0.04),
+    0 1px 1px rgba(16,38,29,0.03);
+  transition:
+    transform 0.06s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+/* Specular hardware highlight */
+.hayashi-drum-pad::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.5) 0%,
+    rgba(255,255,255,0) 40%
+  );
+}
+
+.hayashi-drum-pad.has-asset {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--pad-accent) 8%, rgba(255,255,255,0.9)) 0%,
+      color-mix(in srgb, var(--pad-accent) 4%, rgba(250,247,240,0.92)) 100%
+    );
+  border-color: color-mix(in srgb, var(--pad-accent) 25%, rgba(16,38,29,0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    0 2px 6px color-mix(in srgb, var(--pad-accent) 10%, rgba(16,38,29,0.04)),
+    0 1px 2px rgba(16,38,29,0.03);
 }
 
 .hayashi-drum-pad:hover {
-  border-color: rgba(247,239,215,0.15) !important;
-  background: rgba(16,38,29,0.55) !important;
-}
-
-.hayashi-drum-pad.is-selected {
-  border-color: rgba(237,146,47,0.60) !important;
-  box-shadow: 0 0 12px rgba(237,146,47,0.15);
+  border-color: color-mix(in srgb, var(--pad-accent, #ed922f) 35%, rgba(16,38,29,0.12));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 4px 12px color-mix(in srgb, var(--pad-accent, #ed922f) 12%, rgba(16,38,29,0.06)),
+    0 1px 2px rgba(16,38,29,0.03);
 }
 
 .hayashi-drum-pad:active,
 .hayashi-drum-pad.is-active {
-  transform: scale(0.97);
-  background: rgba(237,146,47,0.12) !important;
-  box-shadow: 0 0 20px rgba(237,146,47,0.25);
+  transform: scale(0.96);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--pad-accent, #ed922f) 14%, rgba(245,242,235,0.95)) 0%,
+      color-mix(in srgb, var(--pad-accent, #ed922f) 8%, rgba(240,236,228,0.95)) 100%
+    );
+  border-color: color-mix(in srgb, var(--pad-accent, #ed922f) 40%, rgba(16,38,29,0.15));
+  box-shadow:
+    inset 0 2px 6px rgba(16,38,29,0.08),
+    inset 0 1px 2px rgba(16,38,29,0.04),
+    0 0 0 1px color-mix(in srgb, var(--pad-accent, #ed922f) 20%, transparent),
+    0 0 18px color-mix(in srgb, var(--pad-accent, #ed922f) 18%, transparent);
+}
+
+/* Muted pad */
+.hayashi-drum-pad.is-muted {
+  opacity: 0.55;
+  filter: grayscale(0.65);
+}
+
+/* Glass top layer */
+.hayashi-drum-pad-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255,255,255,0.35) 0%,
+      rgba(255,255,255,0.08) 45%,
+      rgba(255,255,255,0) 60%
+    );
+  z-index: 1;
+}
+
+/* Controls */
+.hayashi-drum-pad-controls {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.hayashi-drum-pad:hover .hayashi-drum-pad-controls {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hayashi-drum-pad-btn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(16,38,29,0.08);
+  background: rgba(255,255,255,0.75);
+  color: rgba(16,38,29,0.55);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  backdrop-filter: blur(4px);
+}
+
+.hayashi-drum-pad-btn:hover {
+  background: rgba(255,255,255,0.95);
+  color: rgba(16,38,29,0.85);
+  border-color: rgba(16,38,29,0.15);
+  box-shadow: 0 1px 3px rgba(16,38,29,0.06);
+}
+
+.hayashi-drum-pad-btn:active {
+  transform: scale(0.92);
+}
+
+/* Content */
+.hayashi-drum-pad-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hayashi-drum-pad-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(16,38,29,0.35);
+  line-height: 1;
+}
+
+.hayashi-drum-pad-name {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: rgba(16,38,29,0.85);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.hayashi-drum-pad-empty-icon {
+  color: rgba(16,38,29,0.15);
+}
+
+/* Drop target indicator */
+.hayashi-drum-pad-dropzone {
+  position: absolute;
+  inset: 3px;
+  border-radius: 9px;
+  border: 1.5px dashed rgba(16,38,29,0.08);
+  pointer-events: none;
+  z-index: 0;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.hayashi-drum-pad:hover .hayashi-drum-pad-dropzone {
+  border-color: color-mix(in srgb, var(--pad-accent, #ed922f) 30%, rgba(16,38,29,0.1));
+  background: color-mix(in srgb, var(--pad-accent, #ed922f) 4%, transparent);
 }
 
 /* Record button pulse */
@@ -5114,44 +5299,284 @@
   50% { opacity: 0.85; box-shadow: 0 0 0 8px rgba(217,87,87,0); }
 }
 
-/* Asset chip in sidebar */
-.hayashi-asset-chip:hover {
-  background: rgba(250,249,245,0.10) !important;
+/* ═══════════════ COMPACT DRUM KIT DRAWER ═══════════════
+   Bottom panel for Discord Activity — no scrolling, tight fit */
+
+.hayashi-kit-drawer {
+  position: fixed;
+  bottom: var(--hayashi-footer-height);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background:
+    linear-gradient(180deg, rgba(28, 32, 38, 0.98) 0%, rgba(22, 26, 30, 0.99) 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 -8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 240px;
 }
 
-/* Muted pad */
-.hayashi-drum-pad.is-muted {
-  opacity: 0.5;
-  filter: grayscale(0.6);
-}
-
-/* Pad clear button */
-.hayashi-drum-pad-clear {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border-radius: 4px;
-  background: rgba(16,38,29,0.7);
-  border: 1px solid rgba(247,239,215,0.1);
-  color: rgba(245,230,200,0.5);
-  cursor: pointer;
+.hayashi-kit-drawer-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.hayashi-kit-drawer-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hayashi-kit-drawer-header-left span {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+}
+
+.hayashi-kit-drawer-header-left strong {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.hayashi-kit-drawer-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.hayashi-kit-drawer-body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  padding: 6px 10px 8px;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* Pad grid — scales to fit available width, never scrolls */
+.hayashi-kit-drawer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 4px;
+  flex: 1;
+  max-width: 260px;
+  min-height: 0;
+}
+
+.hayashi-kit-drawer-pad {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.1s ease;
+  gap: 1px;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.15);
+  transition:
+    transform 0.05s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.08s ease,
+    border-color 0.08s ease;
 }
 
-.hayashi-drum-pad:hover .hayashi-drum-pad-clear {
-  opacity: 1;
+.hayashi-kit-drawer-pad::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0) 40%
+  );
 }
 
-.hayashi-drum-pad-clear:hover {
-  color: #d95757;
-  border-color: rgba(217,87,87,0.3);
+.hayashi-kit-drawer-pad.has-asset {
+  background: color-mix(in srgb, var(--pad-accent) 10%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--pad-accent) 25%, rgba(255, 255, 255, 0.06));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 3px color-mix(in srgb, var(--pad-accent) 8%, rgba(0, 0, 0, 0.2));
+}
+
+.hayashi-kit-drawer-pad:hover {
+  border-color: color-mix(in srgb, var(--pad-accent, #ed922f) 35%, rgba(255, 255, 255, 0.1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 6px color-mix(in srgb, var(--pad-accent, #ed922f) 10%, rgba(0, 0, 0, 0.25));
+}
+
+.hayashi-kit-drawer-pad.is-active {
+  transform: scale(0.94);
+  background: color-mix(in srgb, var(--pad-accent) 22%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, var(--pad-accent) 45%, rgba(255, 255, 255, 0.1));
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.2),
+    0 0 10px color-mix(in srgb, var(--pad-accent) 15%, transparent);
+}
+
+.hayashi-kit-drawer-pad.is-muted {
+  opacity: 0.35;
+}
+
+.hayashi-kit-drawer-pad.is-muted::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.15) 3px,
+    rgba(0, 0, 0, 0.15) 5px
+  );
+}
+
+.hayashi-kit-drawer-pad-index {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.45rem;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.25);
+  line-height: 1;
+  z-index: 1;
+}
+
+.hayashi-kit-drawer-pad-name {
+  font-size: 0.52rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.1;
+  z-index: 1;
+}
+
+.hayashi-kit-drawer-pad-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pad-accent);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--pad-accent) 50%, transparent);
+  z-index: 1;
+}
+
+/* Right control strip */
+.hayashi-kit-drawer-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 64px;
+  flex-shrink: 0;
+  justify-content: flex-start;
+}
+
+.hayashi-kit-drawer-strip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  white-space: nowrap;
+}
+
+.hayashi-kit-drawer-strip-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hayashi-kit-drawer-strip-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.hayashi-kit-drawer-strip-btn.is-recording-drawer {
+  animation: hayashi-record-pulse 1.2s infinite ease-in-out;
+  color: #e08a8a !important;
+  border-color: rgba(224, 138, 138, 0.4) !important;
+  background: rgba(199, 91, 91, 0.08) !important;
+}
+
+.hayashi-kit-drawer-strip-btn.is-active-mode {
+  background: rgba(143, 177, 58, 0.15);
+  border-color: rgba(143, 177, 58, 0.3);
+  color: #a8c96a;
+}
+
+.hayashi-kit-drawer-status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  padding: 2px 0;
+}
+
+/* Drop indicator on empty pads */
+.hayashi-kit-drawer-pad-drop {
+  position: absolute;
+  inset: 2px;
+  border-radius: 3px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hayashi-kit-drawer-pad:hover .hayashi-kit-drawer-pad-drop {
+  border-color: color-mix(in srgb, var(--pad-accent, #ed922f) 25%, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--pad-accent, #ed922f) 5%, transparent);
+}
+
+/* Asset chip in sidebar */
+.hayashi-asset-chip:hover {
+.hayashi-asset-chip:hover {
+  background: rgba(16,38,29,0.08) !important;
 }
 
 /* Remote Presence Cursors */
@@ -5191,4 +5616,886 @@
   border-color: rgba(217,87,87,0.50) !important;
   box-shadow: 0 0 20px rgba(217,87,87,0.20);
   animation: hayashi-record-pulse 1.2s infinite ease-in-out;
+}
+
+/* MIDI Bridge Node */
+.hayashi-midi-keyboard {
+  display: flex;
+  gap: 1px;
+  height: 28px;
+  margin: 6px 0;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(16, 38, 29, 0.06);
+}
+
+.hayashi-midi-key {
+  flex: 1;
+  border-radius: 0 0 2px 2px;
+  transition: background 0.05s ease;
+}
+
+.hayashi-midi-key-white {
+  background: rgba(250, 249, 245, 0.9);
+}
+
+.hayashi-midi-key-black {
+  background: rgba(16, 38, 29, 0.35);
+}
+
+.hayashi-midi-key-active {
+  background: var(--hayashi-node-accent, #8fb13a) !important;
+}
+
+.hayashi-midi-arm-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 38, 29, 0.1);
+  background: rgba(250, 249, 245, 0.6);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  color: #3a4a3e;
+  transition: all 0.15s ease;
+}
+
+.hayashi-midi-arm-btn:hover {
+  background: rgba(250, 249, 245, 0.9);
+}
+
+.hayashi-midi-arm-btn.hayashi-midi-armed {
+  background: rgba(237, 146, 47, 0.14);
+  border-color: rgba(237, 146, 47, 0.3);
+  color: #a05a1a;
+}
+
+.hayashi-node-dot-armed {
+  background: #ed922f;
+  box-shadow: 0 0 6px rgba(237, 146, 47, 0.4);
+}
+
+.hayashi-node-dot-active {
+  animation: hayashi-midi-flash 0.15s ease;
+}
+
+.hayashi-node-dot-pending {
+  background: #d4a017;
+  box-shadow: 0 0 8px rgba(212, 160, 23, 0.5);
+  animation: hayashi-midi-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes hayashi-midi-flash {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes hayashi-midi-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.hayashi-pairing-section {
+  padding: 6px 8px 8px;
+}
+
+.hayashi-pairing-code-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hayashi-pairing-code-input {
+  flex: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 38, 29, 0.1);
+  background: rgba(250, 249, 245, 0.6);
+  font-family: var(--hayashi-font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #3a4a3e;
+  text-align: center;
+  cursor: default;
+  outline: none;
+}
+
+.hayashi-pairing-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 38, 29, 0.1);
+  background: rgba(250, 249, 245, 0.6);
+  cursor: pointer;
+  color: #5a6a5e;
+  transition: all 0.15s ease;
+}
+
+.hayashi-pairing-copy-btn:hover {
+  background: rgba(250, 249, 245, 0.9);
+  color: #2a3a2e;
+}
+
+/* ═══════════════════════════════════════════════
+   BOUTIQUE RACK PANEL — Node Inspector redesign
+   ═══════════════════════════════════════════════ */
+
+.hayashi-rack-panel {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(250, 248, 242, 0.98) 0%, rgba(245, 242, 235, 0.96) 100%);
+  border: 1px solid rgba(16, 38, 29, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 -2px 12px rgba(16, 38, 29, 0.04),
+    0 4px 20px rgba(16, 38, 29, 0.03);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.hayashi-rack-panel-embedded {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+/* Screw decorations */
+.hayashi-rack-screws {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hayashi-rack-screws::before,
+.hayashi-rack-screws::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 35%, rgba(255,255,255,0.8), rgba(180,170,150,0.3) 40%, rgba(140,130,110,0.4) 100%);
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.hayashi-rack-screws::before { top: 10px; left: 10px; }
+.hayashi-rack-screws::after  { top: 10px; right: 10px; }
+
+/* Header */
+.hayashi-rack-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px 8px;
+  border-bottom: 1px solid rgba(16, 38, 29, 0.06);
+}
+
+.hayashi-rack-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hayashi-rack-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: rgba(106, 155, 61, 0.1);
+  border: 1px solid rgba(106, 155, 61, 0.15);
+  color: #5a7a35;
+  flex-shrink: 0;
+}
+
+.hayashi-rack-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(16, 38, 29, 0.4);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.hayashi-rack-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1a2e1f;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.hayashi-rack-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hayashi-rack-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(16, 38, 29, 0.15);
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.hayashi-rack-led[data-active="true"] {
+  background: #8fb13a;
+  box-shadow: 0 0 6px rgba(143, 177, 58, 0.5), inset 0 -1px 1px rgba(0,0,0,0.1);
+}
+
+.hayashi-rack-status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(16, 38, 29, 0.45);
+}
+
+.hayashi-rack-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(16, 38, 29, 0.08);
+  background: rgba(255, 255, 255, 0.5);
+  color: rgba(16, 38, 29, 0.45);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 4px;
+}
+
+.hayashi-rack-close:hover {
+  background: rgba(217, 87, 87, 0.08);
+  border-color: rgba(217, 87, 87, 0.2);
+  color: #b54545;
+}
+
+/* Tabs */
+.hayashi-rack-tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(16, 38, 29, 0.05);
+}
+
+.hayashi-rack-tab {
+  padding: 7px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(16, 38, 29, 0.4);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hayashi-rack-tab:hover {
+  color: rgba(16, 38, 29, 0.65);
+}
+
+.hayashi-rack-tab-active {
+  color: #1a2e1f;
+  border-bottom-color: #ed922f;
+  font-weight: 600;
+}
+
+/* Body & scroll area */
+.hayashi-rack-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 38, 29, 0.1) transparent;
+}
+
+.hayashi-rack-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.hayashi-rack-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hayashi-rack-body::-webkit-scrollbar-thumb {
+  background: rgba(16, 38, 29, 0.12);
+  border-radius: 10px;
+}
+
+/* Section container */
+.hayashi-rack-section {
+  animation: hayashi-rack-fade-in 0.25s ease;
+}
+
+@keyframes hayashi-rack-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Empty state */
+.hayashi-rack-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: rgba(16, 38, 29, 0.25);
+}
+
+.hayashi-rack-empty p {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.45);
+}
+
+.hayashi-rack-empty span {
+  font-size: 0.65rem;
+  color: rgba(16, 38, 29, 0.3);
+}
+
+/* ═══════════════ KNOB GRID ═══════════════ */
+
+.hayashi-rack-knob-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 18px 12px;
+  padding: 8px 0 16px;
+}
+
+.hayashi-rack-knob-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.hayashi-rack-knob {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9) 0%, rgba(245,242,235,0.95) 60%, rgba(230,225,215,0.9) 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.8),
+    inset 0 -2px 4px rgba(16,38,29,0.06),
+    0 3px 8px rgba(16,38,29,0.08),
+    0 1px 2px rgba(16,38,29,0.04);
+  cursor: ns-resize;
+  display: grid;
+  place-items: center;
+  user-select: none;
+  touch-action: none;
+}
+
+.hayashi-rack-knob-dial {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 225deg,
+      rgba(237, 146, 47, 0.15) 0deg,
+      rgba(237, 146, 47, 0.08) 90deg,
+      transparent 90deg,
+      transparent 270deg,
+      rgba(237, 146, 47, 0.08) 270deg,
+      rgba(237, 146, 47, 0.15) 360deg
+    );
+}
+
+.hayashi-rack-knob-marker {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 10px;
+  border-radius: 2px;
+  background: #ed922f;
+  box-shadow: 0 0 4px rgba(237, 146, 47, 0.3);
+}
+
+.hayashi-rack-knob-track {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background:
+    conic-gradient(
+      from 225deg,
+      rgba(237, 146, 47, 0.35) 0deg,
+      rgba(237, 146, 47, 0.15) 90deg,
+      transparent 90deg,
+      transparent 180deg,
+      transparent 270deg,
+      rgba(237, 146, 47, 0.15) 270deg,
+      rgba(237, 146, 47, 0.35) 360deg
+    )
+    border-box;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.hayashi-rack-knob-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: #1a2e1f;
+  letter-spacing: -0.02em;
+}
+
+.hayashi-rack-knob-label {
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.4);
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  text-align: center;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══════════════ SWITCH / TOGGLE ═══════════════ */
+
+.hayashi-rack-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(16, 38, 29, 0.04);
+}
+
+.hayashi-rack-switch-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.7);
+}
+
+.hayashi-rack-toggle {
+  position: relative;
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgba(16, 38, 29, 0.1);
+  border: 1px solid rgba(16, 38, 29, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.hayashi-rack-toggle-on {
+  background: rgba(143, 177, 58, 0.25);
+  border-color: rgba(143, 177, 58, 0.35);
+}
+
+.hayashi-rack-toggle-pill {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 38, 29, 0.15);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hayashi-rack-toggle-on .hayashi-rack-toggle-pill {
+  transform: translateX(18px);
+  background: #8fb13a;
+  box-shadow: 0 0 6px rgba(143, 177, 58, 0.4);
+}
+
+/* ═══════════════ SEGMENTED SELECTOR ═══════════════ */
+
+.hayashi-rack-select-row {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(16, 38, 29, 0.04);
+}
+
+.hayashi-rack-select-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.7);
+  margin-bottom: 8px;
+}
+
+.hayashi-rack-segmented {
+  display: flex;
+  gap: 1px;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(16, 38, 29, 0.04);
+  border: 1px solid rgba(16, 38, 29, 0.06);
+}
+
+.hayashi-rack-segment {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(16, 38, 29, 0.45);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.hayashi-rack-segment:hover {
+  color: rgba(16, 38, 29, 0.7);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.hayashi-rack-segment-active {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #1a2e1f !important;
+  box-shadow: 0 1px 3px rgba(16, 38, 29, 0.06);
+  font-weight: 600;
+}
+
+/* ═══════════════ INFO ROWS ═══════════════ */
+
+.hayashi-rack-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(16, 38, 29, 0.04);
+}
+
+.hayashi-rack-info-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.7);
+}
+
+.hayashi-rack-info-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: rgba(16, 38, 29, 0.55);
+  background: rgba(16, 38, 29, 0.03);
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+/* ═══════════════ DRUM PAD GRID (inspector — ultra-compact) ═══════════════ */
+
+.hayashi-rack-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  padding: 2px 0 4px;
+}
+
+.hayashi-rack-pad {
+  aspect-ratio: 1 / 1;
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(245,242,235,0.75) 100%);
+  border: 1px solid rgba(16, 38, 29, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    0 1px 2px rgba(16,38,29,0.02);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 3px;
+  transition: all 0.1s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.hayashi-rack-pad:hover {
+  border-color: rgba(237, 146, 47, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    0 2px 4px rgba(237,146,47,0.06);
+}
+
+.hayashi-rack-pad-filled {
+  background:
+    linear-gradient(180deg, rgba(237,146,47,0.05) 0%, rgba(245,242,235,0.8) 100%);
+  border-color: rgba(237, 146, 47, 0.12);
+}
+
+.hayashi-rack-pad-index {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.45rem;
+  letter-spacing: 0.06em;
+  color: rgba(16, 38, 29, 0.2);
+  line-height: 1;
+}
+
+.hayashi-rack-pad-name {
+  font-size: 0.5rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.5);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.1;
+}
+
+/* Waveform removed from inspector grid to prevent overflow —
+   shown only in full DrumKitEditor drawer */
+
+/* Output asset row */
+.hayashi-rack-output-asset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: rgba(237, 146, 47, 0.04);
+  border: 1px solid rgba(237, 146, 47, 0.08);
+  margin-top: 4px;
+}
+
+.hayashi-rack-output-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(237, 146, 47, 0.6);
+  flex-shrink: 0;
+}
+
+.hayashi-rack-output-name {
+  font-size: 0.55rem;
+  color: rgba(16, 38, 29, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ═══════════════ SAMPLER PREVIEW ═══════════════ */
+
+.hayashi-rack-sampler-preview {
+  padding: 8px 0;
+}
+
+.hayashi-rack-sample-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(16, 38, 29, 0.02);
+  border: 1px solid rgba(16, 38, 29, 0.05);
+  margin-bottom: 10px;
+}
+
+.hayashi-rack-sample-name {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #1a2e1f;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hayashi-rack-sample-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  color: rgba(16, 38, 29, 0.4);
+  white-space: nowrap;
+}
+
+.hayashi-rack-sample-waveform {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 48px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(16, 38, 29, 0.02);
+  border: 1px solid rgba(16, 38, 29, 0.05);
+}
+
+.hayashi-rack-sample-bar {
+  flex: 1;
+  background: rgba(106, 155, 61, 0.35);
+  border-radius: 1px;
+  min-height: 2px;
+  transition: height 0.1s ease;
+}
+
+/* ═══════════════ MIDI STATUS ═══════════════ */
+
+.hayashi-rack-midi-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 0;
+}
+
+.hayashi-rack-midi-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(16, 38, 29, 0.04);
+}
+
+.hayashi-rack-midi-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hayashi-rack-midi-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  color: rgba(16, 38, 29, 0.7);
+  background: rgba(16, 38, 29, 0.03);
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+.hayashi-rack-midi-armed {
+  background: rgba(143, 177, 58, 0.15);
+  color: #5a7a35;
+  font-weight: 600;
+}
+
+/* ═══════════════ CLIP LIST ═══════════════ */
+
+.hayashi-rack-clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.hayashi-rack-clip {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(16, 38, 29, 0.06);
+  box-shadow: 0 1px 2px rgba(16, 38, 29, 0.02);
+  transition: all 0.15s ease;
+}
+
+.hayashi-rack-clip:hover {
+  border-color: rgba(106, 155, 61, 0.2);
+  box-shadow: 0 2px 6px rgba(106, 155, 61, 0.06);
+}
+
+.hayashi-rack-clip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.hayashi-rack-clip-name {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #1a2e1f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.hayashi-rack-clip-range {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  color: rgba(16, 38, 29, 0.4);
+}
+
+.hayashi-rack-clip-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(16, 38, 29, 0.06);
+  overflow: hidden;
+}
+
+.hayashi-rack-clip-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: rgba(106, 155, 61, 0.5);
+  transition: width 0.3s ease;
+}
+
+/* ═══════════════ FAUST ═══════════════ */
+
+.hayashi-rack-faust-row {
+  padding: 12px 0 4px;
+}
+
+.hayashi-rack-faust-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 38, 29, 0.08);
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: rgba(16, 38, 29, 0.6);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+.hayashi-rack-faust-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(237, 146, 47, 0.25);
+  color: rgba(16, 38, 29, 0.85);
 }
