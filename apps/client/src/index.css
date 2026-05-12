@@ -3685,6 +3685,66 @@
     gap: 6px;
   }
 
+  /* ═══════════════ MIC INPUT NODE ═══════════════ */
+
+  .hayashi-mic-wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: 20px;
+    margin-top: 6px;
+    opacity: 0.25;
+    transition: opacity 0.2s ease;
+  }
+
+  .hayashi-patch-node-micInput.is-armed .hayashi-mic-wave,
+  .hayashi-patch-node-micInput.is-recording .hayashi-mic-wave {
+    opacity: 1;
+  }
+
+  .hayashi-mic-bar {
+    display: block;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--hayashi-ember);
+    height: 2px;
+    transition: height 0.05s linear, background 0.2s ease;
+  }
+
+  .hayashi-patch-node-micInput.is-recording .hayashi-mic-bar {
+    background: #b1321f;
+  }
+
+  .hayashi-mic-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hayashi-mic-status {
+    font-size: 0.6rem;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.04em;
+    margin-top: 5px;
+    text-align: center;
+    color: #6a9b3d;
+    min-height: 1em;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hayashi-mic-status.is-error {
+    color: #b1321f;
+  }
+
+  .hayashi-mic-status.is-info {
+    color: rgba(16, 38, 29, 0.45);
+  }
+
   .hayashi-daw-timecode {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1.5rem;
@@ -6497,4 +6557,152 @@
   background: rgba(255, 255, 255, 0.9);
   border-color: rgba(237, 146, 47, 0.25);
   color: rgba(16, 38, 29, 0.85);
+}
+
+/* ═══════════════════════════════════════════════
+   COMPACT NO-SCROLL LAYOUT — Discord Activities
+   ═══════════════════════════════════════════════ */
+
+.hayashi-rack-panel-embedded .hayashi-rack-body {
+  overflow: hidden;
+  padding: 8px 14px 10px;
+}
+
+.hayashi-rack-panel-embedded .hayashi-rack-header {
+  padding: 8px 14px 6px;
+}
+
+.hayashi-rack-panel-embedded .hayashi-rack-tabs {
+  padding: 0 10px;
+}
+
+.hayashi-rack-panel-embedded .hayashi-rack-tab {
+  padding: 5px 10px;
+}
+
+/* Horizontal param strip — all params in one row, no scroll */
+.hayashi-rack-param-strip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 0 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hayashi-rack-param-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mini knobs for compact strip */
+.hayashi-rack-param-strip .hayashi-rack-knob-unit {
+  flex-shrink: 0;
+  gap: 3px;
+}
+
+.hayashi-rack-param-strip .hayashi-rack-knob {
+  width: 36px;
+  height: 36px;
+}
+
+.hayashi-rack-param-strip .hayashi-rack-knob-dial {
+  inset: 3px;
+}
+
+.hayashi-rack-param-strip .hayashi-rack-knob-marker {
+  top: 2px;
+  width: 2px;
+  height: 7px;
+}
+
+.hayashi-rack-param-strip .hayashi-rack-knob-track {
+  inset: -2px;
+  border-width: 1.5px;
+}
+
+.hayashi-rack-param-strip .hayashi-rack-knob-value {
+  font-size: 0.55rem;
+}
+
+.hayashi-rack-param-strip .hayashi-rack-knob-label {
+  font-size: 0.5rem;
+  max-width: 44px;
+}
+
+/* Inline segmented control block */
+.hayashi-rack-segment-inline,
+.hayashi-rack-toggle-inline,
+.hayashi-rack-info-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.hayashi-rack-segment-inline .hayashi-rack-segmented.compact {
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.hayashi-rack-segment-inline .hayashi-rack-segment {
+  padding: 3px 5px;
+  font-size: 0.5rem;
+  border-radius: 4px;
+}
+
+/* Mini toggle inline */
+.hayashi-rack-toggle-inline .hayashi-rack-toggle.mini {
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+}
+
+.hayashi-rack-toggle-inline .hayashi-rack-toggle-pill {
+  width: 11px;
+  height: 11px;
+  top: 1.5px;
+  left: 1.5px;
+}
+
+.hayashi-rack-toggle-on .hayashi-rack-toggle-pill {
+  transform: translateX(12px);
+}
+
+/* Compact empty state */
+.hayashi-rack-empty.mini {
+  padding: 12px 8px;
+  gap: 4px;
+}
+
+.hayashi-rack-empty.mini p {
+  font-size: 0.65rem;
+}
+
+/* Compact clip list */
+.hayashi-rack-clip-list.compact {
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.hayashi-rack-clip-list.compact .hayashi-rack-clip {
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+
+.hayashi-rack-clip-list.compact .hayashi-rack-clip-header {
+  margin-bottom: 3px;
+}
+
+.hayashi-rack-clip-list.compact .hayashi-rack-clip-name {
+  font-size: 0.6rem;
+}
+
+.hayashi-rack-clip-list.compact .hayashi-rack-clip-range {
+  font-size: 0.5rem;
+}
+
+.hayashi-rack-clip-list.compact .hayashi-rack-clip-bar {
+  height: 3px;
 }
