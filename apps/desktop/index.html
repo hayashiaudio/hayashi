@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hayashi MIDI Bridge</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="status-bar">
+        <span class="dot" id="status-dot"></span>
+        <span id="status-text">Initializing…</span>
+      </div>
+      <div id="main-view" class="hidden">
+        <div class="field">
+          <label>MIDI Device</label>
+          <select id="midi-device"><option>None</option></select>
+        </div>
+        <div class="field">
+          <label>MIDI In</label>
+          <span id="midi-rate">0 msg/s</span>
+        </div>
+        <div class="field">
+          <label>RTP-MIDI</label>
+          <span id="rtpmidi-status">Off</span>
+        </div>
+        <div class="field pairing">
+          <label>Pairing Code</label>
+          <input id="pairing-input" type="text" placeholder="e.g. calm-river-9137" maxlength="32" />
+          <button id="pair-btn">Pair</button>
+        </div>
+        <div id="paired-badge" class="hidden">
+          <span class="dot green"></span>
+          <span id="paired-code"></span>
+        </div>
+        <div class="actions">
+          <button id="disconnect-btn" class="secondary">Disconnect</button>
+          <button id="quit-btn" class="secondary">Quit</button>
+        </div>
+      </div>
+      <div id="lock-view" class="hidden">
+        <p>Hayashi Unlimited plan required.</p>
+        <button id="upgrade-btn">Upgrade</button>
+      </div>
+      <div id="auth-view">
+        <button id="connect-discord-btn">Connect Discord</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
