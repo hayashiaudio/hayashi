@@ -5,7 +5,7 @@ import { audioEngine } from '@/audio/engine';
 import { transportScheduler } from '@/audio/transportScheduler';
 import type { PatchNode, Track, NodeKind } from '@/types/project';
 import { Play, Square, Plus, CircleDot, Volume2, VolumeX, Disc3, Mic, Trash2 } from 'lucide-react';
-import { updateTrackBus } from '@/audio/graphCompiler';
+import { updateTrackBus, tapNode } from '@/audio/graphCompiler';
 import { encodeWav } from '@/audio/drumEngine';
 import { storeSample } from '@/samples/indexedDb';
 
@@ -151,64 +151,157 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
   const recordingClipIdsRef = useRef<string[]>([]);
   const recordStartBeatRef = useRef(0);
   const recordRafRef = useRef(0);
+  const synthRecordersRef = useRef<
+    Map<
+      string,
+      {
+        recorder: MediaRecorder;
+        chunks: Blob[];
+        destination: MediaStreamAudioDestinationNode;
+        cleanup: () => void;
+      }
+    >
+  >(new Map());
 
   const stopRecording = useCallback(async () => {
-    const recorder = recorderRef.current;
-    if (!recorder || recorder.state === 'inactive') return;
-    recorder.stop();
-    recorder.stream.getTracks().forEach((t) => t.stop());
+    // Stop mic recorder
+    const micRecorder = recorderRef.current;
+    if (micRecorder && micRecorder.state !== 'inactive') {
+      micRecorder.stop();
+      micRecorder.stream.getTracks().forEach((t) => t.stop());
+    }
+
+    // Stop midiBridge recorders
+    const synthEntries = Array.from(synthRecordersRef.current.entries());
+    for (const [, { recorder }] of synthEntries) {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+    }
+
     setRecording(false);
     cancelAnimationFrame(recordRafRef.current);
 
-    const chunks = recordingChunksRef.current;
-    if (chunks.length === 0) {
+    const ctx = audioEngine.ctx;
+    if (!ctx) {
+      for (const [, { cleanup }] of synthEntries) {
+        cleanup();
+      }
+      synthRecordersRef.current.clear();
       recordingClipIdsRef.current.forEach((id) => removeClip(id));
       recordingClipIdsRef.current = [];
       return;
     }
 
-    const blob = new Blob(chunks, { type: recorder.mimeType });
-    const ctx = audioEngine.ctx;
-    if (!ctx) return;
+    // Wait a tick for recorders to flush
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    const wavBlob = encodeWav(audioBuffer);
+    // Process mic recording
+    const micChunks = recordingChunksRef.current;
+    let micAssetId: string | null = null;
+    let micDurationSeconds = 0;
+    if (micChunks.length > 0) {
+      const blob = new Blob(micChunks, { type: 'audio/webm' });
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      const wavBlob = encodeWav(audioBuffer);
+      micDurationSeconds = audioBuffer.duration;
 
-    const assetId = `asset-${crypto.randomUUID().slice(0, 8)}`;
-    const wavArrayBuffer = await wavBlob.arrayBuffer();
-    await storeSample(
-      assetId,
-      'Recording',
-      wavArrayBuffer,
-      'audio/wav',
-      {
+      const assetId = `asset-${crypto.randomUUID().slice(0, 8)}`;
+      const wavArrayBuffer = await wavBlob.arrayBuffer();
+      await storeSample(
+        assetId,
+        'Recording',
+        wavArrayBuffer,
+        'audio/wav',
+        {
+          durationSeconds: audioBuffer.duration,
+          sampleRate: audioBuffer.sampleRate,
+          channels: audioBuffer.numberOfChannels,
+        }
+      );
+
+      addAsset({
+        id: assetId,
+        kind: 'sample',
+        name: 'Recording',
+        mimeType: 'audio/wav',
         durationSeconds: audioBuffer.duration,
         sampleRate: audioBuffer.sampleRate,
         channels: audioBuffer.numberOfChannels,
+      });
+
+      micAssetId = assetId;
+    }
+
+    // Process midiBridge recordings
+    const midiBridgeBuffers = new Map<string, AudioBuffer>();
+    for (const [trackId, { chunks, cleanup }] of synthEntries) {
+      cleanup();
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const arrayBuffer = await blob.arrayBuffer();
+        const buffer = await ctx.decodeAudioData(arrayBuffer);
+        midiBridgeBuffers.set(trackId, buffer);
       }
-    );
+    }
+    synthRecordersRef.current.clear();
 
-    addAsset({
-      id: assetId,
-      kind: 'sample',
-      name: 'Recording',
-      mimeType: 'audio/wav',
-      durationSeconds: audioBuffer.duration,
-      sampleRate: audioBuffer.sampleRate,
-      channels: audioBuffer.numberOfChannels,
-    });
+    // Update mic track clips
+    if (micAssetId) {
+      for (const clipId of recordingClipIdsRef.current) {
+        const clip = useProjectStore.getState().clips[clipId];
+        const track = clip ? useProjectStore.getState().tracks[clip.trackId] : null;
+        const source = track?.sourceNodeId ? nodes[track.sourceNodeId] ?? null : null;
+        if (!clip || source?.kind === 'midiBridge') continue;
+        const durationBeats = Math.max(1, Math.round((micDurationSeconds * transport.bpm) / 60));
+        addClip({ ...clip, lengthBeats: durationBeats, assetId: micAssetId });
+      }
+    }
 
-    for (const clipId of recordingClipIdsRef.current) {
-      const clip = useProjectStore.getState().clips[clipId];
-      if (clip) {
-        updateClipTiming(clipId, clip.startBeat, Math.max(1, Math.round((audioBuffer.duration * transport.bpm) / 60)));
+    // Update midiBridge track clips
+    for (const [trackId, buffer] of midiBridgeBuffers) {
+      const wavBlob = encodeWav(buffer);
+      const assetId = `asset-${crypto.randomUUID().slice(0, 8)}`;
+      const wavArrayBuffer = await wavBlob.arrayBuffer();
+      await storeSample(
+        assetId,
+        'Synthesis Recording',
+        wavArrayBuffer,
+        'audio/wav',
+        {
+          durationSeconds: buffer.duration,
+          sampleRate: buffer.sampleRate,
+          channels: buffer.numberOfChannels,
+        }
+      );
+
+      addAsset({
+        id: assetId,
+        kind: 'sample',
+        name: 'Synthesis Recording',
+        mimeType: 'audio/wav',
+        durationSeconds: buffer.duration,
+        sampleRate: buffer.sampleRate,
+        channels: buffer.numberOfChannels,
+      });
+
+      const clipId = recordingClipIdsRef.current.find((id) => {
+        const c = useProjectStore.getState().clips[id];
+        return c?.trackId === trackId;
+      });
+      if (clipId) {
+        const clip = useProjectStore.getState().clips[clipId];
+        if (clip) {
+          const durationBeats = Math.max(1, Math.round((buffer.duration * transport.bpm) / 60));
+          addClip({ ...clip, lengthBeats: durationBeats, assetId });
+        }
       }
     }
 
     recordingChunksRef.current = [];
     recordingClipIdsRef.current = [];
-  }, [removeClip, addAsset, updateClipTiming, transport.bpm]);
+  }, [removeClip, addAsset, transport.bpm, addClip]);
 
   const startRecording = useCallback(async () => {
     await audioEngine.resume().catch(() => {});
@@ -216,25 +309,25 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
       updateTransport({ playing: true });
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-    recorderRef.current = recorder;
-    recordingChunksRef.current = [];
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordingChunksRef.current.push(e.data);
-    };
-
     const armedTracks = nodeTracks.filter((t) => t.armed);
-    if (armedTracks.length === 0) {
-      stream.getTracks().forEach((t) => t.stop());
-      return;
+    if (armedTracks.length === 0) return;
+
+    // Separate by source type
+    const micTracks: typeof armedTracks = [];
+    const midiBridgeTracks: typeof armedTracks = [];
+    for (const track of armedTracks) {
+      const source = track.sourceNodeId ? nodes[track.sourceNodeId] ?? null : null;
+      if (source?.kind === 'midiBridge') {
+        midiBridgeTracks.push(track);
+      } else {
+        micTracks.push(track);
+      }
     }
 
+    // Create clips for all armed tracks
     const startBeat = Math.max(0, Math.round(playheadBeat));
     recordStartBeatRef.current = startBeat;
     const clipIds: string[] = [];
-
     for (const track of armedTracks) {
       const clipId = `clip-${crypto.randomUUID().slice(0, 8)}`;
       clipIds.push(clipId);
@@ -249,7 +342,44 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
     }
     recordingClipIdsRef.current = clipIds;
 
-    recorder.start(100);
+    // Mic path
+    if (micTracks.length > 0) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      recorderRef.current = recorder;
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+      };
+      recorder.start(100);
+    }
+
+    // midiBridge synthesis path
+    const audioCtx = audioEngine.ctx;
+    if (audioCtx && midiBridgeTracks.length > 0) {
+      for (const track of midiBridgeTracks) {
+        const source = track.sourceNodeId ? nodes[track.sourceNodeId] ?? null : null;
+        if (!source) continue;
+        const destination = audioCtx.createMediaStreamDestination();
+        const cleanup = tapNode(source.id, destination);
+        if (!cleanup) continue;
+
+        const recorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+        recorder.start(100);
+
+        synthRecordersRef.current.set(track.id, {
+          recorder,
+          chunks,
+          destination,
+          cleanup,
+        });
+      }
+    }
+
     setRecording(true);
 
     const tick = () => {
@@ -266,7 +396,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
       }
     };
     recordRafRef.current = requestAnimationFrame(tick);
-  }, [nodeTracks, playheadBeat, transport.playing, updateTransport, addClip, recording]);
+  }, [nodeTracks, playheadBeat, transport.playing, updateTransport, addClip, recording, nodes]);
 
   const toggleRecord = useCallback(() => {
     if (recording) {
@@ -564,6 +694,19 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
                 }}
               >
                 {source?.kind}
+              </span>
+            )}
+            {source?.kind === 'midiBridge' && (
+              <span
+                style={{
+                  flexShrink: 0,
+                  fontSize: '0.58rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'rgba(212, 140, 46, 0.65)',
+                }}
+              >
+                Synthesis
               </span>
             )}
           </div>

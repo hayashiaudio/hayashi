@@ -1,5 +1,6 @@
 import type { PatchNode, PatchEdge, Track } from '@/types/project';
 import { audioEngine } from './engine';
+import { midiEngine } from './midiEngine';
 import { compileFaustNode } from './faustLoader';
 import { getFaustModule, getSample } from '@/samples/indexedDb';
 import { transportScheduler } from './transportScheduler';
@@ -101,7 +102,24 @@ export async function getCachedSampleBuffer(assetId: string, ctx: RenderContext)
   const cached = sampleBufferCache.get(assetId);
   if (cached) return cached;
 
-  const sample = await getSample(assetId);
+  let sample = await getSample(assetId);
+
+  if (!sample) {
+    const asset = useProjectStore.getState().assets[assetId];
+    if (asset?.storageUrl) {
+      const { fetchMissingSample } = await import('@/samples/sync');
+      const ok = await fetchMissingSample(assetId, asset.storageUrl, {
+        name: asset.name,
+        mimeType: asset.mimeType,
+        duration: asset.durationSeconds,
+        sampleRate: asset.sampleRate,
+        channels: asset.channels,
+        waveformPeaks: asset.waveformPeaks,
+      });
+      if (ok) sample = await getSample(assetId);
+    }
+  }
+
   if (!sample) {
     console.warn('[Hayashi] Sample asset not found in IndexedDB:', assetId);
     return null;
@@ -158,6 +176,9 @@ function cleanupGraph(graph: CompiledGraph) {
   for (const runtime of graph.nodes.values()) {
     if (runtime.kind === 'drumPad') {
       unregisterSubmix(runtime.id);
+    }
+    if (runtime.kind === 'midiBridge') {
+      midiEngine.unregisterNode(runtime.id);
     }
   }
 }
@@ -380,6 +401,31 @@ async function compileGraphInternal(
           source.connect(output);
           audioNode = output;
         }
+        break;
+      }
+      case 'midiBridge': {
+        const osc = ctx.createOscillator();
+        osc.type = (node.params.waveform as OscillatorType) ?? 'sine';
+        osc.frequency.value = 440;
+        const envGain = ctx.createGain();
+        envGain.gain.value = 0;
+        const output = createSourceOutput(ctx, node.muted ? 0 : ((node.params.gain as number) ?? 0.8));
+        osc.connect(envGain);
+        envGain.connect(output);
+        audioNode = output;
+        sourceNode = osc;
+        osc.start();
+        midiEngine.registerNode(node.id, ctx as AudioContext, { oscillator: osc, envelopeGain: envGain, outputGain: output });
+        midiEngine.updateNodeParams(node.id, {
+          waveform: (node.params.waveform as string) ?? 'sine',
+          attack: (node.params.attack as number) ?? 0.01,
+          decay: (node.params.decay as number) ?? 0.3,
+          sustain: (node.params.sustain as number) ?? 0.6,
+          release: (node.params.release as number) ?? 0.5,
+          gain: (node.params.gain as number) ?? 0.8,
+          channelFilter: (node.params.channelFilter as number | 'all') ?? 'all',
+          armed: Boolean(node.params.armed),
+        });
         break;
       }
       case 'stereoPanner': {
@@ -636,6 +682,20 @@ export async function renderGraphOffline(
   edges: Record<string, PatchEdge>
 ) {
   await compileGraphInternal(ctx, ctx.destination, nodes, edges);
+}
+
+export function tapNode(
+  nodeId: string,
+  destination: MediaStreamAudioDestinationNode
+): (() => void) | null {
+  if (!lastCompiledGraph) return null;
+  const runtime = lastCompiledGraph.nodes.get(nodeId);
+  const sourceOut = runtime?.outputNode ?? runtime?.audioNode;
+  if (!sourceOut) return null;
+  sourceOut.connect(destination);
+  return () => {
+    try { sourceOut.disconnect(destination); } catch {}
+  };
 }
 
 export function updateNodeParam(nodeId: string, param: string, value: number) {
