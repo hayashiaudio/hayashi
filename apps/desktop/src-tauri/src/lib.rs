@@ -1,12 +1,16 @@
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tauri_plugin_shell::ShellExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::tungstenite::protocol::Message as WsMessage;
+
+mod midi;
+mod rtpmidi;
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -38,7 +42,8 @@ struct MidiPacket {
     packet_type: String,
     note: Option<u8>,
     velocity: Option<u8>,
-    channel: Option<u8>,
+    value: Option<u8>,
+    channel: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +77,10 @@ struct AppStateInner {
     expected_pairing_id: Option<String>,
     paired_tx: Option<WsTx>,
     discord_token: Option<String>,
+    midi_tx: Option<mpsc::UnboundedSender<MidiPacket>>,
+    midi_msg_count: Arc<AtomicUsize>,
+    midi_bridge: Option<midi::MidiBridgeHandle>,
+    rtp_listener: Option<rtpmidi::RtpMidiListener>,
 }
 
 pub struct AppState {
@@ -85,6 +94,10 @@ impl AppState {
                 expected_pairing_id: None,
                 paired_tx: None,
                 discord_token: None,
+                midi_tx: None,
+                midi_msg_count: Arc::new(AtomicUsize::new(0)),
+                midi_bridge: None,
+                rtp_listener: None,
             }),
         }
     }
@@ -191,6 +204,30 @@ async fn handle_ws_client(stream: TcpStream, state: Arc<AppState>) {
 
     drop(tx);
     forward_task.abort();
+}
+
+/* ------------------------------------------------------------------ */
+/*  MIDI packet forwarding                                             */
+/* ------------------------------------------------------------------ */
+fn forward_midi_packets(
+    state: Arc<AppState>,
+    mut rx: mpsc::UnboundedReceiver<MidiPacket>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        while let Some(packet) = rx.recv().await {
+            let guard = state.inner.lock().await;
+            if let Some(ref tx) = guard.paired_tx {
+                let pairing_id = guard.expected_pairing_id.clone().unwrap_or_default();
+                let msg = BridgeMessage::Midi {
+                    pairing_id,
+                    packet,
+                };
+                let json = serde_json::to_string(&msg).unwrap_or_default();
+                let _ = tx.send(WsMessage::Text(json.into()));
+            }
+            guard.midi_msg_count.fetch_add(1, Ordering::Relaxed);
+        }
+    })
 }
 
 /* ------------------------------------------------------------------ */
@@ -453,6 +490,111 @@ async fn unpair_session(state: tauri::State<'_, Arc<AppState>>) -> Result<(), St
     Ok(())
 }
 
+#[tauri::command]
+async fn list_midi_devices(state: tauri::State<'_, Arc<AppState>>) -> Result<Vec<String>, String> {
+    let mut guard = state.inner.lock().await;
+    if guard.midi_bridge.is_none() {
+        guard.midi_bridge = Some(midi::MidiBridgeHandle::new()?);
+    }
+    let devices = guard.midi_bridge.as_mut().unwrap().refresh_ports();
+    Ok(devices)
+}
+
+#[tauri::command]
+async fn select_midi_device(
+    state: tauri::State<'_, Arc<AppState>>,
+    port_index: usize,
+) -> Result<(), String> {
+    let tokio_tx = {
+        let mut guard = state.inner.lock().await;
+
+        // Ensure midi_bridge exists
+        if guard.midi_bridge.is_none() {
+            guard.midi_bridge = Some(midi::MidiBridgeHandle::new()?);
+        }
+
+        // Ensure midi channel exists
+        if guard.midi_tx.is_none() {
+            let (tx, rx) = mpsc::unbounded_channel::<MidiPacket>();
+            guard.midi_tx = Some(tx);
+            let tokio_tx = guard.midi_tx.as_ref().unwrap().clone();
+            drop(guard);
+            let _ = forward_midi_packets(Arc::clone(&state), rx);
+            tokio_tx
+        } else {
+            guard.midi_tx.as_ref().unwrap().clone()
+        }
+    };
+
+    // Bridge from std::sync::mpsc to tokio channel
+    let (std_tx, std_rx) = std::sync::mpsc::channel::<MidiPacket>();
+    tokio::spawn(async move {
+        while let Ok(pkt) = std_rx.recv() {
+            let _ = tokio_tx.send(pkt);
+        }
+    });
+
+    let mut guard = state.inner.lock().await;
+    let bridge = guard.midi_bridge.as_mut().unwrap();
+    bridge
+        .connect(port_index, std_tx)
+        .map_err(|e| format!("connect: {e}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn deselect_midi_device(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+    let mut guard = state.inner.lock().await;
+    if let Some(ref mut bridge) = guard.midi_bridge {
+        bridge.disconnect();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_midi_msg_rate(state: tauri::State<'_, Arc<AppState>>) -> Result<u64, String> {
+    let guard = state.inner.lock().await;
+    let count = guard.midi_msg_count.swap(0, Ordering::Relaxed);
+    Ok(count as u64)
+}
+
+#[tauri::command]
+async fn toggle_rtp_midi(
+    state: tauri::State<'_, Arc<AppState>>,
+    enable: bool,
+) -> Result<(), String> {
+    let mut guard = state.inner.lock().await;
+
+    if !enable {
+        if let Some(ref mut listener) = guard.rtp_listener {
+            listener.stop();
+        }
+        guard.rtp_listener = None;
+        return Ok(());
+    }
+
+    // Ensure midi channel exists
+    if guard.midi_tx.is_none() {
+        let (tx, rx) = mpsc::unbounded_channel::<MidiPacket>();
+        guard.midi_tx = Some(tx);
+        drop(guard);
+        let _ = forward_midi_packets(Arc::clone(&state), rx);
+        let mut guard = state.inner.lock().await;
+        let midi_tx = guard.midi_tx.as_ref().unwrap().clone();
+        let mut listener = rtpmidi::RtpMidiListener::new();
+        listener.start(midi_tx).await?;
+        guard.rtp_listener = Some(listener);
+    } else {
+        let midi_tx = guard.midi_tx.as_ref().unwrap().clone();
+        let mut listener = rtpmidi::RtpMidiListener::new();
+        listener.start(midi_tx).await?;
+        guard.rtp_listener = Some(listener);
+    }
+
+    Ok(())
+}
+
 /* ------------------------------------------------------------------ */
 /*  Public API                                                          */
 /* ------------------------------------------------------------------ */
@@ -476,6 +618,11 @@ pub fn run() {
             open_url,
             pair_session,
             unpair_session,
+            list_midi_devices,
+            select_midi_device,
+            deselect_midi_device,
+            get_midi_msg_rate,
+            toggle_rtp_midi,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

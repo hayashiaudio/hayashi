@@ -11,9 +11,9 @@ const lockView = document.getElementById('lock-view')!;
 const mainView = document.getElementById('main-view')!;
 const connectDiscordBtn = document.getElementById('connect-discord-btn')!;
 const upgradeBtn = document.getElementById('upgrade-btn')!;
-// TODO Phase 3: const midiDeviceSelect = document.getElementById('midi-device')! as HTMLSelectElement;
+const midiDeviceSelect = document.getElementById('midi-device')! as HTMLSelectElement;
 const midiRate = document.getElementById('midi-rate')!;
-// TODO Phase 3: const rtpmidiStatus = document.getElementById('rtpmidi-status')!;
+const rtpmidiStatus = document.getElementById('rtpmidi-status')!;
 const pairingInput = document.getElementById('pairing-input')! as HTMLInputElement;
 const pairBtn = document.getElementById('pair-btn')!;
 const pairedBadge = document.getElementById('paired-badge')!;
@@ -25,7 +25,6 @@ const quitBtn = document.getElementById('quit-btn')!;
 /*  State                                                              */
 /* ------------------------------------------------------------------ */
 let pairedId: string | null = null;
-let msgCount = 0;
 let msgRateInterval: ReturnType<typeof setInterval> | null = null;
 
 /* ------------------------------------------------------------------ */
@@ -125,18 +124,70 @@ async function checkBilling() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  MIDI device list (populated later via Tauri events)               */
+/*  MIDI device list                                                   */
 /* ------------------------------------------------------------------ */
-// TODO: Phase 3 — listen to midi_device_list event and populate select
+async function refreshMidiDevices() {
+  try {
+    const devices: string[] = await invoke('list_midi_devices');
+    const current = midiDeviceSelect.value;
+    midiDeviceSelect.innerHTML = '<option value="">None</option>';
+    for (const [i, name] of devices.entries()) {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = name;
+      midiDeviceSelect.appendChild(opt);
+    }
+    midiDeviceSelect.value = current;
+  } catch (e) {
+    console.error('Failed to list MIDI devices:', e);
+  }
+}
+
+midiDeviceSelect.addEventListener('change', async () => {
+  const idx = midiDeviceSelect.value;
+  if (!idx) {
+    try {
+      await invoke('deselect_midi_device');
+    } catch {
+      // ignore
+    }
+    return;
+  }
+  try {
+    await invoke('select_midi_device', { portIndex: Number(idx) });
+  } catch (e) {
+    console.error('Failed to select MIDI device:', e);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  RTP-MIDI toggle                                                    */
+/* ------------------------------------------------------------------ */
+let rtpEnabled = false;
+rtpmidiStatus.addEventListener('click', async () => {
+  rtpEnabled = !rtpEnabled;
+  try {
+    await invoke('toggle_rtp_midi', { enable: rtpEnabled });
+    rtpmidiStatus.textContent = rtpEnabled ? 'Listening' : 'Off';
+  } catch (e) {
+    console.error('Failed to toggle RTP-MIDI:', e);
+    rtpEnabled = false;
+    rtpmidiStatus.textContent = 'Off';
+  }
+});
 
 /* ------------------------------------------------------------------ */
 /*  Message rate ticker                                                */
 /* ------------------------------------------------------------------ */
 function startRateTicker() {
   if (msgRateInterval) return;
-  msgRateInterval = setInterval(() => {
-    midiRate.textContent = `${msgCount} msg/s`;
-    msgCount = 0;
+  msgRateInterval = setInterval(async () => {
+    try {
+      const rate = await invoke<number>('get_midi_msg_rate');
+      midiRate.textContent = `${rate} msg/s`;
+    } catch {
+      midiRate.textContent = '0 msg/s';
+    }
   }, 1000);
 }
 
@@ -152,13 +203,15 @@ async function init() {
     showView('auth');
     setStatus('Sign in required', 'neutral');
   }
+
+  await refreshMidiDevices();
   startRateTicker();
 
   // Poll billing every 60s
   setInterval(checkBilling, 60000);
 
-  // Listen for WS status updates from Rust
-  // TODO: wire up Tauri event listener for ws_status changes
+  // Refresh MIDI devices every 5s to detect hot-plug
+  setInterval(refreshMidiDevices, 5000);
 }
 
 init().catch(console.error);
