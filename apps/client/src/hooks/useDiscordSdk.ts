@@ -34,6 +34,7 @@ interface DiscordContext {
   ready: boolean;
   channelId: string | null;
   guildId: string | null;
+  instanceId: string | null;
   user: { id: string; username: string; avatar: string | null } | null;
   accessToken: string | null;
   error: string | null;
@@ -78,6 +79,21 @@ export async function openInviteDialog(): Promise<boolean> {
 
   console.warn('[Hayashi] openInviteDialog called outside Discord');
   return false;
+}
+
+export async function startDiscordPurchase(skuId: string): Promise<boolean> {
+  const sdk = getDiscordSdk();
+  if (!sdk || !isRunningInDiscord()) {
+    console.warn('[Hayashi] startPurchase called outside Discord');
+    return false;
+  }
+  try {
+    await sdk.commands.startPurchase({ sku_id: skuId });
+    return true;
+  } catch (error) {
+    console.warn('[Hayashi] startPurchase failed:', error);
+    return false;
+  }
 }
 
 function getAvatarUrl(userId: string, avatar: string | null | undefined): string {
@@ -129,6 +145,7 @@ export function useDiscordSdk(): DiscordContext {
     ready: false,
     channelId: null,
     guildId: null,
+    instanceId: null,
     user: null,
     accessToken: null,
     error: null,
@@ -154,6 +171,7 @@ export function useDiscordSdk(): DiscordContext {
         const guildId = params.get('guild_id') ?? null;
         const userId = params.get('user_id') ?? 'local-user';
         const username = params.get('username') ?? 'Local Dev';
+        const instanceId = params.get('instance_id') ?? `local-${crypto.randomUUID()}`;
 
         const mockParticipants: DiscordParticipant[] = [
           {
@@ -171,6 +189,7 @@ export function useDiscordSdk(): DiscordContext {
           ready: true,
           channelId,
           guildId,
+          instanceId,
           user: { id: userId, username, avatar: null },
           accessToken: 'local-dev-access-token',
           error: null,
@@ -196,6 +215,7 @@ export function useDiscordSdk(): DiscordContext {
           ready: true,
           channelId: params.get('channel_id') ?? 'unknown-channel',
           guildId: params.get('guild_id') ?? null,
+          instanceId: params.get('instance_id') ?? 'unknown-instance',
           user: { id: 'unknown-user', username: 'Unknown', avatar: null },
           accessToken: null,
           error: 'VITE_DISCORD_CLIENT_ID is missing. Add it to apps/client/.env and reload.',
@@ -293,6 +313,20 @@ export function useDiscordSdk(): DiscordContext {
             console.warn('[Hayashi] Subscribe to participants failed:', subErr);
           }
         }
+
+        if (!subscribedRef.current) {
+          try {
+            await sdk.subscribe(
+              'ENTITLEMENT_CREATE',
+              () => {
+                console.log('[Hayashi] Entitlement created — refreshing billing');
+              }
+            );
+            console.log('[Hayashi] Subscribed to ENTITLEMENT_CREATE');
+          } catch (entErr) {
+            console.warn('[Hayashi] Subscribe to ENTITLEMENT_CREATE failed:', entErr);
+          }
+        }
       }
 
       if (!user && participants.length > 0) {
@@ -315,6 +349,7 @@ export function useDiscordSdk(): DiscordContext {
         ready: true,
         channelId: fallbackChannelId,
         guildId: fallbackGuildId,
+        instanceId: sdk.instanceId,
         user: user
           ? {
               id: user.id,
