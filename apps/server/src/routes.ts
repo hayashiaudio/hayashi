@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
@@ -13,22 +13,10 @@ import {
 } from './billing/events.js';
 import { getBillingRepository } from './billing/repository.js';
 import { BillingService, buildBillingContext } from './billing/service.js';
-import {
-  createBillingPortalSession,
-  createCheckoutSession,
-  createStripeCustomer,
-  extractSubscriptionPatch,
-  updateStripeCustomerEmail,
-  verifyStripeWebhookSignature,
-} from './billing/stripe.js';
 
 const app = new Hono();
 const billingRepository = getBillingRepository();
 const billing = new BillingService(billingRepository);
-
-function isStripeMissingCustomerError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes('No such customer:');
-}
 
 app.get('/health', (c) => c.json({ status: 'ok', mode: 'music-lab' }));
 
@@ -86,124 +74,11 @@ app.post('/billing/bootstrap', async (c) => {
     const identity = await fetchDiscordIdentity(body.accessToken);
     const context = buildBillingContext(body.guildId, body.channelId);
     const user = await billing.getOrCreateUser(identity);
-    const snapshot = await billing.registerContext(user, context);
+    const synced = await billing.syncEntitlements(user);
+    const snapshot = await billing.registerContext(synced, context);
     return c.json(snapshot);
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : 'Billing bootstrap failed' }, 401);
-  }
-});
-
-app.post('/billing/checkout', async (c) => {
-  const body = await c.req.json<{ accessToken?: string; guildId?: string | null; channelId?: string | null }>();
-  if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
-
-  try {
-    const identity = await fetchDiscordIdentity(body.accessToken);
-    const context = buildBillingContext(body.guildId, body.channelId);
-    let user = await billing.getOrCreateUser(identity);
-    const snapshot = await billing.buildSnapshot(user, context);
-
-    if (!snapshot.contextAccess.allowed && snapshot.contextAccess.reason !== 'installation_limit') {
-      return c.json(snapshot, 403);
-    }
-
-    if (!user.stripeCustomerId) {
-      const customer = await createStripeCustomer({
-        discordUserId: user.discordUserId,
-        username: user.discordUsername,
-        email: user.email,
-      });
-      user = await billing.updateStripeCustomer(user, customer.id);
-    } else if (user.email) {
-      try {
-        await updateStripeCustomerEmail({
-          customerId: user.stripeCustomerId,
-          email: user.email,
-          username: user.discordUsername,
-        });
-      } catch (error) {
-        if (!isStripeMissingCustomerError(error)) throw error;
-        await billing.setStripeCustomerId(user, null);
-        const customer = await createStripeCustomer({
-          discordUserId: user.discordUserId,
-          username: user.discordUsername,
-          email: user.email,
-        });
-        user = await billing.updateStripeCustomer(user, customer.id);
-      }
-    }
-
-    const baseUrl = new URL(c.req.url).origin;
-    let session;
-    try {
-      session = await createCheckoutSession({
-        customerId: user.stripeCustomerId!,
-        discordUserId: user.discordUserId,
-        successUrl: `${baseUrl}/?billing=success`,
-        cancelUrl: `${baseUrl}/?billing=cancel`,
-      });
-    } catch (error) {
-      if (!isStripeMissingCustomerError(error)) throw error;
-
-      await billing.setStripeCustomerId(user, null);
-      const customer = await createStripeCustomer({
-        discordUserId: user.discordUserId,
-        username: user.discordUsername,
-        email: user.email,
-      });
-      user = await billing.updateStripeCustomer(user, customer.id);
-      session = await createCheckoutSession({
-        customerId: user.stripeCustomerId!,
-        discordUserId: user.discordUserId,
-        successUrl: `${baseUrl}/?billing=success`,
-        cancelUrl: `${baseUrl}/?billing=cancel`,
-      });
-    }
-
-    await billing.attachCheckoutToUser(user.discordUserId, {
-      stripeCustomerId: session.customer ?? user.stripeCustomerId,
-    });
-    await billingRepository.recordCheckoutSession({
-      stripeCheckoutSessionId: session.id,
-      userId: user.discordUserId,
-      stripeCustomerId: session.customer ?? user.stripeCustomerId,
-      status: 'open',
-      checkoutUrl: session.url ?? null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    return c.json({ url: session.url, snapshot: await billing.buildSnapshot(user, context) });
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Unable to create checkout session' }, 500);
-  }
-});
-
-app.post('/billing/portal', async (c) => {
-  const body = await c.req.json<{ accessToken?: string }>();
-  if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
-
-  try {
-    const identity = await fetchDiscordIdentity(body.accessToken);
-    const user = await billing.getOrCreateUser(identity);
-    if (!user.stripeCustomerId) {
-      return c.json({ error: 'No Stripe customer found for this account' }, 404);
-    }
-    const baseUrl = new URL(c.req.url).origin;
-    let portal;
-    try {
-      portal = await createBillingPortalSession({
-        customerId: user.stripeCustomerId,
-        returnUrl: `${baseUrl}/`,
-      });
-    } catch (error) {
-      if (!isStripeMissingCustomerError(error)) throw error;
-      await billing.setStripeCustomerId(user, null);
-      return c.json({ error: 'Stripe customer was deleted. Start a new checkout session to restore billing.' }, 404);
-    }
-    return c.json({ url: portal.url });
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Unable to create portal session' }, 500);
   }
 });
 
@@ -294,139 +169,171 @@ app.post('/billing/export/authorize', async (c) => {
     const identity = await fetchDiscordIdentity(body.accessToken);
     const context = buildBillingContext(body.guildId, body.channelId);
     const user = await billing.getOrCreateUser(identity);
-    const snapshot = await billing.authorizeExport(user, context);
+    const synced = await billing.syncEntitlements(user);
+    const snapshot = await billing.authorizeExport(synced, context);
     return c.json(snapshot, snapshot.contextAccess.allowed ? 200 : 403);
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : 'Unable to authorize export' }, 500);
   }
 });
 
-app.post('/stripe/webhook', async (c) => {
-  const payload = await c.req.text();
-  const signature = c.req.header('Stripe-Signature');
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!endpointSecret) return c.json({ error: 'Stripe webhook secret is not configured' }, 500);
-  if (!verifyStripeWebhookSignature(payload, signature, endpointSecret)) {
-    return c.json({ error: 'Invalid Stripe signature' }, 400);
-  }
+import { getDb, ensureDbSchema, hasDatabaseUrl } from './db/index.js';
+import { projects } from './db/schema.js';
+import { eq, desc } from 'drizzle-orm';
 
-  const event = JSON.parse(payload) as {
-    id?: string;
-    type?: string;
-    data?: { object?: Record<string, unknown> };
-  };
-  const eventObject = event.data?.object;
-  const customerId = typeof eventObject?.customer === 'string' ? eventObject.customer : null;
-  const subscriptionId =
-    typeof eventObject?.id === 'string'
-      ? eventObject.id
-      : typeof eventObject?.subscription === 'string'
-        ? eventObject.subscription
-        : null;
-
-  if (event.id) {
-    const result = await billingRepository.recordBillingEvent({
-      stripeEventId: event.id,
-      eventType: event.type ?? 'unknown',
-      customerId,
-      subscriptionId,
-      payloadJson: payload,
-      status: 'received',
-      processedAt: null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-    if (result === 'unchanged') {
-      return c.json({ received: true, duplicate: true });
-    }
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data?.object as {
-      id?: string | null;
-      customer?: string | null;
-      subscription?: string | null;
-      client_reference_id?: string | null;
-      customer_details?: { email?: string | null } | null;
-    } | undefined;
-    const discordUserId = session?.client_reference_id ?? null;
-    if (discordUserId) {
-      await billing.attachCheckoutToUser(discordUserId, {
-        stripeCustomerId: session?.customer ?? null,
-        stripeSubscriptionId: session?.subscription ?? null,
-        email: session?.customer_details?.email ?? null,
-      });
-      if (session?.id) {
-        await billingRepository.recordCheckoutSession({
-          stripeCheckoutSessionId: session.id,
-          userId: discordUserId,
-          stripeCustomerId: session.customer ?? null,
-          status: 'completed',
-          checkoutUrl: null,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      }
-    }
-  }
-
-  if (
-    event.type === 'customer.subscription.created' ||
-    event.type === 'customer.subscription.updated' ||
-    event.type === 'customer.subscription.deleted'
-  ) {
-    const patch = extractSubscriptionPatch(event);
-    if (patch?.customerId) {
-      const updated = await billing.upsertSubscriptionForCustomer(patch.customerId, {
-        subscriptionId: patch.subscriptionId,
-        priceId: patch.priceId,
-        status: patch.status,
-        currentPeriodEnd: patch.currentPeriodEnd,
-      });
-      if (updated) await publishBillingUpdate(billing, updated);
-    }
-  }
-
-  if (event.id) {
-    await billingRepository.recordBillingEvent({
-      stripeEventId: event.id,
-      eventType: event.type ?? 'unknown',
-      customerId,
-      subscriptionId,
-      payloadJson: payload,
-      status: 'processed',
-      processedAt: Date.now(),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-  }
-
-  return c.json({ received: true });
-});
-
-app.post('/project/save', async (c) => {
-  const body = await c.req.json<{ projectId: string; snapshot: unknown }>();
-  const { projectId, snapshot } = body;
-  if (!projectId || !snapshot) return c.json({ error: 'Missing projectId or snapshot' }, 400);
-
+function saveProjectFile(projectId: string, snapshot: unknown) {
   const dir = resolve('/tmp/hayashi/projects', projectId);
   mkdirSync(dir, { recursive: true });
-  const path = resolve(dir, `snapshot-${Date.now()}.json`);
   const serialized = JSON.stringify(snapshot);
-  writeFileSync(path, serialized);
+  writeFileSync(resolve(dir, `snapshot-${Date.now()}.json`), serialized);
   writeFileSync(resolve(dir, 'latest.json'), serialized);
-  return c.json({ saved: true, path });
+}
+
+function loadProjectFile(projectId: string): unknown | null {
+  const dir = resolve('/tmp/hayashi/projects', projectId);
+  if (!existsSync(dir)) return null;
+  const latestPath = resolve(dir, 'latest.json');
+  if (!existsSync(latestPath)) return null;
+  return JSON.parse(readFileSync(latestPath, 'utf-8'));
+}
+
+function listProjectFiles(): Array<{ id: string; title: string; createdAt: number; updatedAt: number }> {
+  const root = resolve('/tmp/hayashi/projects');
+  if (!existsSync(root)) return [];
+  const result: Array<{ id: string; title: string; createdAt: number; updatedAt: number }> = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const latestPath = resolve(root, entry.name, 'latest.json');
+    if (!existsSync(latestPath)) continue;
+    try {
+      const snapshot = JSON.parse(readFileSync(latestPath, 'utf-8')) as Record<string, unknown>;
+      const stat = statSync(latestPath);
+      result.push({
+        id: entry.name,
+        title: (snapshot.projectTitle as string) ?? 'Untitled Jam',
+        createdAt: stat.birthtimeMs,
+        updatedAt: stat.mtimeMs,
+      });
+    } catch {
+      // ignore corrupted files
+    }
+  }
+  return result.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+app.post('/project/save', async (c) => {
+  const body = await c.req.json<{ accessToken?: string; projectId: string; snapshot: unknown }>();
+  const { accessToken, projectId, snapshot } = body;
+  if (!accessToken || !projectId || !snapshot) {
+    return c.json({ error: 'Missing accessToken, projectId, or snapshot' }, 400);
+  }
+
+  try {
+    await fetchDiscordIdentity(accessToken);
+  } catch {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (hasDatabaseUrl()) {
+    try {
+      await ensureDbSchema();
+      const db = getDb();
+      const now = Date.now();
+
+      await db
+        .insert(projects)
+        .values({
+          id: projectId,
+          ownerId: (snapshot as Record<string, unknown>)?.createdBy as string ?? 'unknown',
+          title: (snapshot as Record<string, unknown>)?.projectTitle as string ?? 'Untitled Jam',
+          snapshotJson: JSON.stringify(snapshot),
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: projects.id,
+          set: {
+            title: (snapshot as Record<string, unknown>)?.projectTitle as string ?? 'Untitled Jam',
+            snapshotJson: JSON.stringify(snapshot),
+            updatedAt: now,
+          },
+        });
+
+      return c.json({ saved: true });
+    } catch (err) {
+      console.error('[Hayashi] DB project save failed:', err);
+      return c.json({ error: 'Database error' }, 500);
+    }
+  }
+
+  saveProjectFile(projectId, snapshot);
+  return c.json({ saved: true });
 });
 
 app.get('/project/load/:projectId', async (c) => {
   const projectId = c.req.param('projectId');
-  const dir = resolve('/tmp/hayashi/projects', projectId);
-  if (!existsSync(dir)) return c.json({ error: 'Project not found' }, 404);
-  const latestPath = resolve(dir, 'latest.json');
-  if (!existsSync(latestPath)) return c.json({ error: 'Project not found' }, 404);
+  const accessToken = c.req.query('accessToken');
+  if (!accessToken) return c.json({ error: 'Missing accessToken' }, 400);
 
-  const files = readFileSync(latestPath, 'utf-8');
-  return c.json({ snapshot: JSON.parse(files) });
+  try {
+    await fetchDiscordIdentity(accessToken);
+  } catch {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (hasDatabaseUrl()) {
+    try {
+      await ensureDbSchema();
+      const db = getDb();
+
+      const rows = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .limit(1);
+
+      if (!rows[0]) return c.json({ error: 'Project not found' }, 404);
+
+      return c.json({ snapshot: JSON.parse(rows[0].snapshotJson) });
+    } catch (err) {
+      console.error('[Hayashi] DB project load failed:', err);
+      return c.json({ error: 'Database error' }, 500);
+    }
+  }
+
+  const snapshot = loadProjectFile(projectId);
+  if (!snapshot) return c.json({ error: 'Project not found' }, 404);
+  return c.json({ snapshot });
+});
+
+app.get('/projects/list', async (c) => {
+  const accessToken = c.req.query('accessToken');
+  if (!accessToken) return c.json({ error: 'Missing accessToken' }, 400);
+
+  try {
+    await fetchDiscordIdentity(accessToken);
+  } catch {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (hasDatabaseUrl()) {
+    try {
+      await ensureDbSchema();
+      const db = getDb();
+
+      const rows = await db
+        .select({ id: projects.id, title: projects.title, createdAt: projects.createdAt, updatedAt: projects.updatedAt })
+        .from(projects)
+        .orderBy(desc(projects.updatedAt));
+
+      return c.json({ projects: rows });
+    } catch (err) {
+      console.error('[Hayashi] DB project list failed:', err);
+      return c.json({ error: 'Database error' }, 500);
+    }
+  }
+
+  return c.json({ projects: listProjectFiles() });
 });
 
 app.post('/assets/upload', async (c) => {
@@ -475,8 +382,7 @@ app.get('*', (c) => {
   if (
     path.startsWith('/health') ||
     path.startsWith('/project') ||
-    path.startsWith('/billing') ||
-    path.startsWith('/stripe')
+    path.startsWith('/billing')
   ) {
     return c.notFound();
   }
