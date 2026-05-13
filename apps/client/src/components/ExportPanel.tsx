@@ -9,6 +9,7 @@ import { X, Waves } from 'lucide-react';
 export function ExportPanel() {
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const toggleExportPanel = useProjectStore((s) => s.toggleExportPanel);
   const projectTitle = useProjectStore((s) => s.projectTitle);
   const channelId = useProjectStore((s) => s.channelId);
@@ -21,9 +22,14 @@ export function ExportPanel() {
   const { bpm } = useTransport();
 
   const handleExport = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken) {
+      setError('Not authenticated with Discord.');
+      return;
+    }
     setExporting(true);
     setProgress(0);
+    setError(null);
+    let blobUrl: string | null = null;
     try {
       const snapshot = await authorizeExport({ accessToken, guildId, channelId });
       setBillingSnapshot(snapshot);
@@ -32,19 +38,27 @@ export function ExportPanel() {
         return;
       }
 
+      setProgress(30);
       const duration = 16;
       const seconds = (duration * 4 * 60) / bpm;
       const blob = await exportWav((ctx) => renderGraphOffline(ctx, nodes, edges), seconds);
+      setProgress(80);
 
-      const url = URL.createObjectURL(blob);
+      blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = blobUrl;
       a.download = `${projectTitle.replace(/\s+/g, '-').toLowerCase()}.wav`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setProgress(100);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Export failed';
+      setError(msg);
     } finally {
       setExporting(false);
-      setProgress(100);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     }
   }, [accessToken, bpm, channelId, edges, guildId, nodes, openPaywall, projectTitle, setBillingSnapshot]);
 
@@ -65,6 +79,9 @@ export function ExportPanel() {
           <Waves size={14} />
           {exporting ? `Exporting… ${progress}%` : 'Export Master Loop'}
         </button>
+        {error && (
+          <p className="text-sm" style={{ color: 'var(--hayashi-red)' }}>{error}</p>
+        )}
       </div>
     </section>
   );

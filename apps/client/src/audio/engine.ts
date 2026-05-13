@@ -113,8 +113,11 @@ export class AudioEngine {
   async startRecording(onBuffer: (buffer: AudioBuffer) => void) {
     await this.init();
     await this.startMic();
-    if (!this.ctx || !this.micSource) return;
+    if (!this.ctx || !this.micSource) {
+      throw new Error('Microphone not available. Make sure permission is granted.');
+    }
     if (this.recorderWorklet) {
+      try { this.micSource.disconnect(this.recorderWorklet); } catch {}
       try { this.recorderWorklet.disconnect(); } catch {}
       this.recorderWorklet = null;
     }
@@ -137,7 +140,7 @@ export class AudioEngine {
       }
     };
     this.micSource.connect(this.recorderWorklet);
-    this.recorderWorklet.connect(this.ctx.destination);
+    // Do NOT connect recorder worklet to destination — it causes mic feedback/echo
     this.recorderWorklet.port.postMessage({ type: 'record' });
   }
 

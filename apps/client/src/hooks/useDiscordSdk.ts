@@ -64,6 +64,22 @@ export async function openExternalUrl(url: string): Promise<boolean> {
   return true;
 }
 
+export async function openInviteDialog(): Promise<boolean> {
+  const sdk = getDiscordSdk();
+  if (sdk && isRunningInDiscord()) {
+    try {
+      await sdk.commands.openInviteDialog();
+      return true;
+    } catch (error) {
+      console.warn('[Hayashi] openInviteDialog failed:', error);
+      return false;
+    }
+  }
+
+  console.warn('[Hayashi] openInviteDialog called outside Discord');
+  return false;
+}
+
 function getAvatarUrl(userId: string, avatar: string | null | undefined): string {
   if (avatar) {
     return `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png`;

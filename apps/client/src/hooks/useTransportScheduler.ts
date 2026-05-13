@@ -8,20 +8,27 @@ export function useTransportScheduler() {
   const transport = useProjectStore((s) => s.localTransport);
   const clips = useProjectStore((s) => s.clips);
   const tracks = useProjectStore((s) => s.tracks);
+  const workstationEditorNodeId = useProjectStore((s) => s.workstationEditorNodeId);
 
   useEffect(() => {
-    const scheduled = Object.values(clips)
-      .filter((c) => c.type === 'audio' && c.assetId)
-      .map((c) => ({
+    const all = Object.values(clips).filter((c) => c.type === 'audio' && c.assetId);
+    const scheduled = workstationEditorNodeId
+      ? all.filter((c) => {
+          const track = tracks[c.trackId];
+          return track?.workstationNodeId === workstationEditorNodeId;
+        })
+      : all;
+    transportScheduler.setClips(
+      scheduled.map((c) => ({
         id: c.id,
         assetId: c.assetId!,
         trackId: c.trackId,
         startBeat: c.startBeat,
         lengthBeats: c.lengthBeats,
         loop: c.loop,
-      }));
-    transportScheduler.setClips(scheduled);
-  }, [clips, tracks]);
+      }))
+    );
+  }, [clips, tracks, workstationEditorNodeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,8 +39,15 @@ export function useTransportScheduler() {
         /* Stop raw graph sources for any track that has arrangement clips,
            so the scheduler is the sole playback path. */
         const state = useProjectStore.getState();
+        const activeWorkstation = state.workstationEditorNodeId;
         const tracksWithClips = new Set(
-          Object.values(state.clips).map((c) => c.trackId)
+          Object.values(state.clips)
+            .filter((c) => {
+              if (!activeWorkstation) return true;
+              const t = state.tracks[c.trackId];
+              return t?.workstationNodeId === activeWorkstation;
+            })
+            .map((c) => c.trackId)
         );
         for (const track of Object.values(state.tracks)) {
           if (tracksWithClips.has(track.id) && track.sourceNodeId) {

@@ -328,8 +328,8 @@ export function ArrangementGrid({
         style={{
           display: 'flex',
           flexShrink: 0,
-          borderBottom: '1px solid rgba(247,239,215,0.1)',
-          background: 'rgba(10,24,18,0.95)',
+          borderBottom: '1px solid rgba(16,38,29,0.09)',
+          background: 'rgba(255,252,245,0.95)',
         }}
       >
         <div style={{ width: HEADER_WIDTH, flexShrink: 0 }} />
@@ -362,8 +362,8 @@ export function ArrangementGrid({
             flexShrink: 0,
             overflowY: 'auto',
             overflowX: 'hidden',
-            borderRight: '1px solid rgba(247,239,215,0.08)',
-            background: 'rgba(10,24,18,0.9)',
+            borderRight: '1px solid rgba(16,38,29,0.08)',
+            background: 'rgba(255,252,245,0.9)',
           }}
         >
           {tracks.map((track) => (
@@ -374,11 +374,11 @@ export function ArrangementGrid({
                 height: TRACK_HEIGHT,
                 display: 'flex',
                 alignItems: 'center',
-                borderBottom: '1px solid rgba(247,239,215,0.05)',
+                borderBottom: '1px solid rgba(16,38,29,0.06)',
               }}
             >
               {renderTrackHeader ? renderTrackHeader(track) : (
-                <span style={{ fontSize: 11, color: 'rgba(245,230,200,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: 11, color: 'rgba(16,38,29,0.62)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {track.name}
                 </span>
               )}
@@ -442,7 +442,7 @@ export function ArrangementGrid({
                     style={{
                       height: TRACK_HEIGHT,
                       position: 'relative',
-                      borderBottom: '1px solid rgba(247,239,215,0.05)',
+                      borderBottom: '1px solid rgba(16,38,29,0.06)',
                     }}
                     onDragOver={(e) => handleLaneDragOver(e, track.id)}
                     onDragLeave={handleLaneDragLeave}

@@ -15,6 +15,7 @@ import { CoreWorkspaceMockupPage } from './components/CoreWorkspaceMockupPage';
 import { PerformanceWorkspaceMockupPage } from './components/PerformanceWorkspaceMockupPage';
 import { SessionEntryScreen } from './components/SessionEntryScreen';
 import { StudioScreen } from './components/StudioScreen';
+import MidiBridgePage from './pages/MidiBridgePage';
 import { BillingModal } from './components/BillingModal';
 import { Crown } from 'lucide-react';
 import { openExternalUrl } from './hooks/useDiscordSdk';
@@ -27,10 +28,12 @@ function App() {
   const brandMode = params.get('brand') === '1';
   const mockupMode = params.get('mockup') === '1';
   const performanceMockupMode = params.get('mockup') === 'performance';
+  const midiBridgeMode = window.location.pathname.startsWith('/midi-bridge') || params.get('midi') === '1';
 
   if (brandMode) return <BrandGuidelinesPage />;
   if (mockupMode) return <CoreWorkspaceMockupPage />;
   if (performanceMockupMode) return <PerformanceWorkspaceMockupPage />;
+  if (midiBridgeMode) return <MidiBridgePage />;
 
   const { ready, channelId, guildId, error, user, participants, accessToken } = useDiscordSdk();
   const setChannelId = useProjectStore((s) => s.setChannelId);
@@ -153,8 +156,6 @@ function App() {
     };
   }, []);
 
-  const storageKey = channelId ? `hayashi:lastProject:${channelId}` : null;
-
   useEffect(() => {
     if (channelId) setChannelId(channelId);
   }, [channelId, setChannelId]);
@@ -271,17 +272,9 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (!storageKey || projectId) return;
-    const savedProjectId = window.localStorage.getItem(storageKey);
-    if (savedProjectId) {
-      setProjectId(savedProjectId);
-    }
-  }, [projectId, setProjectId, storageKey]);
-
-  useEffect(() => {
-    if (!storageKey || !projectId) return;
-    window.localStorage.setItem(storageKey, projectId);
-  }, [projectId, storageKey]);
+    if (!channelId || projectId) return;
+    setProjectId(`discord-channel-${channelId}`);
+  }, [channelId, projectId, setProjectId]);
 
   const { collabReady, remoteStateLoaded, ydocRef } = useYjsProject(channelId, projectId, participants);
 

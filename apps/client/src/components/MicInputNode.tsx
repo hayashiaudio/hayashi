@@ -7,12 +7,13 @@ import { useProjectStore } from '@/stores/projectStore';
 import { audioEngine } from '@/audio/engine';
 import { encodeWav } from '@/audio/drumEngine';
 import { storeSample } from '@/samples/indexedDb';
+import { uploadAsset } from '@/lib/api';
 
 export const MicInputNode = memo(function MicInputNodeComponent(props: NodeProps) {
   const { data } = props as unknown as { data: PatchNodeType };
   const [armed, setArmed] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [saveLabel, setSaveLabel] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ text: string; kind: 'success' | 'error' | 'info' } | null>(null);
   const [waveform, setWaveform] = useState<number[]>(Array(16).fill(0));
   const rafRef = useRef<number>(0);
   const edges = useProjectStore((s) => s.edges);
@@ -23,6 +24,13 @@ export const MicInputNode = memo(function MicInputNodeComponent(props: NodeProps
   const addClip = useProjectStore((s) => s.addClip);
   const addTrack = useProjectStore((s) => s.addTrack);
 
+  const showStatus = useCallback((text: string, kind: 'success' | 'error' | 'info' = 'info', durationMs = 3000) => {
+    setStatus({ text, kind });
+    if (durationMs > 0) {
+      setTimeout(() => setStatus(null), durationMs);
+    }
+  }, []);
+
   const handleArmToggle = useCallback(async () => {
     if (armed) {
       if (recording) {
@@ -32,72 +40,91 @@ export const MicInputNode = memo(function MicInputNodeComponent(props: NodeProps
       audioEngine.stopMic();
       setArmed(false);
       setWaveform(Array(16).fill(0));
+      showStatus('Mic disarmed', 'info', 2000);
     } else {
-      await audioEngine.resume();
-      await audioEngine.startMic();
-      setArmed(true);
+      try {
+        await audioEngine.resume();
+        await audioEngine.startMic();
+        setArmed(true);
+        showStatus('Mic armed', 'info', 2000);
+      } catch {
+        showStatus('Mic permission denied', 'error', 4000);
+      }
     }
-  }, [armed, recording]);
+  }, [armed, recording, showStatus]);
 
-  const handleRecordToggle = useCallback(() => {
+  const handleRecordToggle = useCallback(async () => {
     if (recording) {
       audioEngine.stopRecording();
       setRecording(false);
+      showStatus('Recording stopped', 'info', 2000);
     } else {
-      audioEngine.startRecording(async (buffer) => {
-        const blob = encodeWav(buffer);
-        const id = `asset-${crypto.randomUUID().slice(0, 8)}`;
-        const arrayBuffer = await blob.arrayBuffer();
-        await storeSample(id, `Mic Take ${new Date().toLocaleTimeString()}`, arrayBuffer, 'audio/wav', {});
-        addAsset({
-          id,
-          kind: 'sample',
-          name: `Mic Take ${new Date().toLocaleTimeString()}`,
-          mimeType: 'audio/wav',
-          durationSeconds: buffer.duration,
-          sampleRate: buffer.sampleRate,
-          channels: buffer.numberOfChannels,
-          localBlobRef: id,
-        });
-        // Try to create a clip on a connected workstation
-        const workstationEdge = Object.values(edges).find(
-          (e) => e.sourceNodeId === data.id && nodes[e.targetNodeId]?.kind === 'workstation'
-        );
-        if (workstationEdge) {
-          const wsId = workstationEdge.targetNodeId;
-          let track = Object.values(tracks).find((t) => t.workstationNodeId === wsId);
-          if (!track) {
-            track = {
-              id: `track-${crypto.randomUUID().slice(0, 8)}`,
-              name: 'Mic Track',
-              workstationNodeId: wsId,
-              sourceNodeId: data.id,
-            };
-            addTrack(track);
+      try {
+        await audioEngine.startRecording(async (buffer) => {
+          const blob = encodeWav(buffer);
+          const id = `asset-${crypto.randomUUID().slice(0, 8)}`;
+          const arrayBuffer = await blob.arrayBuffer();
+          await storeSample(id, `Mic Take ${new Date().toLocaleTimeString()}`, arrayBuffer, 'audio/wav', {});
+          let storageUrl: string | undefined;
+          try {
+            const res = await uploadAsset(arrayBuffer.slice(0));
+            storageUrl = res.url;
+          } catch {
+            // Offline — stay local-only
           }
-          // Place clip at end of existing clips or at beat 0
-          const existingClips = Object.values(clips).filter((c) => c.trackId === track.id);
-          const lastEnd = existingClips.length
-            ? Math.max(...existingClips.map((c) => c.startBeat + c.lengthBeats))
-            : 0;
-          addClip({
-            id: `clip-${crypto.randomUUID().slice(0, 8)}`,
-            trackId: track.id,
-            type: 'audio',
-            startBeat: lastEnd,
-            lengthBeats: Math.max(1, (buffer.duration * (useProjectStore.getState().localTransport.bpm ?? 128)) / 60),
-            loop: false,
-            assetId: id,
+          addAsset({
+            id,
+            kind: 'sample',
+            name: `Mic Take ${new Date().toLocaleTimeString()}`,
+            mimeType: 'audio/wav',
+            durationSeconds: buffer.duration,
+            sampleRate: buffer.sampleRate,
+            channels: buffer.numberOfChannels,
+            localBlobRef: id,
+            storageUrl,
           });
-          setSaveLabel('Clip saved to arrangement');
-        } else {
-          setSaveLabel('Sample saved to library');
-        }
-        setTimeout(() => setSaveLabel(null), 3000);
-      });
-      setRecording(true);
+          // Try to create a clip on a connected workstation
+          const workstationEdge = Object.values(edges).find(
+            (e) => e.sourceNodeId === data.id && nodes[e.targetNodeId]?.kind === 'workstation'
+          );
+          if (workstationEdge) {
+            const wsId = workstationEdge.targetNodeId;
+            let track = Object.values(tracks).find((t) => t.workstationNodeId === wsId);
+            if (!track) {
+              track = {
+                id: `track-${crypto.randomUUID().slice(0, 8)}`,
+                name: 'Mic Track',
+                workstationNodeId: wsId,
+                sourceNodeId: data.id,
+              };
+              addTrack(track);
+            }
+            const existingClips = Object.values(clips).filter((c) => c.trackId === track.id);
+            const lastEnd = existingClips.length
+              ? Math.max(...existingClips.map((c) => c.startBeat + c.lengthBeats))
+              : 0;
+            addClip({
+              id: `clip-${crypto.randomUUID().slice(0, 8)}`,
+              trackId: track.id,
+              type: 'audio',
+              startBeat: lastEnd,
+              lengthBeats: Math.max(1, (buffer.duration * (useProjectStore.getState().localTransport.bpm ?? 128)) / 60),
+              loop: false,
+              assetId: id,
+            });
+            showStatus('Clip saved to arrangement', 'success', 3000);
+          } else {
+            showStatus('Sample saved to library', 'success', 3000);
+          }
+        });
+        setRecording(true);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to start recording';
+        showStatus(msg, 'error', 4000);
+        setRecording(false);
+      }
     }
-  }, [recording, data.id, edges, nodes, tracks, clips, addAsset, addClip, addTrack]);
+  }, [recording, data.id, edges, nodes, tracks, clips, addAsset, addClip, addTrack, showStatus]);
 
   useEffect(() => {
     if (!armed) return;
@@ -124,7 +151,7 @@ export const MicInputNode = memo(function MicInputNodeComponent(props: NodeProps
   }, [armed]);
 
   return (
-    <div className={`hayashi-patch-node hayashi-patch-node-mic ${armed ? 'is-armed' : ''} ${recording ? 'is-recording' : ''}`}>
+    <div className={`hayashi-patch-node hayashi-patch-node-micInput ${armed ? 'is-armed' : ''} ${recording ? 'is-recording' : ''}`}>
       <Handle type="target" position={Position.Left} className="hayashi-node-handle hayashi-node-handle-left" />
       <Handle type="source" position={Position.Right} className="hayashi-node-handle hayashi-node-handle-right" />
 
@@ -137,35 +164,18 @@ export const MicInputNode = memo(function MicInputNodeComponent(props: NodeProps
       </div>
 
       {/* Waveform */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '2px',
-          height: 24,
-          marginTop: 6,
-          opacity: armed ? 1 : 0.3,
-          transition: 'opacity 0.2s ease',
-        }}
-      >
+      <div className="hayashi-mic-wave">
         {waveform.map((v, i) => (
           <span
             key={i}
-            style={{
-              display: 'block',
-              width: 3,
-              borderRadius: 2,
-              background: recording ? '#d95757' : '#ed922f',
-              height: `${Math.max(2, v * 22)}px`,
-              transition: 'height 0.05s linear',
-            }}
+            className="hayashi-mic-bar"
+            style={{ height: `${Math.max(2, v * 20)}px` }}
           />
         ))}
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-2 mt-2">
+      <div className="hayashi-mic-controls">
         <button
           className={`hayashi-daw-tbtn ${armed ? 'is-armed' : ''}`}
           onClick={handleArmToggle}
@@ -175,7 +185,7 @@ export const MicInputNode = memo(function MicInputNodeComponent(props: NodeProps
           <Radio size={12} />
         </button>
         <button
-          className={`hayashi-daw-tbtn ${recording ? 'is-recording' : ''}`}
+          className={`hayashi-daw-tbtn hayashi-daw-tbtn-rec ${recording ? 'is-recording' : ''}`}
           onClick={handleRecordToggle}
           disabled={!armed}
           title={recording ? 'Stop recording' : 'Record'}
@@ -185,16 +195,9 @@ export const MicInputNode = memo(function MicInputNodeComponent(props: NodeProps
         </button>
       </div>
 
-      {saveLabel && (
-        <div
-          style={{
-            fontSize: '0.65rem',
-            color: '#8fb13a',
-            marginTop: 4,
-            textAlign: 'center',
-          }}
-        >
-          {saveLabel}
+      {status && (
+        <div className={`hayashi-mic-status ${status.kind === 'error' ? 'is-error' : status.kind === 'info' ? 'is-info' : ''}`}>
+          {status.text}
         </div>
       )}
     </div>

@@ -5,6 +5,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { getWsUrl, IS_LOCAL_DEV, SERVER_BASE_URL } from '@/lib/constants';
 import type { DiscordParticipant } from './useDiscordSdk';
 import { setHasRemoteRealtimeState } from '@/lib/projectSync';
+import { fetchMissingSample } from '@/samples/sync';
 import type { PatchNode, PatchEdge, Clip, Track, Asset, TransportState } from '@/types/project';
 
 const LOCAL_ORIGIN = 'hayashi-local-sync';
@@ -156,7 +157,22 @@ export function useYjsProject(
                   case 'edge': store.addEdge(entity as PatchEdge); break;
                   case 'clip': store.addClip(entity as Clip); break;
                   case 'track': store.addTrack(entity as Track); break;
-                  case 'asset': store.addAsset(entity as Asset); break;
+                  case 'asset':
+                    store.addAsset(entity as Asset);
+                    {
+                      const a = entity as Asset;
+                      if (a.storageUrl) {
+                        fetchMissingSample(a.id, a.storageUrl, {
+                          name: a.name,
+                          mimeType: a.mimeType,
+                          duration: a.durationSeconds,
+                          sampleRate: a.sampleRate,
+                          channels: a.channels,
+                          waveformPeaks: a.waveformPeaks,
+                        }).catch(() => {});
+                      }
+                    }
+                    break;
                 }
               }
             }
@@ -171,7 +187,22 @@ export function useYjsProject(
                 case 'edge': store.setEdges({ ...store.edges, [id]: entity as PatchEdge }); break;
                 case 'clip': store.setClips({ ...store.clips, [id]: entity as Clip }); break;
                 case 'track': store.setTracks({ ...store.tracks, [id]: entity as Track }); break;
-                case 'asset': store.setAssets({ ...store.assets, [id]: entity as Asset }); break;
+                case 'asset':
+                  store.setAssets({ ...store.assets, [id]: entity as Asset });
+                  {
+                    const a = entity as Asset;
+                    if (a.storageUrl) {
+                      fetchMissingSample(a.id, a.storageUrl, {
+                        name: a.name,
+                        mimeType: a.mimeType,
+                        duration: a.durationSeconds,
+                        sampleRate: a.sampleRate,
+                        channels: a.channels,
+                        waveformPeaks: a.waveformPeaks,
+                      }).catch(() => {});
+                    }
+                  }
+                  break;
               }
             }
           }
@@ -231,6 +262,74 @@ export function useYjsProject(
       if (hasRemote) {
         setRemoteStateLoaded(true);
         setHasRemoteRealtimeState(true);
+
+        // Initial sync: read existing Yjs content into Zustand.
+        // observeDeep only fires for future changes, so we must hydrate
+        // from the current Yjs state on every fresh connection.
+        suppressStoreSyncRef.current = true;
+        try {
+          const store = useProjectStore.getState();
+
+          if (nodesMap.size > 0) {
+            const nodes: Record<string, PatchNode> = {};
+            for (const [id, nodeMap] of nodesMap.entries()) {
+              nodes[id] = ymapToObject(nodeMap) as PatchNode;
+            }
+            store.setNodes(nodes);
+          }
+
+          if (edgesMap.size > 0) {
+            const edges: Record<string, PatchEdge> = {};
+            for (const [id, edgeMap] of edgesMap.entries()) {
+              edges[id] = ymapToObject(edgeMap) as PatchEdge;
+            }
+            store.setEdges(edges);
+          }
+
+          if (clipsMap.size > 0) {
+            const clips: Record<string, Clip> = {};
+            for (const [id, clipMap] of clipsMap.entries()) {
+              clips[id] = ymapToObject(clipMap) as Clip;
+            }
+            store.setClips(clips);
+          }
+
+          if (tracksMap.size > 0) {
+            const tracks: Record<string, Track> = {};
+            for (const [id, trackMap] of tracksMap.entries()) {
+              tracks[id] = ymapToObject(trackMap) as Track;
+            }
+            store.setTracks(tracks);
+          }
+
+          if (assetsMap.size > 0) {
+            const assets: Record<string, Asset> = {};
+            for (const [id, assetMap] of assetsMap.entries()) {
+              assets[id] = ymapToObject(assetMap) as Asset;
+            }
+            store.setAssets(assets);
+          }
+
+          if (projectMeta.size > 0) {
+            const title = projectMeta.get('title') as string | undefined;
+            const transport: Partial<TransportState> = {};
+            if (projectMeta.has('playing')) transport.playing = projectMeta.get('playing') as boolean;
+            if (projectMeta.has('bpm')) transport.bpm = projectMeta.get('bpm') as number;
+            if (projectMeta.has('beatOffset')) transport.beatOffset = projectMeta.get('beatOffset') as number;
+            if (projectMeta.has('timeSignature')) transport.timeSignature = projectMeta.get('timeSignature') as [number, number];
+            if (projectMeta.has('key')) transport.key = projectMeta.get('key') as string;
+            if (projectMeta.has('scene')) transport.scene = projectMeta.get('scene') as string;
+
+            if (title !== undefined && title !== store.projectTitle) {
+              store.setProjectTitle(title);
+            }
+            if (Object.keys(transport).length > 0) {
+              store.updateLocalTransport(transport);
+            }
+          }
+        } finally {
+          suppressStoreSyncRef.current = false;
+        }
       } else {
         setRemoteStateLoaded(false);
         setHasRemoteRealtimeState(false);

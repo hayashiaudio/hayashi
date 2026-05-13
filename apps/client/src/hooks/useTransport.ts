@@ -24,6 +24,18 @@ export function useTransport() {
     }
   }, [localTransport.playing, updateLocalTransport, updateTransport]);
 
+  const skipBack = useCallback(() => {
+    const barLength = localTransport.timeSignature[0];
+    const next = Math.max(0, localTransport.beatOffset - barLength);
+    updateLocalTransport({ beatOffset: next });
+  }, [localTransport.beatOffset, localTransport.timeSignature, updateLocalTransport]);
+
+  const skipForward = useCallback(() => {
+    const barLength = localTransport.timeSignature[0];
+    const next = localTransport.beatOffset + barLength;
+    updateLocalTransport({ beatOffset: next });
+  }, [localTransport.beatOffset, localTransport.timeSignature, updateLocalTransport]);
+
   return {
     playing: localTransport.playing,
     bpm: localTransport.bpm,
@@ -33,5 +45,7 @@ export function useTransport() {
     scene: localTransport.scene,
     togglePlay,
     setBpm,
+    skipBack,
+    skipForward,
   };
 }

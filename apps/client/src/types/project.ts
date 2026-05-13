@@ -4,6 +4,7 @@ export type NodeKind =
   | 'sampler'
   | 'drumPad'
   | 'micInput'
+  | 'midiBridge'
   | 'gain'
   | 'filter'
   | 'delay'

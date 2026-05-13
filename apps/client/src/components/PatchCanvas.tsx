@@ -17,6 +17,7 @@ import { PatchNode } from './PatchNode';
 import { WorkstationNode } from './WorkstationNode';
 import { DrumKitNode } from './DrumKitNode';
 import { MicInputNode } from './MicInputNode';
+import { MidiBridgeNode } from './MidiBridgeNode';
 import PresenceCursors from './PresenceCursors';
 import { TransportBar } from './TransportBar';
 import { useProjectStore } from '@/stores/projectStore';
@@ -32,11 +33,12 @@ const nodeTypes: import('@xyflow/react').NodeTypes = {
   workstation: WorkstationNode as unknown as import('@xyflow/react').NodeTypes[string],
   drumPad: DrumKitNode as unknown as import('@xyflow/react').NodeTypes[string],
   micInput: MicInputNode as unknown as import('@xyflow/react').NodeTypes[string],
+  midiBridge: MidiBridgeNode as unknown as import('@xyflow/react').NodeTypes[string],
 };
 const edgeTypes: import('@xyflow/react').EdgeTypes = {
   custom: CustomEdge as unknown as import('@xyflow/react').EdgeTypes[string],
 };
-const AUDIBLE_SOURCE_KINDS = new Set<PatchNodeType['kind']>(['oscillator', 'noise', 'sampler', 'drumPad', 'micInput']);
+const AUDIBLE_SOURCE_KINDS = new Set<PatchNodeType['kind']>(['oscillator', 'noise', 'sampler', 'drumPad', 'micInput', 'midiBridge']);
 
 function isValidAudioConnection(
   sourceKind: PatchNodeType['kind'],
@@ -49,7 +51,7 @@ function isValidAudioConnection(
 function toFlowNodes(nodes: Record<string, PatchNodeType>): import('@xyflow/react').Node[] {
   return Object.values(nodes).map((n) => ({
     id: n.id,
-    type: n.kind === 'workstation' ? 'workstation' : n.kind === 'drumPad' ? 'drumPad' : n.kind === 'micInput' ? 'micInput' : 'patchNode',
+    type: n.kind === 'workstation' ? 'workstation' : n.kind === 'drumPad' ? 'drumPad' : n.kind === 'micInput' ? 'micInput' : n.kind === 'midiBridge' ? 'midiBridge' : 'patchNode',
     position: n.position,
     data: n as unknown as Record<string, unknown>,
   }));

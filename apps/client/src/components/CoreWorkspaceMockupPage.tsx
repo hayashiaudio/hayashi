@@ -1,6 +1,5 @@
 import {
   Disc3,
-  Drum,
   Headphones,
   Music2,
   Play,
@@ -741,16 +740,6 @@ export function CoreWorkspaceMockupPage() {
                 </div>
               </div>
 
-              <div className="hayashi-inspector-actions">
-                <button className="hayashi-action" type="button">
-                  <Search size={15} />
-                  Semantic search presets
-                </button>
-                <button className="hayashi-secondary-action" type="button">
-                  <Drum size={15} />
-                  Save to preset vault
-                </button>
-              </div>
             </section>
           </aside>
         </div>

@@ -88,6 +88,7 @@ Hayashi is split into a client app and a lightweight real-time backend.
 |----------|------|
 | `apps/client` | React 19 + Vite UI, audio engine, patch editor, export flow |
 | `apps/server` | Hono HTTP API, static asset serving, Discord token exchange, Yjs WebSocket host |
+| `apps/desktop` | Tauri companion app for hardware MIDI and RTP-MIDI bridging |
 
 ### Client Highlights
 
@@ -107,6 +108,37 @@ Hayashi is split into a client app and a lightweight real-time backend.
 | Real-time sync | `ws` + `y-websocket` shared document rooms |
 | Persistence | Snapshot JSON and uploaded assets stored under `/tmp/hayashi` |
 | Static serving | Serves the built client app and runtime assets from `apps/client/dist` |
+
+---
+
+## MIDI Bridge Companion
+
+The Discord Activity iframe blocks `midi`, `usb`, and `bluetooth` permissions, so hardware MIDI controllers cannot be used directly. The **MIDI Bridge Companion** is a small Tauri desktop app that runs outside the iframe and forwards MIDI events to Hayashi over a local WebSocket.
+
+### How it works
+
+1. Create a `midiBridge` node in Hayashi — it generates a pairing code (e.g. `calm-river-9137`)
+2. Open the companion app, sign in with Discord, and enter the pairing code
+3. Select a hardware MIDI device or enable RTP-MIDI for DAW integration
+4. MIDI events flow from the companion app → WebSocket → `midiEngine` → synthesized audio
+
+### Features
+
+- **Hardware MIDI** — cross-platform input via CoreMIDI / ALSA / WinMM
+- **RTP-MIDI** — listen for Apple MIDI sessions on UDP 5004
+- **Discord OAuth2 + billing gate** — verifies Unlimited plan before bridging
+- **Synthesized-source recording** — record `midiBridge` output directly into workstation clips
+
+### Running the companion
+
+```bash
+cd apps/desktop
+npm install
+cd src-tauri
+cargo tauri dev
+```
+
+See [`apps/desktop/README.md`](apps/desktop/README.md) for build instructions.
 
 ---
 
@@ -162,6 +194,15 @@ Hayashi is split into a client app and a lightweight real-time backend.
 | `apps/server/src/server.ts` | Node server bootstrap and WebSocket server |
 | `apps/server/src/yjs` | Yjs connection wiring |
 
+### Desktop (MIDI Bridge Companion)
+
+| Path | Purpose |
+|------|---------|
+| `apps/desktop/src-tauri/src/lib.rs` | Tauri commands, WS server, OAuth2, billing gate |
+| `apps/desktop/src-tauri/src/midi.rs` | Hardware MIDI input via `midir` |
+| `apps/desktop/src-tauri/src/rtpmidi.rs` | RTP-MIDI UDP listener |
+| `apps/desktop/src/main.ts` | Companion UI (pairing, device selection, status) |
+
 ---
 
 ## Getting Started
@@ -208,6 +249,13 @@ That runs the monorepo dev pipeline. If you need package-level commands:
 ```bash
 npm --workspace @hayashi/client run dev
 npm --workspace @hayashi/server run dev
+```
+
+For the MIDI Bridge Companion:
+
+```bash
+cd apps/desktop/src-tauri
+cargo tauri dev
 ```
 
 ### Build

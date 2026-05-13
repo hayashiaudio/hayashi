@@ -36,7 +36,12 @@ export function stopPad(nodeId: string, padIndex: number) {
   }
 }
 
-export async function triggerPad(nodeId: string, padIndex: number, assetId: string) {
+export async function triggerPad(
+  nodeId: string,
+  padIndex: number,
+  assetId: string,
+  opts?: { bypassGraph?: boolean }
+) {
   const ctx = audioEngine.ctx;
   if (!ctx) return;
   if (!assetId) return;
@@ -52,7 +57,7 @@ export async function triggerPad(nodeId: string, padIndex: number, assetId: stri
 
   let src: AudioBufferSourceNode;
 
-  if (submix && isTransportActive) {
+  if (submix && isTransportActive && !opts?.bypassGraph) {
     // Transport is running — route through the graph submix
     src = ctx.createBufferSource();
     src.buffer = buffer;
@@ -177,10 +182,10 @@ export async function renderBeat(
 export async function storeRenderedBeat(
   buffer: AudioBuffer,
   name: string
-): Promise<{ id: string; durationSeconds: number }> {
+): Promise<{ id: string; durationSeconds: number; arrayBuffer: ArrayBuffer }> {
   const blob = encodeWav(buffer);
   const id = `asset-${crypto.randomUUID().slice(0, 8)}`;
   const arrayBuffer = await blob.arrayBuffer();
   await storeSample(id, name, arrayBuffer, 'audio/wav', {});
-  return { id, durationSeconds: buffer.duration };
+  return { id, durationSeconds: buffer.duration, arrayBuffer };
 }

@@ -1,9 +1,17 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { audioEngine } from '@/audio/engine';
 import { triggerPad, stopPad, renderBeat, storeRenderedBeat } from '@/audio/drumEngine';
+import { uploadAsset } from '@/lib/api';
 import type { Asset } from '@/types/project';
-import { Play, Square, CircleDot, Plus, X, Volume2, VolumeX, Disc3 } from 'lucide-react';
+import {
+  Square,
+  CircleDot,
+  Volume2,
+  VolumeX,
+  Disc3,
+  X,
+} from 'lucide-react';
 
 const PAD_NAMES = [
   'Kick', 'Snare', 'Clap', 'Hi-Hat',
@@ -13,10 +21,105 @@ const PAD_NAMES = [
 ];
 
 function getPadColor(index: number): string {
-  const colors = ['#ed922f', '#d97757', '#8fb13a', '#6a9bcc', '#6f7b5d', '#f6df9f'];
+  const colors = [
+    '#ed922f', '#d97757', '#8fb13a', '#6a9bcc',
+    '#6f7b5d', '#f6df9f', '#c75b5b', '#5a8fb8',
+  ];
   return colors[index % colors.length];
 }
 
+/* ── Compact Pad ── */
+function DrawerPad({
+  index,
+  asset,
+  muted,
+  onClick,
+  onMute,
+  onClear,
+  onDrop,
+}: {
+  index: number;
+  asset?: Asset;
+  muted: boolean;
+  onClick: () => void;
+  onMute: (e: React.MouseEvent) => void;
+  onClear: (e: React.MouseEvent) => void;
+  onDrop: (assetId: string) => void;
+}) {
+  const [pressed, setPressed] = useState(false);
+  const color = getPadColor(index);
+  const hasAsset = Boolean(asset);
+
+  return (
+    <div
+      onMouseDown={() => {
+        setPressed(true);
+        onClick();
+      }}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onClear(e);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const assetId = e.dataTransfer.getData('application/hayashi-asset');
+        if (assetId) onDrop(assetId);
+      }}
+      className={`hayashi-kit-drawer-pad ${hasAsset ? 'has-asset' : ''} ${muted ? 'is-muted' : ''} ${pressed ? 'is-active' : ''}`}
+      style={{ '--pad-accent': color } as React.CSSProperties}
+      title={asset ? asset.name : PAD_NAMES[index]}
+    >
+      <div className="hayashi-kit-drawer-pad-drop" />
+      <span className="hayashi-kit-drawer-pad-index">{(index + 1).toString().padStart(2, '0')}</span>
+      {hasAsset && <span className="hayashi-kit-drawer-pad-dot" />}
+      <span className="hayashi-kit-drawer-pad-name">
+        {asset ? asset.name : PAD_NAMES[index]}
+      </span>
+
+      {/* Mute toggle — tiny, only visible when hovered or muted */}
+      {hasAsset && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onMute(e);
+          }}
+          title={muted ? 'Unmute' : 'Mute'}
+          type="button"
+          style={{
+            position: 'absolute',
+            top: 3,
+            right: 3,
+            zIndex: 2,
+            width: 14,
+            height: 14,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 3,
+            border: 'none',
+            background: muted ? 'rgba(199,91,91,0.3)' : 'rgba(255,255,255,0.08)',
+            color: muted ? '#e08a8a' : 'rgba(255,255,255,0.35)',
+            cursor: 'pointer',
+            padding: 0,
+            opacity: muted ? 1 : 0,
+            transition: 'opacity 0.1s ease',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+        >
+          {muted ? <VolumeX size={8} /> : <Volume2 size={8} />}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Main Editor ── */
 export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: () => void }) {
   const nodes = useProjectStore((s) => s.nodes);
   const assets = useProjectStore((s) => s.assets);
@@ -32,11 +135,6 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
   const [renderError, setRenderError] = useState<string | null>(null);
   const [hitCount, setHitCount] = useState(0);
   const hitsRef = useRef<Array<{ padIndex: number; when: number }>>([]);
-
-  const sampleAssets = useMemo(
-    () => Object.values(assets).filter((a) => a.kind === 'sample' || a.kind === 'stem'),
-    [assets]
-  );
 
   const getPadAssetId = useCallback(
     (idx: number) => (params[`pad${idx}`] as string) ?? '',
@@ -61,7 +159,7 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
       const assetId = getPadAssetId(idx);
       if (!assetId) return;
       if (!isPadMuted(idx)) {
-        triggerPad(nodeId, idx, assetId).catch(console.error);
+        triggerPad(nodeId, idx, assetId, { bypassGraph: true }).catch(console.error);
       }
       if (recording && audioEngine.ctx && !isPadMuted(idx)) {
         hitsRef.current.push({ padIndex: idx, when: audioEngine.ctx.currentTime });
@@ -98,9 +196,7 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
   const handleTogglePadMute = useCallback(
     (padIndex: number) => {
       const muted = !isPadMuted(padIndex);
-      if (muted) {
-        stopPad(nodeId, padIndex);
-      }
+      if (muted) stopPad(nodeId, padIndex);
       updateDrumPadKit(nodeId, {
         [`pad${padIndex}_muted`]: muted,
       });
@@ -119,7 +215,14 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
       try {
         const buffer = await renderBeat(hits, (padIndex) => getPadAssetId(padIndex));
         const name = `Kit Beat ${new Date().toLocaleTimeString()}`;
-        const { id, durationSeconds } = await storeRenderedBeat(buffer, name);
+        const { id, durationSeconds, arrayBuffer } = await storeRenderedBeat(buffer, name);
+        let storageUrl: string | undefined;
+        try {
+          const res = await uploadAsset(arrayBuffer.slice(0));
+          storageUrl = res.url;
+        } catch {
+          // Offline — stay local-only
+        }
         const asset: Asset = {
           id,
           kind: 'sample',
@@ -129,6 +232,7 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
           sampleRate: buffer.sampleRate,
           channels: buffer.numberOfChannels,
           localBlobRef: id,
+          storageUrl,
         };
         addAsset(asset);
         updateNodeParams(nodeId, { outputAssetId: id, mode: 'rendered' });
@@ -159,7 +263,7 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
   const handlePreviewOutput = useCallback(() => {
     const outputAssetId = (params.outputAssetId as string) ?? '';
     if (!outputAssetId) return;
-    triggerPad(nodeId, -1, outputAssetId).catch(console.error);
+    triggerPad(nodeId, -1, outputAssetId, { bypassGraph: true }).catch(console.error);
   }, [nodeId, params.outputAssetId]);
 
   const loadedCount = Array.from({ length: 16 }, (_, i) => getPadAssetId(i)).filter(Boolean).length;
@@ -175,280 +279,105 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
   }, [nodeId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div
-        className="hayashi-surface"
-        style={{
-          width: 960,
-          height: 640,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="hayashi-panel-header" style={{ flexShrink: 0 }}>
-          <div className="flex items-center gap-3">
-            <span className="hayashi-kicker-app">Drum Kit</span>
-            <strong className="hayashi-title-display" style={{ fontSize: '1rem' }}>
-              {nodeId}
-            </strong>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className={`hayashi-daw-tbtn ${recording ? 'is-recording' : ''}`}
-              onClick={toggleRecord}
-              title={recording ? 'Stop recording and render' : 'Start recording'}
-              type="button"
-            >
-              {recording ? <Square size={14} /> : <CircleDot size={14} />}
-            </button>
-            {rendering && (
-              <span className="hayashi-status-pill" style={{ animation: 'pulse 1s infinite' }}>
-                Rendering…
-              </span>
-            )}
-            <button className="hayashi-btn-ghost hayashi-button-xs" onClick={onClose} type="button">
-              Close
-            </button>
-          </div>
+    <div className="hayashi-kit-drawer">
+      {/* Header */}
+      <div className="hayashi-kit-drawer-header">
+        <div className="hayashi-kit-drawer-header-left">
+          <span>Drum Kit</span>
+          <strong title={nodeId}>{nodeId}</strong>
         </div>
-
-        {/* Toolbar */}
-        <div
-          className="flex items-center gap-3 px-4 py-2"
-          style={{ borderBottom: '1px solid var(--hayashi-border)', flexShrink: 0 }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="hayashi-status-pill">{loadedCount} pads loaded</span>
-            <span className="hayashi-status-pill">{hitCount} hits</span>
-          </div>
-          <span style={{ fontSize: '0.68rem', color: 'var(--hayashi-text-dim)', letterSpacing: '0.02em' }}>
-            Click pads to trigger · Drag samples from sidebar
-          </span>
-          {renderError && (
-            <span className="hayashi-status-pill" style={{ color: '#d95757', borderColor: '#d95757' }}>
-              {renderError}
+        <div className="hayashi-kit-drawer-header-right">
+          {rendering && (
+            <span className="hayashi-kit-drawer-status">Rendering…</span>
+          )}
+          {recording && (
+            <span className="hayashi-kit-drawer-status" style={{ color: '#e08a8a' }}>
+              {hitCount} hits
             </span>
           )}
-          <div className="flex items-center gap-2 ml-auto">
-            {outputAssetId && (
-              <>
-                <span className="hayashi-status-pill hayashi-status-pill-bpm">
-                  <Disc3 size={10} /> Rendered
-                </span>
-                <button
-                  className="hayashi-btn-ghost hayashi-button-xs"
-                  onClick={handlePreviewOutput}
-                  type="button"
-                >
-                  <Play size={12} /> Preview
-                </button>
-              </>
-            )}
-            <button
-              className={`hayashi-btn-ghost hayashi-button-xs ${mode === 'live' ? 'is-active' : ''}`}
-              onClick={() => handleSwitchMode('live')}
-              type="button"
-            >
-              Live
-            </button>
-            <button
-              className={`hayashi-btn-ghost hayashi-button-xs ${mode === 'rendered' ? 'is-active' : ''}`}
-              onClick={() => handleSwitchMode('rendered')}
-              type="button"
-              disabled={!outputAssetId}
-            >
-              Rendered
-            </button>
-          </div>
+          {renderError && (
+            <span className="hayashi-kit-drawer-status" style={{ color: '#e08a8a' }}>
+              Error
+            </span>
+          )}
+          <button
+            className={`hayashi-kit-drawer-strip-btn ${recording ? 'is-recording-drawer' : ''}`}
+            onClick={toggleRecord}
+            title={recording ? 'Stop & render' : 'Record beat'}
+            type="button"
+            disabled={rendering}
+          >
+            {recording ? <Square size={10} /> : <CircleDot size={10} />}
+            {recording ? 'Stop' : 'Rec'}
+          </button>
+          <button
+            className="hayashi-kit-drawer-strip-btn"
+            onClick={onClose}
+            title="Close"
+            type="button"
+          >
+            <X size={10} />
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="hayashi-kit-drawer-body">
+        {/* Pad grid */}
+        <div className="hayashi-kit-drawer-grid">
+          {Array.from({ length: 16 }, (_, i) => (
+            <DrawerPad
+              key={i}
+              index={i}
+              asset={getPadAsset(i)}
+              muted={isPadMuted(i)}
+              onClick={() => handlePadClick(i)}
+              onMute={(e) => {
+                e.stopPropagation();
+                handleTogglePadMute(i);
+              }}
+              onClear={(e) => {
+                e.stopPropagation();
+                handleClearPad(i);
+              }}
+              onDrop={(assetId) => handleAssetDrop(assetId, i)}
+            />
+          ))}
         </div>
 
-        {/* Body */}
-        <div style={{ height: 544, display: 'flex', overflow: 'hidden' }}>
-          {/* Asset sidebar */}
-          <div
-            style={{
-              width: 220,
-              flexShrink: 0,
-              borderRight: '1px solid var(--hayashi-border)',
-              overflow: 'auto',
-              padding: 12,
-            }}
-          >
-            <p className="hayashi-mini-label" style={{ marginBottom: 10 }}>
-              Samples
-            </p>
-            {sampleAssets.length === 0 && (
-              <p className="text-xs opacity-50">No samples yet.</p>
-            )}
-            <div style={{ display: 'grid', gap: 6 }}>
-              {sampleAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/hayashi-asset', asset.id);
-                  }}
-                  className="hayashi-asset-chip"
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: 10,
-                    background: 'rgba(250,249,245,0.06)',
-                    cursor: 'grab',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: '0.75rem',
-                    color: 'rgba(245,230,200,0.85)',
-                  }}
-                >
-                  <Volume2 size={12} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {asset.name}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Control strip */}
+        <div className="hayashi-kit-drawer-strip">
+          <span className="hayashi-kit-drawer-status">{loadedCount}/16</span>
 
-          {/* Pad grid */}
-          <div style={{ width: 740, display: 'flex', flexDirection: 'column', padding: 20, overflow: 'auto' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 112px)',
-                gap: 12,
-              }}
+          {outputAssetId && (
+            <button
+              className="hayashi-kit-drawer-strip-btn"
+              onClick={handlePreviewOutput}
+              title="Preview rendered beat"
+              type="button"
             >
-              {Array.from({ length: 16 }, (_, i) => {
-                const asset = getPadAsset(i);
-                const hasAsset = Boolean(asset);
-                const muted = isPadMuted(i);
-                return (
-                  <div
-                    key={i}
-                    onClick={() => handlePadClick(i)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      handleClearPad(i);
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'copy';
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const assetId = e.dataTransfer.getData('application/hayashi-asset');
-                      if (assetId) handleAssetDrop(assetId, i);
-                    }}
-                    className={`hayashi-drum-pad ${hasAsset ? 'has-asset' : ''} ${muted ? 'is-muted' : ''}`}
-                    style={{
-                      position: 'relative',
-                      width: 112,
-                      height: 112,
-                      borderRadius: 12,
-                      background: hasAsset
-                        ? `linear-gradient(180deg, rgba(16,38,29,0.7), rgba(16,38,29,0.9))`
-                        : 'rgba(16,38,29,0.4)',
-                      border: `1px solid ${hasAsset ? getPadColor(i) + '40' : 'rgba(247,239,215,0.06)'}`,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 4,
-                      cursor: 'pointer',
-                      transition: 'all 0.08s ease',
-                      userSelect: 'none',
-                    }}
-                  >
-                    {/* Top controls */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 6,
-                        left: 6,
-                        right: 6,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleTogglePadMute(i); }}
-                        style={{
-                          pointerEvents: 'auto',
-                          background: 'transparent',
-                          border: 'none',
-                          padding: 2,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          opacity: muted ? 1 : 0.4,
-                        }}
-                        title={muted ? 'Unmute' : 'Mute'}
-                        type="button"
-                      >
-                        {muted ? <VolumeX size={12} color="#d95757" /> : <Volume2 size={12} color="rgba(245,230,200,0.5)" />}
-                      </button>
-                      {hasAsset && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleClearPad(i); }}
-                          style={{
-                            pointerEvents: 'auto',
-                            background: 'transparent',
-                            border: 'none',
-                            padding: 2,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: 0.4,
-                          }}
-                          title="Clear sample"
-                          type="button"
-                        >
-                          <X size={12} color="rgba(245,230,200,0.5)" />
-                        </button>
-                      )}
-                    </div>
+              <Disc3 size={10} />
+              Play
+            </button>
+          )}
 
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        color: 'rgba(245,230,200,0.35)',
-                        letterSpacing: '0.06em',
-                      }}
-                    >
-                      {PAD_NAMES[i]}
-                    </span>
-                    {asset ? (
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          fontFamily: "'Poppins', Arial, sans-serif",
-                          color: muted ? 'rgba(245,230,200,0.3)' : getPadColor(i),
-                          maxWidth: '90%',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={asset.name}
-                      >
-                        {asset.name}
-                      </span>
-                    ) : (
-                      <Plus size={14} style={{ color: 'rgba(245,230,200,0.2)' }} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <button
+            className={`hayashi-kit-drawer-strip-btn ${mode === 'live' ? 'is-active-mode' : ''}`}
+            onClick={() => handleSwitchMode('live')}
+            title="Live mode"
+            type="button"
+          >
+            Live
+          </button>
+          <button
+            className={`hayashi-kit-drawer-strip-btn ${mode === 'rendered' ? 'is-active-mode' : ''}`}
+            onClick={() => handleSwitchMode('rendered')}
+            title="Rendered mode"
+            type="button"
+            disabled={!outputAssetId}
+          >
+            Render
+          </button>
         </div>
       </div>
     </div>

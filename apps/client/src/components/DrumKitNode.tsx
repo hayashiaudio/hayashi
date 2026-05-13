@@ -16,7 +16,7 @@ export const DrumKitNode = memo(function DrumKitNodeComponent(props: NodeProps) 
   const outputAssetId = (data.params.outputAssetId as string) ?? '';
 
   return (
-    <div className="hayashi-patch-node hayashi-patch-node-drum">
+    <div className="hayashi-patch-node hayashi-patch-node-drumPad">
       <Handle type="target" position={Position.Left} className="hayashi-node-handle hayashi-node-handle-left" />
       <Handle type="source" position={Position.Right} className="hayashi-node-handle hayashi-node-handle-right" />
 
@@ -34,14 +34,14 @@ export const DrumKitNode = memo(function DrumKitNodeComponent(props: NodeProps) 
           <Maximize2 size={14} />
         </button>
       </div>
-      <h3
-        className="text-sm font-semibold mt-1"
-        style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-      >
-        {data.id}
-      </h3>
-      <div className="text-xs mt-1 opacity-70">
-        {padCount} pads · {outputAssetId ? 'Rendered' : 'Live'}
+      <div className="hayashi-workstation-node-card">
+        <div className="hayashi-workstation-node-icon" aria-hidden="true">
+          <Drum size={18} />
+        </div>
+        <div className="hayashi-workstation-node-meta">
+          <h3 title={data.id}>{data.id}</h3>
+          <span>{padCount} pads · {outputAssetId ? 'Rendered' : 'Live'}</span>
+        </div>
       </div>
     </div>
   );

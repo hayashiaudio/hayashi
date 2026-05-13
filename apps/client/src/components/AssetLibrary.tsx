@@ -7,6 +7,7 @@ import {
   getSample,
   storeSample,
 } from '@/samples/indexedDb';
+import { fetchMissingSample } from '@/samples/sync';
 import { uploadAsset } from '@/lib/api';
 import { BUILTIN_NODES, getNodeDefinition, type NodeCategory } from '@/nodes/registry';
 import type { Asset, PatchNode } from '@/types/project';
@@ -183,6 +184,26 @@ export function AssetLibrary() {
         }
       } catch (err) {
         console.error('[Hayashi] Failed to hydrate samples from IndexedDB:', err);
+      }
+
+      /* ---- Fetch missing samples from peers ---- */
+      try {
+        const state = useProjectStore.getState();
+        for (const asset of Object.values(state.assets)) {
+          if (!asset.storageUrl) continue;
+          const local = await getSample(asset.id);
+          if (local) continue;
+          fetchMissingSample(asset.id, asset.storageUrl, {
+            name: asset.name,
+            mimeType: asset.mimeType,
+            duration: asset.durationSeconds,
+            sampleRate: asset.sampleRate,
+            channels: asset.channels,
+            waveformPeaks: asset.waveformPeaks,
+          }).catch(() => {});
+        }
+      } catch {
+        // non-critical
       }
     }
 
