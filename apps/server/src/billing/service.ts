@@ -8,10 +8,11 @@ import type {
   SubscriptionStatus,
 } from './types.js';
 import type { BillingRepository } from './repository.js';
+import { fetchDiscordEntitlements, findUnlimitedEntitlement } from './discordEntitlements.js';
 
 export const FREE_ACTIVE_NODE_LIMIT = 8;
 export const FREE_EXPORTS_PER_DAY = 3;
-export const HAYASHI_UNLIMITED_PRICE_ID = process.env.STRIPE_PRICE_ID ?? 'price_1TVgpVCmEpq5jdTP2fsI550f';
+export const DISCORD_UNLIMITED_SKU_ID = process.env.DISCORD_UNLIMITED_SKU_ID ?? '';
 
 export class BillingService {
   constructor(private readonly repository: BillingRepository) {}
@@ -34,9 +35,7 @@ export class BillingService {
           discordGlobalName: identity.global_name ?? null,
           discordAvatar: identity.avatar ?? null,
           email: identity.email ?? null,
-          stripeCustomerId: null,
-          stripeSubscriptionId: null,
-          stripePriceId: null,
+          discordEntitlementSkuId: null,
           plan: 'free',
           subscriptionStatus: 'inactive',
           currentPeriodEnd: null,
@@ -67,7 +66,6 @@ export class BillingService {
       plan: normalized.plan,
       subscriptionStatus: normalized.subscriptionStatus,
       currentPeriodEnd: normalized.currentPeriodEnd,
-      stripeCustomerId: normalized.stripeCustomerId,
       entitlements: {
         activeNodeLimit: normalized.plan === 'unlimited' ? null : FREE_ACTIVE_NODE_LIMIT,
         exportsPerDay: normalized.plan === 'unlimited' ? null : FREE_EXPORTS_PER_DAY,
@@ -116,46 +114,19 @@ export class BillingService {
     return this.buildSnapshot(saved, context);
   }
 
-  async updateStripeCustomer(user: BillingUserRecord, customerId: string) {
-    user.stripeCustomerId = customerId;
-    user.updatedAt = Date.now();
-    return this.repository.saveUser(user);
-  }
+  async syncEntitlements(user: BillingUserRecord): Promise<BillingUserRecord> {
+    try {
+      const entitlements = await fetchDiscordEntitlements(user.discordUserId);
+      const unlimited = findUnlimitedEntitlement(entitlements, DISCORD_UNLIMITED_SKU_ID);
 
-  async setStripeCustomerId(user: BillingUserRecord, customerId: string | null) {
-    user.stripeCustomerId = customerId;
-    user.updatedAt = Date.now();
-    return this.repository.saveUser(user);
-  }
-
-  async upsertSubscriptionForCustomer(customerId: string, patch: {
-    subscriptionId: string | null;
-    priceId: string | null;
-    status: SubscriptionStatus;
-    currentPeriodEnd: number | null;
-  }) {
-    const user = await this.repository.findByStripeCustomerId(customerId);
-    if (!user) return null;
-    user.stripeSubscriptionId = patch.subscriptionId;
-    user.stripePriceId = patch.priceId;
-    user.subscriptionStatus = patch.status;
-    user.currentPeriodEnd = patch.currentPeriodEnd;
-    user.plan = shouldBeUnlimited(patch.status, patch.priceId) ? 'unlimited' : 'free';
-    user.updatedAt = Date.now();
-    return this.repository.saveUser(user);
-  }
-
-  async attachCheckoutToUser(discordUserId: string, patch: {
-    stripeCustomerId?: string | null;
-    stripeSubscriptionId?: string | null;
-    email?: string | null;
-  }) {
-    const user = await this.repository.getUser(discordUserId);
-    if (!user) return null;
-    if (patch.stripeCustomerId) user.stripeCustomerId = patch.stripeCustomerId;
-    if (patch.stripeSubscriptionId) user.stripeSubscriptionId = patch.stripeSubscriptionId;
-    if (patch.email) user.email = patch.email;
-    user.updatedAt = Date.now();
+      user.plan = unlimited ? 'unlimited' : 'free';
+      user.subscriptionStatus = unlimited ? 'active' : 'inactive';
+      user.currentPeriodEnd = unlimited?.ends_at ? new Date(unlimited.ends_at).getTime() : null;
+      user.discordEntitlementSkuId = unlimited?.sku_id ?? null;
+      user.updatedAt = Date.now();
+    } catch {
+      // If Discord API fails, preserve existing plan state
+    }
     return this.repository.saveUser(user);
   }
 
@@ -196,8 +167,8 @@ export class BillingService {
   }
 }
 
-function shouldBeUnlimited(status: SubscriptionStatus, priceId: string | null): boolean {
-  return priceId === HAYASHI_UNLIMITED_PRICE_ID && (status === 'active' || status === 'trialing');
+function shouldBeUnlimited(status: SubscriptionStatus): boolean {
+  return status === 'active' || status === 'trialing';
 }
 
 export function todayKey(): string {
@@ -208,21 +179,4 @@ export function buildBillingContext(guildId?: string | null, channelId?: string 
   if (guildId) return { type: 'guild', id: guildId };
   if (channelId) return { type: 'dm', id: channelId };
   return null;
-}
-
-export function derivePlanFromStripe(status: string | null | undefined, priceId: string | null): PlanTier {
-  const normalizedStatus = normalizeSubscriptionStatus(status);
-  return shouldBeUnlimited(normalizedStatus, priceId) ? 'unlimited' : 'free';
-}
-
-export function normalizeSubscriptionStatus(status: string | null | undefined): SubscriptionStatus {
-  switch (status) {
-    case 'active':
-    case 'trialing':
-    case 'past_due':
-    case 'canceled':
-      return status;
-    default:
-      return 'inactive';
-  }
 }
