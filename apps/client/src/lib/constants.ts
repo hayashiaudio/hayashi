@@ -1,6 +1,7 @@
 export const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 export const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+export const DISCORD_UNLIMITED_SKU_ID = import.meta.env.VITE_DISCORD_UNLIMITED_SKU_ID ?? '';
 export const IS_LOCAL_DEV = !new URLSearchParams(window.location.search).has('frame_id');
 const NORMALIZED_SERVER_URL = SERVER_URL?.startsWith('http') ? SERVER_URL : `http://${SERVER_URL ?? 'localhost:3001'}`;
 
@@ -25,4 +26,13 @@ export function getWsUrl(): string {
     return `${protocol}//${window.location.host}`;
   }
   return 'ws://localhost:3001';
+}
+
+/**
+ * MIDI bridge relay WebSocket URL. Clients connect here and the server pairs
+ * them by pairingId so MIDI packets flow between desktop bridge and Discord
+ * Activity without exposing a localhost server or violating CSP.
+ */
+export function getMidiBridgeUrl(): string {
+  return `${getWsUrl()}/hayashi-bridge`;
 }
