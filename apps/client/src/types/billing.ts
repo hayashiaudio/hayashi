@@ -12,7 +12,6 @@ export interface BillingSnapshot {
   plan: BillingPlan;
   subscriptionStatus: BillingStatus;
   currentPeriodEnd: number | null;
-  stripeCustomerId: string | null;
   entitlements: {
     activeNodeLimit: number | null;
     exportsPerDay: number | null;
