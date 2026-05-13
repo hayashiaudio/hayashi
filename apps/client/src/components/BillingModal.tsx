@@ -1,43 +1,30 @@
 import { useState } from 'react';
 import { Crown, Lock, X } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
-import { createBillingCheckout, createBillingPortal } from '@/lib/api';
-import { openExternalUrl } from '@/hooks/useDiscordSdk';
+import { startDiscordPurchase } from '@/hooks/useDiscordSdk';
+import { DISCORD_UNLIMITED_SKU_ID } from '@/lib/constants';
 
 interface BillingModalProps {
   accessToken: string | null;
-  guildId: string | null;
-  channelId: string | null;
 }
 
-export function BillingModal({ accessToken, guildId, channelId }: BillingModalProps) {
+export function BillingModal({ accessToken }: BillingModalProps) {
   const billing = useProjectStore((s) => s.billing);
   const closePaywall = useProjectStore((s) => s.closePaywall);
-  const setBillingSnapshot = useProjectStore((s) => s.setBillingSnapshot);
-  const [pending, setPending] = useState<'checkout' | 'portal' | null>(null);
+  const [pending, setPending] = useState<'checkout' | null>(null);
 
   if (!billing.paywallOpen) return null;
 
   const isUnlimited = billing.snapshot?.plan === 'unlimited';
 
   const handleUpgrade = async () => {
-    if (!accessToken) return;
+    if (!accessToken || !DISCORD_UNLIMITED_SKU_ID) return;
     setPending('checkout');
     try {
-      const result = await createBillingCheckout({ accessToken, guildId, channelId });
-      setBillingSnapshot(result.snapshot);
-      if (result.url) await openExternalUrl(result.url);
-    } finally {
-      setPending(null);
-    }
-  };
-
-  const handleManage = async () => {
-    if (!accessToken) return;
-    setPending('portal');
-    try {
-      const result = await createBillingPortal(accessToken);
-      if (result.url) await openExternalUrl(result.url);
+      const success = await startDiscordPurchase(DISCORD_UNLIMITED_SKU_ID);
+      if (!success) {
+        console.warn('[Hayashi] Purchase did not complete');
+      }
     } finally {
       setPending(null);
     }
@@ -79,11 +66,6 @@ export function BillingModal({ accessToken, guildId, channelId }: BillingModalPr
             <button className="hayashi-action" type="button" onClick={handleUpgrade} disabled={pending !== null || !accessToken}>
               <Crown size={15} />
               {pending === 'checkout' ? 'Opening checkout…' : 'Upgrade to Unlimited'}
-            </button>
-          )}
-          {billing.snapshot?.stripeCustomerId && (
-            <button className="hayashi-secondary-action" type="button" onClick={handleManage} disabled={pending !== null || !accessToken}>
-              {pending === 'portal' ? 'Opening portal…' : 'Manage billing'}
             </button>
           )}
         </div>
