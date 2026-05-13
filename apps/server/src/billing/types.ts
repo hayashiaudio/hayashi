@@ -14,12 +14,10 @@ export interface BillingUserRecord {
   discordGlobalName: string | null;
   discordAvatar: string | null;
   email: string | null;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  stripePriceId: string | null;
   plan: PlanTier;
   subscriptionStatus: SubscriptionStatus;
   currentPeriodEnd: number | null;
+  discordEntitlementSkuId: string | null;
   guildInstallationId: string | null;
   dmInstallationId: string | null;
   dailyExportDate: string | null;
@@ -48,7 +46,6 @@ export interface BillingSnapshot {
   plan: PlanTier;
   subscriptionStatus: SubscriptionStatus;
   currentPeriodEnd: number | null;
-  stripeCustomerId: string | null;
   entitlements: {
     activeNodeLimit: number | null;
     exportsPerDay: number | null;
@@ -72,24 +69,3 @@ export interface DiscordIdentity {
   email?: string | null;
 }
 
-export interface CheckoutSessionRecord {
-  stripeCheckoutSessionId: string;
-  userId: string;
-  stripeCustomerId: string | null;
-  status: string;
-  checkoutUrl: string | null;
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface BillingEventRecord {
-  stripeEventId: string;
-  eventType: string;
-  customerId: string | null;
-  subscriptionId: string | null;
-  payloadJson: string;
-  status: string;
-  processedAt: number | null;
-  createdAt: number;
-  updatedAt: number;
-}
