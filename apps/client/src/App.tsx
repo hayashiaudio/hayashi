@@ -4,8 +4,6 @@ import { useProjectStore } from './stores/projectStore';
 import { useYjsProject } from './hooks/useYjsProject';
 import {
   bootstrapBilling,
-  createBillingCheckout,
-  createBillingPortal,
   createBillingStreamToken,
   loadProjectSnapshot,
   saveProjectSnapshot,
@@ -18,8 +16,8 @@ import { StudioScreen } from './components/StudioScreen';
 import MidiBridgePage from './pages/MidiBridgePage';
 import { BillingModal } from './components/BillingModal';
 import { Crown } from 'lucide-react';
-import { openExternalUrl } from './hooks/useDiscordSdk';
-import { SERVER_BASE_URL } from './lib/constants';
+import { startDiscordPurchase } from './hooks/useDiscordSdk';
+import { DISCORD_UNLIMITED_SKU_ID, SERVER_BASE_URL } from './lib/constants';
 import type { BillingSnapshot } from './types/billing';
 import { getHasRemoteRealtimeState, hydrateYjsFromSnapshot, createRealtimeSnapshot } from './lib/projectSync';
 
@@ -35,7 +33,7 @@ function App() {
   if (performanceMockupMode) return <PerformanceWorkspaceMockupPage />;
   if (midiBridgeMode) return <MidiBridgePage />;
 
-  const { ready, channelId, guildId, error, user, participants, accessToken } = useDiscordSdk();
+  const { ready, channelId, guildId, instanceId, error, user, participants, accessToken } = useDiscordSdk();
   const setChannelId = useProjectStore((s) => s.setChannelId);
   const setGuildId = useProjectStore((s) => s.setGuildId);
   const setAccessToken = useProjectStore((s) => s.setAccessToken);
@@ -46,7 +44,6 @@ function App() {
   const setBillingError = useProjectStore((s) => s.setBillingError);
   const openPaywall = useProjectStore((s) => s.openPaywall);
   const projectId = useProjectStore((s) => s.projectId);
-  const setProjectId = useProjectStore((s) => s.setProjectId);
   const projectTitle = useProjectStore((s) => s.projectTitle);
   const setProjectTitle = useProjectStore((s) => s.setProjectTitle);
   const localTransport = useProjectStore((s) => s.localTransport);
@@ -63,7 +60,7 @@ function App() {
   const setTracks = useProjectStore((s) => s.setTracks);
   const hydratedRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
-  const [installationAction, setInstallationAction] = useState<'checkout' | 'portal' | null>(null);
+  const [installationAction, setInstallationAction] = useState<'checkout' | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -271,12 +268,7 @@ function App() {
     user,
   ]);
 
-  useEffect(() => {
-    if (!channelId || projectId) return;
-    setProjectId(`discord-channel-${channelId}`);
-  }, [channelId, projectId, setProjectId]);
-
-  const { collabReady, remoteStateLoaded, ydocRef } = useYjsProject(channelId, projectId, participants);
+  const { collabReady, remoteStateLoaded, ydocRef } = useYjsProject(instanceId, projectId, participants);
 
   useEffect(() => {
     let cancelled = false;
@@ -300,7 +292,8 @@ function App() {
 
     (async () => {
       try {
-        const result = await loadProjectSnapshot(projectId);
+        if (!accessToken) return;
+        const result = await loadProjectSnapshot(projectId, accessToken);
         if (cancelled) return;
         const snapshot = result?.snapshot as
           | {
@@ -349,6 +342,7 @@ function App() {
       cancelled = true;
     };
   }, [
+    accessToken,
     collabReady,
     projectId,
     remoteStateLoaded,
@@ -379,7 +373,8 @@ function App() {
     };
 
     saveTimerRef.current = window.setTimeout(() => {
-      saveProjectSnapshot(projectId, snapshot).catch((err) => {
+      if (!accessToken) return;
+      saveProjectSnapshot(projectId, snapshot, accessToken).catch((err) => {
         console.error('[Hayashi] Failed to save project snapshot:', err);
       });
     }, 400);
@@ -390,7 +385,7 @@ function App() {
         saveTimerRef.current = null;
       }
     };
-  }, [projectId, projectTitle, localTransport, nodes, edges, assets, clips, tracks]);
+  }, [accessToken, projectId, projectTitle, localTransport, nodes, edges, assets, clips, tracks]);
 
   if (!ready) {
     return (
@@ -439,23 +434,10 @@ function App() {
 
   if (installationBlocked) {
     const handleUpgrade = async () => {
-      if (!accessToken) return;
+      if (!accessToken || !DISCORD_UNLIMITED_SKU_ID) return;
       setInstallationAction('checkout');
       try {
-        const result = await createBillingCheckout({ accessToken, guildId, channelId });
-        setBillingSnapshot(result.snapshot);
-        if (result.url) await openExternalUrl(result.url);
-      } finally {
-        setInstallationAction(null);
-      }
-    };
-
-    const handleManage = async () => {
-      if (!accessToken || !billing.snapshot?.stripeCustomerId) return;
-      setInstallationAction('portal');
-      try {
-        const result = await createBillingPortal(accessToken);
-        if (result.url) await openExternalUrl(result.url);
+        await startDiscordPurchase(DISCORD_UNLIMITED_SKU_ID);
       } finally {
         setInstallationAction(null);
       }
@@ -479,20 +461,10 @@ function App() {
                 <Crown size={15} />
                 {installationAction === 'checkout' ? 'Opening checkout…' : 'Upgrade to Unlimited'}
               </button>
-              {billing.snapshot?.stripeCustomerId && (
-                <button
-                  className="hayashi-secondary-action"
-                  type="button"
-                  onClick={handleManage}
-                  disabled={!accessToken || installationAction !== null}
-                >
-                  {installationAction === 'portal' ? 'Opening portal…' : 'Manage billing'}
-                </button>
-              )}
             </div>
           </div>
         </div>
-        <BillingModal accessToken={accessToken} guildId={guildId} channelId={channelId} />
+        <BillingModal accessToken={accessToken} />
       </>
     );
   }
@@ -500,7 +472,7 @@ function App() {
   return (
     <>
       {projectId ? <StudioScreen /> : <SessionEntryScreen />}
-      <BillingModal accessToken={accessToken} guildId={guildId} channelId={channelId} />
+      <BillingModal accessToken={accessToken} />
     </>
   );
 }
