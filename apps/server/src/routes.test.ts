@@ -44,53 +44,102 @@ describe('routes', () => {
   });
 
   describe('POST /project/save', () => {
-    it('saves a project snapshot and returns saved path', async () => {
-      const projectId = 'test-project-1';
-      const snapshot = { title: 'Test Jam', bpm: 128 };
+    const mockDiscordUser = {
+      id: 'discord-user-1',
+      username: 'hayashi',
+      global_name: 'Hayashi Tester',
+      avatar: null,
+    };
 
+    function withMockIdentity(test: () => Promise<void>) {
+      return async () => {
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = (async (input: string | URL | Request) => {
+          const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+          if (url.includes('/users/@me')) {
+            return new Response(JSON.stringify(mockDiscordUser), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+          return originalFetch(input);
+        }) as typeof fetch;
+
+        try {
+          await test();
+        } finally {
+          globalThis.fetch = originalFetch;
+        }
+      };
+    }
+
+    it('returns 400 when accessToken is missing', async () => {
       const res = await app.request('/project/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, snapshot }),
-      });
-
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.saved).toBe(true);
-      expect(body.path).toContain(projectId);
-    });
-
-    it('returns 400 when projectId is missing', async () => {
-      const res = await app.request('/project/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ snapshot: {} }),
+        body: JSON.stringify({ projectId: 'test', snapshot: {} }),
       });
 
       expect(res.status).toBe(400);
       const body = await res.json();
-      expect(body.error).toBe('Missing projectId or snapshot');
+      expect(body.error).toBe('Missing accessToken, projectId, or snapshot');
     });
 
-    it('returns 400 when snapshot is missing', async () => {
-      const res = await app.request('/project/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: 'test' }),
-      });
+    it(
+      'saves a project snapshot and returns success',
+      withMockIdentity(async () => {
+        const projectId = 'test-project-1';
+        const snapshot = { projectTitle: 'Test Jam', bpm: 128 };
 
-      expect(res.status).toBe(400);
-      const body = await res.json();
-      expect(body.error).toBe('Missing projectId or snapshot');
-    });
+        const res = await app.request('/project/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: 'discord-token', projectId, snapshot }),
+        });
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.saved).toBe(true);
+      })
+    );
+
+    it(
+      'returns 401 with invalid accessToken',
+      withMockIdentity(async () => {
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = (async () =>
+          new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })) as typeof fetch;
+
+        try {
+          const res = await app.request('/project/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: 'bad-token', projectId: 'test', snapshot: {} }),
+          });
+
+          expect(res.status).toBe(401);
+        } finally {
+          globalThis.fetch = originalFetch;
+        }
+      })
+    );
   });
 
   describe('GET /project/load/:projectId', () => {
-    it('returns 404 when project does not exist', async () => {
-      const res = await app.request('/project/load/nonexistent');
-      expect(res.status).toBe(404);
+    it('returns 400 when accessToken is missing', async () => {
+      const res = await app.request('/project/load/test');
+      expect(res.status).toBe(400);
       const body = await res.json();
-      expect(body.error).toBe('Project not found');
+      expect(body.error).toBe('Missing accessToken');
+    });
+  });
+
+  describe('GET /projects/list', () => {
+    it('returns 400 when accessToken is missing', async () => {
+      const res = await app.request('/projects/list');
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe('Missing accessToken');
     });
   });
 
@@ -159,6 +208,16 @@ describe('routes', () => {
   });
 
   describe('billing', () => {
+    beforeEach(() => {
+      process.env.DISCORD_CLIENT_ID = 'discord-client-id';
+      process.env.DISCORD_BOT_TOKEN = 'discord-bot-token';
+    });
+
+    afterEach(() => {
+      delete process.env.DISCORD_CLIENT_ID;
+      delete process.env.DISCORD_BOT_TOKEN;
+    });
+
     it('bootstraps a free user and tracks daily export limits', async () => {
       const originalFetch = globalThis.fetch;
       globalThis.fetch = (async (input: string | URL | Request) => {
@@ -174,7 +233,13 @@ describe('routes', () => {
             headers: { 'Content-Type': 'application/json' },
           });
         }
-        return new Response(null, { status: 404 });
+        if (url.includes('/applications/') && url.includes('/entitlements')) {
+          return new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return originalFetch(input);
       }) as typeof fetch;
 
       try {
