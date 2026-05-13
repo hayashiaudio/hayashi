@@ -1,26 +1,41 @@
 import { IS_LOCAL_DEV, SERVER_BASE_URL } from './constants';
 import type { BillingSnapshot } from '@/types/billing';
 
-export async function saveProjectSnapshot(projectId: string, snapshot: unknown) {
+export async function saveProjectSnapshot(
+  projectId: string,
+  snapshot: unknown,
+  accessToken: string
+) {
   if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
     return { skipped: true };
   }
   const res = await fetch(`${SERVER_BASE_URL}/project/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId, snapshot }),
+    body: JSON.stringify({ accessToken, projectId, snapshot }),
   });
   if (!res.ok) throw new Error('Failed to save project');
   return res.json();
 }
 
-export async function loadProjectSnapshot(projectId: string) {
+export async function loadProjectSnapshot(projectId: string, accessToken: string) {
   if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
     return { snapshot: undefined };
   }
-  const res = await fetch(`${SERVER_BASE_URL}/project/load/${projectId}`);
+  const res = await fetch(`${SERVER_BASE_URL}/project/load/${projectId}?accessToken=${encodeURIComponent(accessToken)}`);
   if (!res.ok) throw new Error('Failed to load project');
   return res.json();
+}
+
+export async function listProjects(accessToken: string) {
+  if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
+    return { projects: [] };
+  }
+  const res = await fetch(`${SERVER_BASE_URL}/projects/list?accessToken=${encodeURIComponent(accessToken)}`);
+  if (!res.ok) throw new Error('Failed to list projects');
+  return res.json() as Promise<{
+    projects: Array<{ id: string; title: string; createdAt: number; updatedAt: number }>;
+  }>;
 }
 
 export async function uploadAsset(buffer: ArrayBuffer) {
@@ -68,36 +83,6 @@ export async function bootstrapBilling(input: {
     throw new Error(error.error ?? 'Failed to load billing status');
   }
   return res.json() as Promise<BillingSnapshot>;
-}
-
-export async function createBillingCheckout(input: {
-  accessToken: string;
-  guildId?: string | null;
-  channelId?: string | null;
-}) {
-  const res = await fetch(`${SERVER_BASE_URL}/billing/checkout`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.error ?? 'Failed to start checkout');
-  }
-  return res.json() as Promise<{ url: string | null; snapshot: BillingSnapshot }>;
-}
-
-export async function createBillingPortal(accessToken: string) {
-  const res = await fetch(`${SERVER_BASE_URL}/billing/portal`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken }),
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.error ?? 'Failed to open billing portal');
-  }
-  return res.json() as Promise<{ url: string }>;
 }
 
 export async function createBillingStreamToken(input: {
