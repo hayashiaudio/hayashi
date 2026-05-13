@@ -4,23 +4,16 @@ import { randomUUID } from 'crypto';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import {
   billingCustomers,
-  billingEvents,
-  checkoutSessions,
   dailyUsage,
   installations,
   users,
 } from '../db/schema.js';
 import { ensureDbSchema, getDb, hasDatabaseUrl } from '../db/index.js';
-import type { BillingEventRecord, BillingStoreData, BillingUserRecord, CheckoutSessionRecord } from './types.js';
+import type { BillingStoreData, BillingUserRecord } from './types.js';
 
 export interface BillingRepository {
   getUser(discordUserId: string): Promise<BillingUserRecord | null>;
   saveUser(user: BillingUserRecord): Promise<BillingUserRecord>;
-  findByStripeCustomerId(customerId: string): Promise<BillingUserRecord | null>;
-  findByStripeSubscriptionId(subscriptionId: string): Promise<BillingUserRecord | null>;
-  recordCheckoutSession(session: CheckoutSessionRecord): Promise<void>;
-  recordBillingEvent(event: BillingEventRecord): Promise<'created' | 'updated' | 'unchanged'>;
-  getBillingEvent(stripeEventId: string): Promise<BillingEventRecord | null>;
 }
 
 const DEFAULT_DATA: BillingStoreData = { users: {} };
@@ -38,26 +31,6 @@ export class FileBillingRepository implements BillingRepository {
     data.users[user.discordUserId] = user;
     this.write(data);
     return user;
-  }
-
-  async findByStripeCustomerId(customerId: string): Promise<BillingUserRecord | null> {
-    const data = this.read();
-    return Object.values(data.users).find((user) => user.stripeCustomerId === customerId) ?? null;
-  }
-
-  async findByStripeSubscriptionId(subscriptionId: string): Promise<BillingUserRecord | null> {
-    const data = this.read();
-    return Object.values(data.users).find((user) => user.stripeSubscriptionId === subscriptionId) ?? null;
-  }
-
-  async recordCheckoutSession(_session: CheckoutSessionRecord): Promise<void> {}
-
-  async recordBillingEvent(_event: BillingEventRecord): Promise<'created' | 'updated' | 'unchanged'> {
-    return 'unchanged';
-  }
-
-  async getBillingEvent(_stripeEventId: string): Promise<BillingEventRecord | null> {
-    return null;
   }
 
   private read(): BillingStoreData {
@@ -132,107 +105,6 @@ export class DrizzleBillingRepository implements BillingRepository {
     return (await getUserRecord(user.discordUserId)) ?? user;
   }
 
-  async findByStripeCustomerId(customerId: string): Promise<BillingUserRecord | null> {
-    await ensureDbSchema();
-    const row = await getDb()
-      .select({ userId: billingCustomers.userId })
-      .from(billingCustomers)
-      .where(eq(billingCustomers.stripeCustomerId, customerId))
-      .limit(1);
-
-    if (!row[0]) return null;
-    return getUserRecord(row[0].userId);
-  }
-
-  async findByStripeSubscriptionId(subscriptionId: string): Promise<BillingUserRecord | null> {
-    await ensureDbSchema();
-    const row = await getDb()
-      .select({ userId: billingCustomers.userId })
-      .from(billingCustomers)
-      .where(eq(billingCustomers.stripeSubscriptionId, subscriptionId))
-      .limit(1);
-
-    if (!row[0]) return null;
-    return getUserRecord(row[0].userId);
-  }
-
-  async recordCheckoutSession(session: CheckoutSessionRecord): Promise<void> {
-    await ensureDbSchema();
-    await getDb()
-      .insert(checkoutSessions)
-      .values({
-        stripeCheckoutSessionId: session.stripeCheckoutSessionId,
-        userId: session.userId,
-        stripeCustomerId: session.stripeCustomerId,
-        status: session.status,
-        checkoutUrl: session.checkoutUrl,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-      })
-      .onConflictDoUpdate({
-        target: checkoutSessions.stripeCheckoutSessionId,
-        set: {
-          userId: session.userId,
-          stripeCustomerId: session.stripeCustomerId,
-          status: session.status,
-          checkoutUrl: session.checkoutUrl,
-          updatedAt: session.updatedAt,
-        },
-      });
-  }
-
-  async recordBillingEvent(event: BillingEventRecord): Promise<'created' | 'updated' | 'unchanged'> {
-    await ensureDbSchema();
-    const existing = await this.getBillingEvent(event.stripeEventId);
-    if (existing?.status === 'processed') {
-      return 'unchanged';
-    }
-
-    await getDb()
-      .insert(billingEvents)
-      .values({
-        stripeEventId: event.stripeEventId,
-        eventType: event.eventType,
-        customerId: event.customerId,
-        subscriptionId: event.subscriptionId,
-        payloadJson: event.payloadJson,
-        status: event.status,
-        processedAt: event.processedAt,
-        createdAt: event.createdAt,
-        updatedAt: event.updatedAt,
-      })
-      .onConflictDoUpdate({
-        target: billingEvents.stripeEventId,
-        set: {
-          eventType: event.eventType,
-          customerId: event.customerId,
-          subscriptionId: event.subscriptionId,
-          payloadJson: event.payloadJson,
-          status: event.status,
-          processedAt: event.processedAt,
-          updatedAt: event.updatedAt,
-        },
-      });
-
-    return existing ? 'updated' : 'created';
-  }
-
-  async getBillingEvent(stripeEventId: string): Promise<BillingEventRecord | null> {
-    await ensureDbSchema();
-    const rows = await getDb().select().from(billingEvents).where(eq(billingEvents.stripeEventId, stripeEventId)).limit(1);
-    if (!rows[0]) return null;
-    return {
-      stripeEventId: rows[0].stripeEventId,
-      eventType: rows[0].eventType,
-      customerId: rows[0].customerId,
-      subscriptionId: rows[0].subscriptionId,
-      payloadJson: rows[0].payloadJson,
-      status: rows[0].status,
-      processedAt: rows[0].processedAt,
-      createdAt: rows[0].createdAt,
-      updatedAt: rows[0].updatedAt,
-    };
-  }
 }
 
 async function getUserRecord(discordUserId: string): Promise<BillingUserRecord | null> {
@@ -264,9 +136,7 @@ async function getUserRecord(discordUserId: string): Promise<BillingUserRecord |
     discordGlobalName: userRow.discordGlobalName,
     discordAvatar: userRow.discordAvatar,
     email: userRow.discordEmail,
-    stripeCustomerId: customerRow?.stripeCustomerId ?? null,
-    stripeSubscriptionId: customerRow?.stripeSubscriptionId ?? null,
-    stripePriceId: customerRow?.stripePriceId ?? null,
+    discordEntitlementSkuId: customerRow?.discordEntitlementSkuId ?? null,
     plan: (customerRow?.plan ?? 'free') as BillingUserRecord['plan'],
     subscriptionStatus: (customerRow?.subscriptionStatus ?? 'inactive') as BillingUserRecord['subscriptionStatus'],
     currentPeriodEnd: customerRow?.currentPeriodEnd ?? null,
@@ -294,11 +164,9 @@ function toUserRow(user: BillingUserRecord) {
 function toCustomerRow(user: BillingUserRecord, now: number) {
   return {
     userId: user.discordUserId,
-    stripeCustomerId: user.stripeCustomerId,
+    discordEntitlementSkuId: user.discordEntitlementSkuId,
     plan: user.plan,
     subscriptionStatus: user.subscriptionStatus,
-    stripeSubscriptionId: user.stripeSubscriptionId,
-    stripePriceId: user.stripePriceId,
     currentPeriodEnd: user.currentPeriodEnd,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt || now,
