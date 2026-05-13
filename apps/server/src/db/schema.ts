@@ -14,12 +14,10 @@ export const billingCustomers = pgTable('billing_customers', {
   userId: text('user_id')
     .primaryKey()
     .references(() => users.discordUserId, { onDelete: 'cascade' }),
-  stripeCustomerId: text('stripe_customer_id').unique(),
   plan: text('plan').notNull(),
   subscriptionStatus: text('subscription_status').notNull(),
-  stripeSubscriptionId: text('stripe_subscription_id'),
-  stripePriceId: text('stripe_price_id'),
   currentPeriodEnd: bigint('current_period_end', { mode: 'number' }),
+  discordEntitlementSkuId: text('discord_entitlement_sku_id'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });
@@ -59,26 +57,18 @@ export const dailyUsage = pgTable(
   })
 );
 
-export const checkoutSessions = pgTable('checkout_sessions', {
-  stripeCheckoutSessionId: text('stripe_checkout_session_id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.discordUserId, { onDelete: 'cascade' }),
-  stripeCustomerId: text('stripe_customer_id'),
-  status: text('status').notNull(),
-  checkoutUrl: text('checkout_url'),
+export const projects = pgTable('projects', {
+  id: text('id').primaryKey(),
+  ownerId: text('owner_id').notNull(),
+  title: text('title').notNull(),
+  snapshotJson: text('snapshot_json').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });
 
-export const billingEvents = pgTable('billing_events', {
-  stripeEventId: text('stripe_event_id').primaryKey(),
-  eventType: text('event_type').notNull(),
-  customerId: text('customer_id'),
-  subscriptionId: text('subscription_id'),
-  payloadJson: text('payload_json').notNull(),
-  status: text('status').notNull(),
-  processedAt: bigint('processed_at', { mode: 'number' }),
+export const yjsUpdates = pgTable('yjs_updates', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+  docName: text('doc_name').notNull(),
+  updateData: text('update_data').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });
