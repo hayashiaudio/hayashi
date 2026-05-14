@@ -4,9 +4,22 @@ export async function exportWav(
   sampleRate = 48000,
   bitDepth: 16 | 24 = 16
 ): Promise<Blob> {
+  console.log('[Hayashi] exportWav: duration=', durationSeconds, 'sr=', sampleRate, 'samples=', Math.round(durationSeconds * sampleRate));
   const offlineCtx = new OfflineAudioContext(2, durationSeconds * sampleRate, sampleRate);
   await renderFn(offlineCtx);
   const rendered = await offlineCtx.startRendering();
+
+  // Check if rendered buffer is silent
+  let maxAmp = 0;
+  for (let c = 0; c < rendered.numberOfChannels; c++) {
+    const data = rendered.getChannelData(c);
+    for (let i = 0; i < data.length; i++) {
+      const abs = Math.abs(data[i]);
+      if (abs > maxAmp) maxAmp = abs;
+    }
+  }
+  console.log('[Hayashi] exportWav: rendered', rendered.duration, 's, channels=', rendered.numberOfChannels, 'maxAmp=', maxAmp);
+
   return audioBufferToWavBlob(rendered, bitDepth);
 }
 

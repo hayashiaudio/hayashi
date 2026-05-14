@@ -666,6 +666,8 @@ export async function renderGraphOffline(
     return trackIds.includes(c.trackId);
   });
 
+  console.log('[Hayashi] Offline render: bpm=', bpm, 'clips=', Object.values(clips).length, 'audioClips=', clipsToSchedule.length, 'trackIds=', trackIds);
+
   for (const clip of clipsToSchedule) {
     const track = tracks[clip.trackId];
     if (!track || track.muted) continue;
@@ -695,6 +697,7 @@ export async function renderGraphOffline(
 
     const when = beatToSeconds(clip.startBeat);
     const duration = clip.loop ? undefined : beatToSeconds(clip.lengthBeats);
+    console.log('[Hayashi] Offline: scheduling clip', clip.id, 'asset=', clip.assetId, 'when=', when, 'dur=', duration, 'target=', targetNode?.constructor?.name);
     source.start(when, 0, duration);
   }
 }
