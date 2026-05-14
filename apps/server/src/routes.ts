@@ -359,13 +359,21 @@ app.get('/projects/list', async (c) => {
 });
 
 app.post('/assets/upload', async (c) => {
-  const body = await c.req.arrayBuffer();
-  const assetId = randomUUID();
-  const dir = resolve('/tmp/hayashi/assets');
-  mkdirSync(dir, { recursive: true });
-  const path = resolve(dir, assetId);
-  writeFileSync(path, Buffer.from(body));
-  return c.json({ assetId, url: `/assets/${assetId}` });
+  try {
+    const body = await c.req.arrayBuffer();
+    console.log(`[Hayashi] Upload received: ${body.byteLength} bytes`);
+    const assetId = randomUUID();
+    const dir = resolve('/tmp/hayashi/assets');
+    mkdirSync(dir, { recursive: true });
+    const path = resolve(dir, assetId);
+    writeFileSync(path, Buffer.from(body));
+    console.log(`[Hayashi] Upload saved: ${assetId} (${body.byteLength} bytes)`);
+    return c.json({ assetId, url: `/assets/${assetId}` });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Upload save failed';
+    console.error('[Hayashi] Upload error:', msg);
+    return c.json({ error: msg }, 500);
+  }
 });
 
 app.delete('/assets/:assetId', (c) => {

@@ -123,7 +123,11 @@ export function ExportPanel() {
         method: 'POST',
         body: blob,
       });
-      if (!uploadRes.ok) throw new Error('Failed to stage export for download');
+      if (!uploadRes.ok) {
+        const body = await uploadRes.text().catch(() => 'no body');
+        console.error('[Hayashi] Upload failed:', uploadRes.status, uploadRes.statusText, body);
+        throw new Error(`Upload failed (${uploadRes.status}): ${body.slice(0, 200)}`);
+      }
       const { assetId } = (await uploadRes.json()) as { assetId: string };
 
       const downloadFilename = formatFilename(projectTitle, currentFormat.extension);
