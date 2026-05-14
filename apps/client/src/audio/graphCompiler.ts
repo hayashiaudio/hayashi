@@ -42,7 +42,8 @@ export function stopRawSource(nodeId: string) {
   }
 }
 
-const sampleBufferCache = new Map<string, AudioBuffer>();
+/* AudioBuffers are bound to their AudioContext — cache per-context. */
+const sampleBufferCache = new WeakMap<RenderContext, Map<string, AudioBuffer>>();
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -96,7 +97,12 @@ function createBitcrusherCurve(bits: number) {
 }
 
 export async function getCachedSampleBuffer(assetId: string, ctx: RenderContext): Promise<AudioBuffer | null> {
-  const cached = sampleBufferCache.get(assetId);
+  let ctxCache = sampleBufferCache.get(ctx);
+  if (!ctxCache) {
+    ctxCache = new Map<string, AudioBuffer>();
+    sampleBufferCache.set(ctx, ctxCache);
+  }
+  const cached = ctxCache.get(assetId);
   if (cached) return cached;
 
   let sample = await getSample(assetId);
@@ -123,7 +129,7 @@ export async function getCachedSampleBuffer(assetId: string, ctx: RenderContext)
   }
 
   const buffer = await ctx.decodeAudioData(sample.buffer.slice(0));
-  sampleBufferCache.set(assetId, buffer);
+  ctxCache.set(assetId, buffer);
   return buffer;
 }
 
@@ -643,10 +649,54 @@ export async function compileGraph(
 
 export async function renderGraphOffline(
   ctx: OfflineAudioContext,
-  nodes: Record<string, PatchNode>,
-  edges: Record<string, PatchEdge>
+  snapshot: import('@/export/types').ProjectSnapshot,
+  trackIds?: string[]
 ) {
-  await compileGraphInternal(ctx, ctx.destination, nodes, edges);
+  const { nodes, edges, clips, tracks, bpm } = snapshot;
+  const graph = await compileGraphInternal(ctx, ctx.destination, nodes, edges);
+
+  /* Schedule audio clips directly on the OfflineAudioContext timeline.
+     The live transportScheduler uses requestAnimationFrame, which doesn't
+     run during offline rendering.  */
+  const beatToSeconds = (beats: number) => ((beats / (bpm || 128)) * 60);
+
+  const clipsToSchedule = Object.values(clips).filter((c) => {
+    if (c.type !== 'audio' || !c.assetId) return false;
+    if (!trackIds) return true;
+    return trackIds.includes(c.trackId);
+  });
+
+  for (const clip of clipsToSchedule) {
+    const track = tracks[clip.trackId];
+    if (!track || track.muted) continue;
+
+    let targetNode: AudioNode | null = null;
+    if (track.workstationNodeId) {
+      const ws = graph.nodes.get(track.workstationNodeId);
+      targetNode = ws?.audioNode ?? null;
+    }
+    if (!targetNode) {
+      targetNode = ctx.destination;
+    }
+
+    if (!clip.assetId) continue;
+    const buffer = await getCachedSampleBuffer(clip.assetId, ctx);
+    if (!buffer) {
+      console.warn('[Hayashi] Offline: sample not found for clip', clip.id, clip.assetId);
+      continue;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    if (clip.loop) {
+      source.loop = true;
+    }
+    source.connect(targetNode);
+
+    const when = beatToSeconds(clip.startBeat);
+    const duration = clip.loop ? undefined : beatToSeconds(clip.lengthBeats);
+    source.start(when, 0, duration);
+  }
 }
 
 export function tapNode(

@@ -53,11 +53,11 @@ export async function exportStem(
   if (!track?.sourceNodeId) return null;
   if (track.muted) return null;
 
-  const nodes = cloneNodesWithMutedOthers(snapshot.nodes, track.sourceNodeId);
+  const stemSnapshot = { ...snapshot, nodes: cloneNodesWithMutedOthers(snapshot.nodes, track.sourceNodeId) };
   const duration = getDurationSeconds(snapshot);
 
   const blob = await exportWav(
-    (ctx) => renderGraphOffline(ctx, nodes, snapshot.edges),
+    (ctx) => renderGraphOffline(ctx, stemSnapshot, [trackId]),
     duration,
     48000,
     options.bitDepth ?? 16
@@ -76,7 +76,7 @@ export async function exportMaster(
   const duration = getDurationSeconds(snapshot);
 
   const blob = await exportWav(
-    (ctx) => renderGraphOffline(ctx, snapshot.nodes, snapshot.edges),
+    (ctx) => renderGraphOffline(ctx, snapshot),
     duration,
     48000,
     options.bitDepth ?? 16
