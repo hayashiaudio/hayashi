@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, ArrowLeft, FileMusic, AlertCircle, Check } from 'lucide-react';
-import { SERVER_BASE_URL } from '@/lib/constants';
+// DownloadPage is served from the same origin as the API, so use window.location.origin
+// (SERVER_BASE_URL falls back to localhost when opened outside the Discord iframe)
 
 const COLORS = {
   cream: '#f5f0e8',
@@ -27,7 +28,7 @@ export function DownloadPage() {
       return;
     }
 
-    const serverBase = SERVER_BASE_URL;
+    const serverBase = window.location.origin;
     const assetUrl = `${serverBase}/assets/${assetId}?download=1&filename=${encodeURIComponent(filename)}`;
 
     setStatus('downloading');
@@ -60,7 +61,7 @@ export function DownloadPage() {
 
   const handleManualDownload = () => {
     if (!assetId) return;
-    const serverBase = SERVER_BASE_URL;
+    const serverBase = window.location.origin;
     const assetUrl = `${serverBase}/assets/${assetId}?download=1&filename=${encodeURIComponent(filename)}`;
     window.location.href = assetUrl;
   };
