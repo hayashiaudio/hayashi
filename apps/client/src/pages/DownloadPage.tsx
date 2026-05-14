@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Download, ArrowLeft, FileMusic, AlertCircle, Check } from 'lucide-react';
-// DownloadPage is served from the same origin as the API, so use window.location.origin
-// (SERVER_BASE_URL falls back to localhost when opened outside the Discord iframe)
 
 const COLORS = {
   cream: '#f5f0e8',
@@ -19,17 +17,19 @@ export function DownloadPage() {
 
   const params = new URLSearchParams(window.location.search);
   const assetId = params.get('asset');
+  const tigrisUrl = params.get('url');
   const filename = params.get('filename') ?? 'hayashi-export';
 
+  const assetUrl = tigrisUrl
+    ? `${tigrisUrl}?response-content-disposition=${encodeURIComponent(`attachment; filename="${filename}"`)}`
+    : `${window.location.origin}/assets/${assetId}?download=1&filename=${encodeURIComponent(filename)}`;
+
   useEffect(() => {
-    if (!assetId) {
+    if (!assetId && !tigrisUrl) {
       setStatus('error');
       setErrorMsg('No asset specified.');
       return;
     }
-
-    const serverBase = window.location.origin;
-    const assetUrl = `${serverBase}/assets/${assetId}?download=1&filename=${encodeURIComponent(filename)}`;
 
     setStatus('downloading');
 
@@ -57,12 +57,9 @@ export function DownloadPage() {
       window.clearTimeout(timer);
       cleanup();
     };
-  }, [assetId, filename]);
+  }, [assetUrl, assetId, tigrisUrl]);
 
   const handleManualDownload = () => {
-    if (!assetId) return;
-    const serverBase = window.location.origin;
-    const assetUrl = `${serverBase}/assets/${assetId}?download=1&filename=${encodeURIComponent(filename)}`;
     window.location.href = assetUrl;
   };
 
@@ -153,7 +150,7 @@ export function DownloadPage() {
               <AlertCircle size={16} />
               {errorMsg ?? 'Something went wrong.'}
             </div>
-            {assetId && (
+            {(assetId || tigrisUrl) && (
               <button
                 onClick={handleManualDownload}
                 className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]"

@@ -4,6 +4,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { fetchDiscordIdentity } from './billing/discord.js';
+import { uploadAsset, getPublicAssetUrl } from './storage.js';
 import {
   addBillingSubscriber,
   consumeBillingStreamToken,
@@ -363,28 +364,13 @@ app.post('/assets/upload', async (c) => {
     const body = await c.req.arrayBuffer();
     console.log(`[Hayashi] Upload received: ${body.byteLength} bytes`);
     const assetId = randomUUID();
-    const dir = resolve('/tmp/hayashi/assets');
-    mkdirSync(dir, { recursive: true });
-    const path = resolve(dir, assetId);
-    writeFileSync(path, Buffer.from(body));
-    console.log(`[Hayashi] Upload saved: ${assetId} (${body.byteLength} bytes)`);
-    return c.json({ assetId, url: `/assets/${assetId}` });
+    const publicUrl = await uploadAsset(assetId, Buffer.from(body));
+    console.log(`[Hayashi] Upload saved to Tigris: ${assetId} (${body.byteLength} bytes) -> ${publicUrl}`);
+    return c.json({ assetId, url: publicUrl });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Upload save failed';
     console.error('[Hayashi] Upload error:', msg);
     return c.json({ error: msg }, 500);
-  }
-});
-
-app.delete('/assets/:assetId', (c) => {
-  const assetId = c.req.param('assetId');
-  const path = resolve('/tmp/hayashi/assets', assetId);
-  if (!existsSync(path)) return c.notFound();
-  try {
-    unlinkSync(path);
-    return c.json({ deleted: true });
-  } catch {
-    return c.json({ error: 'Failed to delete asset' }, 500);
   }
 });
 
@@ -412,21 +398,20 @@ app.get('/assets/:assetId', (c) => {
     return c.body(content, 200, { 'Content-Type': MIME_TYPES[ext] ?? 'application/octet-stream' });
   }
 
-  /* Second: fall back to uploaded user assets */
-  const uploadedPath = resolve('/tmp/hayashi/assets', assetId);
-  if (!existsSync(uploadedPath)) return c.notFound();
-  const content = readFileSync(uploadedPath);
-
+  /* Second: redirect to Tigris public URL for user-uploaded assets */
+  const publicUrl = getPublicAssetUrl(assetId);
   const isDownload = c.req.query('download') === '1';
   const filename = c.req.query('filename') || assetId;
   if (isDownload) {
-    return c.body(content, 200, {
-      'Content-Type': 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    });
+    /* Tigris doesn't support Content-Disposition query params, so we proxy
+       through a 302 with a response header. The browser will use the
+       original URL's Content-Disposition if set by the server, but Tigris
+       won't. For true forced-download, we need a small proxy or pre-signed
+       URL with response-content-disposition. */
+    return c.redirect(publicUrl + `?response-content-disposition=${encodeURIComponent(`attachment; filename="${filename}"`)}`, 302);
   }
 
-  return c.body(content);
+  return c.redirect(publicUrl, 302);
 });
 
 app.get('*', (c) => {

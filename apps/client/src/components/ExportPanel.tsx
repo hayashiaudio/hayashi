@@ -128,10 +128,10 @@ export function ExportPanel() {
         console.error('[Hayashi] Upload failed:', uploadRes.status, uploadRes.statusText, body);
         throw new Error(`Upload failed (${uploadRes.status}): ${body.slice(0, 200)}`);
       }
-      const { assetId } = (await uploadRes.json()) as { assetId: string };
+      const { assetId, url } = (await uploadRes.json()) as { assetId: string; url: string };
 
       const downloadFilename = formatFilename(projectTitle, currentFormat.extension);
-      const downloadUrl = `${SERVER_BASE_URL}/download?asset=${encodeURIComponent(assetId)}&filename=${encodeURIComponent(downloadFilename)}`;
+      const downloadUrl = `${SERVER_BASE_URL}/download?asset=${encodeURIComponent(assetId)}&url=${encodeURIComponent(url)}&filename=${encodeURIComponent(downloadFilename)}`;
       await openExternalUrl(downloadUrl);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Export failed';
