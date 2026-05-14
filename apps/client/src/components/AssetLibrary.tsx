@@ -11,7 +11,7 @@ import { fetchMissingSample } from '@/samples/sync';
 import { uploadAsset } from '@/lib/api';
 import { BUILTIN_NODES, getNodeDefinition, type NodeCategory } from '@/nodes/registry';
 import type { Asset, PatchNode } from '@/types/project';
-import { canAddNode } from '@/lib/billing';
+import { canAddNode, canUploadSample, canUseMidiNode } from '@/lib/billing';
 import {
   Search,
   Upload,
@@ -24,7 +24,6 @@ import {
   Activity,
   Radio,
   Drum,
-  Mic,
   Waves,
   MoveRight,
   Disc3,
@@ -36,6 +35,7 @@ import {
   ArrowDownNarrowWide,
   Binary,
   Clapperboard,
+  Trash2,
 } from 'lucide-react';
 
 /* ─────────────────────────── Icon mapping ─────────────────────────── */
@@ -45,7 +45,6 @@ const kindIcons: Record<string, React.ElementType> = {
   noise: Radio,
   sampler: Music2,
   drumPad: Drum,
-  micInput: Mic,
   gain: Zap,
   filter: SlidersHorizontal,
   delay: Clock,
@@ -59,11 +58,10 @@ const kindIcons: Record<string, React.ElementType> = {
   autopan: Waves,
   chorus: Disc3,
   pingPongDelay: Clock,
-  faust: Code2,
   output: Waves,
   workstation: Clapperboard,
 };
-const AUDIBLE_SOURCE_KINDS = new Set<PatchNode['kind']>(['oscillator', 'noise', 'sampler', 'drumPad', 'micInput']);
+const AUDIBLE_SOURCE_KINDS = new Set<PatchNode['kind']>(['oscillator', 'noise', 'sampler', 'drumPad']);
 
 /* ─────────────────────────── Mini waveform ─────────────────────────── */
 
@@ -129,6 +127,7 @@ export function AssetLibrary() {
 
   /* Sample crate */
   const addAsset = useProjectStore((s) => s.addAsset);
+  const deleteSample = useProjectStore((s) => s.deleteSample);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -217,6 +216,7 @@ export function AssetLibrary() {
   const handleFiles = useCallback(
     async (files: FileList | null) => {
       if (!files || files.length === 0) return;
+
       setUploading(true);
 
       try {
@@ -229,6 +229,14 @@ export function AssetLibrary() {
 
         for (const file of Array.from(files)) {
           if (!file.type.startsWith('audio/')) continue;
+
+          const state = useProjectStore.getState();
+          const currentSamples = Object.values(state.assets).filter((a) => a.kind === 'sample').length;
+          const uploadGate = canUploadSample(state.billing.snapshot, currentSamples);
+          if (!uploadGate.allowed) {
+            state.openPaywall('node_limit', uploadGate.message ?? 'Sample limit reached.');
+            break;
+          }
 
           const fileBuffer = await file.arrayBuffer();
           const persistentBuffer = fileBuffer.slice(0);
@@ -293,6 +301,13 @@ export function AssetLibrary() {
   const handleAddNode = useCallback(
     (kind: string, params?: Record<string, number | string | boolean>) => {
       const state = useProjectStore.getState();
+      if (kind === 'midiBridge') {
+        const midiGate = canUseMidiNode(billingSnapshot);
+        if (!midiGate.allowed) {
+          openPaywall('billing_required', midiGate.message ?? 'MIDI Bridge requires an upgrade.');
+          return;
+        }
+      }
       const nodeGate = canAddNode(billingSnapshot, state.nodes, kind as PatchNode['kind']);
       if (!nodeGate.allowed) {
         openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
@@ -516,6 +531,17 @@ export function AssetLibrary() {
                   <strong>{asset.name}</strong>
                   <span>{formatDuration(asset.durationSeconds)}</span>
                 </div>
+                <button
+                  type="button"
+                  className="hayashi-asset-sample-trash"
+                  title="Delete sample"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSample(asset.id).catch(console.error);
+                  }}
+                >
+                  <Trash2 size={12} />
+                </button>
               </div>
             ))}
           </>

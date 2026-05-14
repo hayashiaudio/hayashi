@@ -43,7 +43,13 @@ interface DiscordContext {
 
 export function isRunningInDiscord(): boolean {
   const params = new URLSearchParams(window.location.search);
-  return params.has('frame_id');
+  if (!params.has('frame_id')) return false;
+  try {
+    return window.self !== window.top;
+  } catch {
+    // cross-origin access error means we're inside an iframe
+    return true;
+  }
 }
 
 export async function openExternalUrl(url: string): Promise<boolean> {

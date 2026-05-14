@@ -81,6 +81,17 @@ export async function listSamples(): Promise<string[]> {
   });
 }
 
+export async function removeSample(id: string) {
+  const db = await openDb();
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_SAMPLES, 'readwrite');
+    const store = tx.objectStore(STORE_SAMPLES);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
 // ─── Faust Modules ─────────────────────────────────────────────────────────
 
 export interface FaustModuleRecord {

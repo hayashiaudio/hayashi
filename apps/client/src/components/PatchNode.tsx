@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import type { PatchNode as PatchNodeType } from '@/types/project';
@@ -13,13 +13,11 @@ import {
   Activity,
   Radio,
   Drum,
-  Mic,
   MoveRight,
   Cloud,
   Flame,
   ArrowDownNarrowWide,
   Binary,
-  Code2,
   Clock,
   LayoutGrid,
 } from 'lucide-react';
@@ -32,7 +30,6 @@ const kindIcons: Record<string, React.ElementType> = {
   gain: Zap,
   noise: Radio,
   drumPad: Drum,
-  micInput: Mic,
   delay: Clock,
   reverb: Cloud,
   distortion: Flame,
@@ -44,7 +41,6 @@ const kindIcons: Record<string, React.ElementType> = {
   autopan: Waves,
   chorus: Disc3,
   pingPongDelay: Clock,
-  faust: Code2,
   workstation: LayoutGrid,
 };
 
@@ -57,7 +53,6 @@ const kindLabels: Record<string, string> = {
   delay: 'Delay',
   noise: 'Noise',
   drumPad: 'Drum',
-  micInput: 'Mic',
   reverb: 'Verb',
   distortion: 'Dist',
   compressor: 'Comp',
@@ -68,7 +63,6 @@ const kindLabels: Record<string, string> = {
   autopan: 'APan',
   chorus: 'Chorus',
   pingPongDelay: 'Pong',
-  faust: 'Faust',
   workstation: 'Workstation',
 };
 
@@ -116,6 +110,30 @@ export const PatchNode = memo(function PatchNodeComponent(props: NodeProps) {
   const samplerAsset = useProjectStore((s) => (samplerAssetId ? s.assets[samplerAssetId] : undefined));
   const samplerTitle = samplerAsset?.name ?? (data.kind === 'sampler' ? 'Drop sample' : data.id);
   const samplerPeaks = samplerAsset?.waveformPeaks ?? [];
+  const updateNodeParams = useProjectStore((s) => s.updateNodeParams);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const assetId = e.dataTransfer.getData('application/hayashi-asset');
+    if (assetId && data.kind === 'sampler') {
+      updateNodeParams(data.id, { assetId });
+    }
+  }, [data.kind, data.id, updateNodeParams]);
+
+  const isSamplerEmpty = data.kind === 'sampler' && !samplerAsset;
 
   return (
     <div className={`hayashi-patch-node hayashi-patch-node-${data.kind}`}>
@@ -134,7 +152,12 @@ export const PatchNode = memo(function PatchNodeComponent(props: NodeProps) {
           <Icon size={26} strokeWidth={1.85} />
         </div>
       ) : isSourceNode ? (
-        <div className="hayashi-source-node-card">
+        <div
+          className={`hayashi-source-node-card ${isSamplerEmpty && dragOver ? 'hayashi-sampler-dropzone-active' : ''} ${isSamplerEmpty ? 'hayashi-sampler-dropzone' : ''}`}
+          onDragOver={isSamplerEmpty ? handleDragOver : undefined}
+          onDragLeave={isSamplerEmpty ? handleDragLeave : undefined}
+          onDrop={isSamplerEmpty ? handleDrop : undefined}
+        >
           <div className="hayashi-source-node-icon" aria-hidden="true">
             <Icon size={18} />
           </div>
@@ -154,9 +177,6 @@ export const PatchNode = memo(function PatchNodeComponent(props: NodeProps) {
       )}
       {data.kind === 'oscillator' && (
         <div className="text-xs mt-1 opacity-70">{(data.params.frequency as number) ?? 440} Hz</div>
-      )}
-      {data.kind === 'faust' && data.faustModuleId && (
-        <div className="text-xs mt-1 opacity-70">{data.faustModuleId}</div>
       )}
     </div>
   );

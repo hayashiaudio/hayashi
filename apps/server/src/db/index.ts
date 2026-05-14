@@ -54,14 +54,24 @@ export async function ensureDbSchema() {
       `);
 
       await database.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE billing_customers DROP COLUMN IF EXISTS stripe_customer_id;
+          ALTER TABLE billing_customers DROP COLUMN IF EXISTS stripe_subscription_id;
+          ALTER TABLE billing_customers DROP COLUMN IF EXISTS stripe_price_id;
+          ALTER TABLE billing_customers ADD COLUMN IF NOT EXISTS discord_entitlement_sku_id text;
+        EXCEPTION WHEN OTHERS THEN
+          -- no-op on missing table or duplicate column
+        END $$;
+      `);
+
+      await database.execute(sql`
         create table if not exists billing_customers (
           user_id text primary key references users(discord_user_id) on delete cascade,
-          stripe_customer_id text unique,
           plan text not null,
           subscription_status text not null,
-          stripe_subscription_id text,
-          stripe_price_id text,
           current_period_end bigint,
+          discord_entitlement_sku_id text,
           created_at bigint not null,
           updated_at bigint not null
         )
@@ -98,33 +108,36 @@ export async function ensureDbSchema() {
         on daily_usage(user_id, usage_date)
       `);
 
+      await database.execute(sql`drop table if exists checkout_sessions`);
+      await database.execute(sql`drop table if exists billing_events`);
+
       await database.execute(sql`
-        create table if not exists checkout_sessions (
-          stripe_checkout_session_id text primary key,
-          user_id text not null references users(discord_user_id) on delete cascade,
-          stripe_customer_id text,
-          status text not null,
-          checkout_url text,
+        create table if not exists projects (
+          id text primary key,
+          owner_id text not null,
+          title text not null,
+          snapshot_json text not null,
           created_at bigint not null,
           updated_at bigint not null
         )
       `);
 
       await database.execute(sql`
-        create table if not exists billing_events (
-          stripe_event_id text primary key,
-          event_type text not null,
-          customer_id text,
-          subscription_id text,
-          payload_json text not null,
-          status text not null,
-          processed_at bigint,
-          created_at bigint not null,
-          updated_at bigint not null
+        create table if not exists yjs_updates (
+          id bigserial primary key,
+          doc_name text not null,
+          update_data text not null,
+          created_at bigint not null
         )
       `);
     })();
   }
 
-  await initialized;
+  try {
+    await initialized;
+  } catch (error) {
+    initialized = null;
+    console.error('[Hayashi] Database schema initialization failed:', error);
+    throw error;
+  }
 }

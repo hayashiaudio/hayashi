@@ -222,8 +222,7 @@ export function SessionEntryScreen() {
               <button
                 type="button"
                 onClick={confirmCreate}
-                className="flex-1 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors"
-                style={{ background: '#ed922f' }}
+                className="hayashi-action flex-1"
               >
                 Create Room
               </button>

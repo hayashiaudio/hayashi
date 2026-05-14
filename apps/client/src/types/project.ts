@@ -3,7 +3,6 @@ export type NodeKind =
   | 'noise'
   | 'sampler'
   | 'drumPad'
-  | 'micInput'
   | 'midiBridge'
   | 'gain'
   | 'filter'
@@ -18,7 +17,6 @@ export type NodeKind =
   | 'autopan'
   | 'chorus'
   | 'pingPongDelay'
-  | 'faust'
   | 'output'
   | 'workstation';
 
@@ -30,7 +28,6 @@ export interface PatchNode {
   owner?: string;
   muted?: boolean;
   color?: string;
-  faustModuleId?: string;
 }
 
 export type SignalType = 'audio' | 'midi' | 'control' | 'clock';

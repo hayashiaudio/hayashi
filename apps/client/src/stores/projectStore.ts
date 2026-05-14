@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { TransportState, UserPresence, Asset, PatchNode, PatchEdge, Clip, Track } from '@/types/project';
 import type { BillingBlockReason, BillingSnapshot, BillingState } from '@/types/billing';
+import type { ExportProgress } from '@/export/types';
 
 interface ProjectState {
   channelId: string | null;
@@ -14,6 +15,7 @@ interface ProjectState {
   selectedClipId: string | null;
   previewDrawerOpen: boolean;
   exportPanelOpen: boolean;
+  exportProgress: ExportProgress | null;
   workstationEditorNodeId: string | null;
   drumKitEditorNodeId: string | null;
   browserQuery: string;
@@ -39,6 +41,7 @@ interface ProjectState {
   selectClip: (id: string | null) => void;
   togglePreviewDrawer: () => void;
   toggleExportPanel: () => void;
+  setExportProgress: (progress: ExportProgress | null) => void;
   openWorkstationEditor: (nodeId: string) => void;
   closeWorkstationEditor: () => void;
   openDrumKitEditor: (nodeId: string) => void;
@@ -61,6 +64,7 @@ interface ProjectState {
   setAssets: (assets: Record<string, Asset>) => void;
   addAsset: (asset: Asset) => void;
   removeAsset: (id: string) => void;
+  deleteSample: (id: string) => Promise<void>;
 
   setNodes: (nodes: Record<string, PatchNode>) => void;
   addNode: (node: PatchNode) => void;
@@ -99,6 +103,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   selectedClipId: null,
   previewDrawerOpen: false,
   exportPanelOpen: false,
+  exportProgress: null,
   workstationEditorNodeId: null,
   drumKitEditorNodeId: null,
   browserQuery: '',
@@ -137,6 +142,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   selectClip: (id) => set({ selectedClipId: id }),
   togglePreviewDrawer: () => set((s) => ({ previewDrawerOpen: !s.previewDrawerOpen })),
   toggleExportPanel: () => set((s) => ({ exportPanelOpen: !s.exportPanelOpen })),
+  setExportProgress: (progress) => set({ exportProgress: progress }),
   openWorkstationEditor: (nodeId) => set({ workstationEditorNodeId: nodeId, selectedNodeId: null }),
   closeWorkstationEditor: () => set({ workstationEditorNodeId: null }),
   openDrumKitEditor: (nodeId) => set({ drumKitEditorNodeId: nodeId, selectedNodeId: null }),
@@ -195,14 +201,79 @@ export const useProjectStore = create<ProjectState>((set) => ({
       delete next[id];
       return { assets: next };
     }),
+  deleteSample: async (id) => {
+    const state = useProjectStore.getState();
+    const asset = state.assets[id];
+    if (asset?.storageUrl) {
+      try {
+        const { deleteAsset } = await import('@/lib/api');
+        const assetId = asset.storageUrl.split('/').pop();
+        if (assetId) await deleteAsset(assetId);
+      } catch {
+        // Server delete is best-effort; still purge locally
+      }
+    }
+    try {
+      const { removeSample } = await import('@/samples/indexedDb');
+      await removeSample(id);
+    } catch {
+      // IndexedDB might not be available; still purge from state
+    }
+    state.removeAsset(id);
+  },
 
   setNodes: (nodes) => set({ nodes }),
   addNode: (node) => set((s) => ({ nodes: { ...s.nodes, [node.id]: node } })),
   removeNode: (id) =>
     set((s) => {
-      const next = { ...s.nodes };
-      delete next[id];
-      return { nodes: next };
+      const node = s.nodes[id];
+      const nextNodes = { ...s.nodes };
+      delete nextNodes[id];
+
+      // Remove any edges connected to this node
+      const nextEdges: typeof s.edges = {};
+      for (const e of Object.values(s.edges)) {
+        if (e.sourceNodeId !== id && e.targetNodeId !== id) {
+          nextEdges[e.id] = e;
+        }
+      }
+
+      let nextTracks = s.tracks;
+      let nextClips = s.clips;
+      let nextWorkstationEditorNodeId = s.workstationEditorNodeId;
+
+      if (node?.kind === 'workstation') {
+        // Remove tracks and clips that belong to this workstation
+        const trackIdsToRemove = new Set<string>();
+        const nextTracksCopy = { ...s.tracks };
+        for (const t of Object.values(s.tracks)) {
+          if (t.workstationNodeId === id) {
+            trackIdsToRemove.add(t.id);
+            delete nextTracksCopy[t.id];
+          }
+        }
+        nextTracks = nextTracksCopy;
+
+        const nextClipsCopy = { ...s.clips };
+        for (const c of Object.values(s.clips)) {
+          if (trackIdsToRemove.has(c.trackId)) {
+            delete nextClipsCopy[c.id];
+          }
+        }
+        nextClips = nextClipsCopy;
+
+        if (s.workstationEditorNodeId === id) {
+          nextWorkstationEditorNodeId = null;
+        }
+      }
+
+      return {
+        nodes: nextNodes,
+        edges: nextEdges,
+        tracks: nextTracks,
+        clips: nextClips,
+        workstationEditorNodeId: nextWorkstationEditorNodeId,
+      };
     }),
   updateNodeParams: (id, params) =>
     set((s) => {

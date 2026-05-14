@@ -17,6 +17,8 @@ export interface BillingSnapshot {
     exportsPerDay: number | null;
     guildInstallations: number | null;
     dmInstallations: number | null;
+    sampleAssetsLimit: number | null;
+    midiNodeAccess: boolean;
   };
   usage: {
     dailyExportsUsed: number;

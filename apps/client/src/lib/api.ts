@@ -50,6 +50,17 @@ export async function uploadAsset(buffer: ArrayBuffer) {
   return res.json() as Promise<{ assetId: string; url: string }>;
 }
 
+export async function deleteAsset(assetId: string) {
+  if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
+    return { deleted: true };
+  }
+  const res = await fetch(`${SERVER_BASE_URL}/assets/${assetId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete asset');
+  return res.json() as Promise<{ deleted: boolean }>;
+}
+
 export async function exchangeDiscordAuthCode(code: string) {
   const res = await fetch(`${SERVER_BASE_URL}/discord/token`, {
     method: 'POST',

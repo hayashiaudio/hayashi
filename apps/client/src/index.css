@@ -1389,6 +1389,11 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
 
+  .hayashi-export-panel {
+    background: #faf9f5;
+    box-shadow: 0 24px 80px rgba(16, 38, 29, 0.08);
+  }
+
   .hayashi-drawer-panel {
     background:
       radial-gradient(circle at top right, rgba(143, 177, 58, 0.08), transparent 30%),
@@ -2304,6 +2309,7 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(238, 241, 224, 0.92)),
       rgba(255, 255, 255, 0.56);
     border-color: rgba(106, 155, 61, 0.16);
+    position: relative;
   }
 
   .hayashi-asset-sample:hover {
@@ -2346,6 +2352,35 @@
     font-family: 'IBM Plex Mono', monospace;
     color: rgba(16, 38, 29, 0.5);
     flex-shrink: 0;
+  }
+
+  .hayashi-asset-sample-trash {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    border: none;
+    background: rgba(199, 91, 91, 0.08);
+    color: rgba(184, 86, 61, 0.5);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s ease, background 0.1s ease;
+    padding: 0;
+    z-index: 2;
+  }
+
+  .hayashi-asset-sample:hover .hayashi-asset-sample-trash {
+    opacity: 1;
+  }
+
+  .hayashi-asset-sample-trash:hover {
+    background: rgba(199, 91, 91, 0.18);
+    color: rgba(184, 86, 61, 0.8);
   }
 
   .hayashi-asset-empty {
@@ -2829,6 +2864,17 @@
   .hayashi-sampler-waveform rect {
     fill: color-mix(in srgb, var(--hayashi-leaf) 82%, white 18%);
     opacity: 0.95;
+  }
+
+  /* Sampler dropzone on empty node */
+  .hayashi-source-node-card.hayashi-sampler-dropzone {
+    transition: border-color 0.15s ease, background 0.15s ease;
+    border: 1.5px dashed rgba(143, 177, 58, 0.2);
+  }
+
+  .hayashi-source-node-card.hayashi-sampler-dropzone-active {
+    border-color: rgba(143, 177, 58, 0.55);
+    background: rgba(143, 177, 58, 0.06);
   }
 
   .hayashi-node-knobs {
@@ -6680,6 +6726,11 @@
   font-size: 0.65rem;
 }
 
+.hayashi-rack-empty.mini.is-dragover {
+  border-color: rgba(143, 177, 58, 0.45);
+  background: rgba(143, 177, 58, 0.05);
+}
+
 /* Compact clip list */
 .hayashi-rack-clip-list.compact {
   gap: 4px;
@@ -6705,4 +6756,542 @@
 
 .hayashi-rack-clip-list.compact .hayashi-rack-clip-bar {
   height: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Drum Kit Editor — Cream / Off-White Theme
+   Matches the SessionEntryScreen and BillingModal aesthetic
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Modal backdrop + card */
+.hayashi-kit-modal {
+  width: min(440px, 94vw);
+  max-height: min(640px, 90vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(16, 38, 29, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.10),
+    0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Header */
+.hayashi-kit-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(16, 38, 29, 0.06);
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.hayashi-kit-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hayashi-kit-modal-kicker {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #999;
+  white-space: nowrap;
+}
+
+.hayashi-kit-modal-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.hayashi-kit-modal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Status pills */
+.hayashi-kit-modal-pill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.hayashi-kit-modal-pill.is-rendering {
+  background: #faf5eb;
+  border-color: rgba(16, 38, 29, 0.08);
+  color: #777;
+}
+
+.hayashi-kit-modal-pill.is-recording {
+  background: rgba(199, 91, 91, 0.08);
+  border-color: rgba(199, 91, 91, 0.25);
+  color: #b8563d;
+  animation: hayashi-kit-pulse 1.2s infinite ease-in-out;
+}
+
+.hayashi-kit-modal-pill.is-error {
+  background: rgba(199, 91, 91, 0.08);
+  border-color: rgba(199, 91, 91, 0.25);
+  color: #b8563d;
+}
+
+/* Record button */
+.hayashi-kit-modal-record-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(16, 38, 29, 0.1);
+  background: #faf5eb;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.hayashi-kit-modal-record-btn:hover {
+  background: #f0eadc;
+  border-color: rgba(16, 38, 29, 0.15);
+}
+
+.hayashi-kit-modal-record-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hayashi-kit-modal-record-btn.is-recording {
+  animation: hayashi-kit-pulse 1.2s infinite ease-in-out;
+  color: #b8563d;
+  border-color: rgba(184, 86, 61, 0.35);
+  background: rgba(199, 91, 91, 0.06);
+}
+
+/* Close button */
+.hayashi-kit-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.hayashi-kit-modal-close:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #333;
+}
+
+/* Body */
+.hayashi-kit-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Pad Grid */
+.hayashi-kit-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Individual pad */
+.hayashi-kit-pad {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  background: #faf8f4;
+  border: 1px solid rgba(16, 38, 29, 0.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.06s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.1s ease,
+    border-color 0.1s ease,
+    box-shadow 0.1s ease;
+}
+
+.hayashi-kit-pad::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+}
+
+.hayashi-kit-pad:hover {
+  border-color: color-mix(in srgb, var(--pad-accent, #c76a2e) 30%, rgba(16, 38, 29, 0.1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 6px color-mix(in srgb, var(--pad-accent, #c76a2e) 8%, rgba(0, 0, 0, 0.06));
+}
+
+.hayashi-kit-pad.has-asset {
+  background: color-mix(in srgb, var(--pad-accent) 6%, #faf8f4);
+  border-color: color-mix(in srgb, var(--pad-accent) 20%, rgba(16, 38, 29, 0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 3px color-mix(in srgb, var(--pad-accent) 6%, rgba(0, 0, 0, 0.05));
+}
+
+.hayashi-kit-pad.is-active {
+  transform: scale(0.93);
+  background: color-mix(in srgb, var(--pad-accent) 14%, #f5f0e8);
+  border-color: color-mix(in srgb, var(--pad-accent) 40%, rgba(16, 38, 29, 0.1));
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    0 0 12px color-mix(in srgb, var(--pad-accent) 12%, transparent);
+}
+
+.hayashi-kit-pad.is-dragover {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--pad-accent, #c76a2e) 50%, rgba(16, 38, 29, 0.15));
+  background: color-mix(in srgb, var(--pad-accent, #c76a2e) 8%, #faf8f4);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--pad-accent, #c76a2e) 15%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.hayashi-kit-pad.is-muted {
+  opacity: 0.45;
+}
+
+.hayashi-kit-pad.is-muted::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(16, 38, 29, 0.06) 3px,
+    rgba(16, 38, 29, 0.06) 5px
+  );
+}
+
+.hayashi-kit-pad-index {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  color: #bbb;
+  line-height: 1;
+  z-index: 1;
+}
+
+.hayashi-kit-pad-name {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: #777;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
+  z-index: 1;
+}
+
+.hayashi-kit-pad.has-asset .hayashi-kit-pad-name {
+  color: #444;
+  font-weight: 600;
+}
+
+/* Mini waveform on pad */
+.hayashi-kit-pad-wave {
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  right: 6px;
+  height: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1.5px;
+  opacity: 0.35;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hayashi-kit-pad-wave-bar {
+  flex: 1;
+  min-width: 1.5px;
+  border-radius: 999px;
+  background: var(--pad-accent);
+  opacity: 0.6;
+}
+
+/* Mute toggle */
+.hayashi-kit-pad-mute {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: none;
+  background: rgba(0, 0, 0, 0.04);
+  color: #aaa;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.1s ease, background 0.1s ease;
+}
+
+.hayashi-kit-pad:hover .hayashi-kit-pad-mute {
+  opacity: 1;
+}
+
+.hayashi-kit-pad-mute:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #666;
+}
+
+.hayashi-kit-pad.is-muted .hayashi-kit-pad-mute {
+  opacity: 1;
+  background: rgba(184, 86, 61, 0.1);
+  color: #b8563d;
+}
+
+/* Controls strip */
+.hayashi-kit-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0 2px;
+  flex-shrink: 0;
+}
+
+.hayashi-kit-controls-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  color: #999;
+  letter-spacing: 0.04em;
+}
+
+.hayashi-kit-controls-count span {
+  color: #ccc;
+}
+
+.hayashi-kit-controls-modes {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(16, 38, 29, 0.08);
+  overflow: hidden;
+  background: #faf8f4;
+}
+
+.hayashi-kit-mode-btn {
+  padding: 4px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  border-right: 1px solid rgba(16, 38, 29, 0.06);
+}
+
+.hayashi-kit-mode-btn:last-child {
+  border-right: none;
+}
+
+.hayashi-kit-mode-btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+  color: #555;
+}
+
+.hayashi-kit-mode-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.hayashi-kit-mode-btn.is-active {
+  background: #1a1a1a;
+  color: #f5e6c8;
+}
+
+.hayashi-kit-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(16, 38, 29, 0.1);
+  background: #faf5eb;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  white-space: nowrap;
+}
+
+.hayashi-kit-preview-btn:hover {
+  background: #f0eadc;
+  border-color: rgba(16, 38, 29, 0.15);
+}
+
+/* Sample strip */
+.hayashi-kit-sample-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 16px 14px;
+  border-top: 1px solid rgba(16, 38, 29, 0.06);
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 38, 29, 0.1) transparent;
+}
+
+.hayashi-kit-sample-strip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.hayashi-kit-sample-strip::-webkit-scrollbar-thumb {
+  background: rgba(16, 38, 29, 0.12);
+  border-radius: 999px;
+}
+
+/* Sample chip */
+.hayashi-kit-sample-chip {
+  flex-shrink: 0;
+  width: 72px;
+  padding: 6px 8px 5px;
+  border-radius: 8px;
+  background: #faf8f4;
+  border: 1px solid rgba(16, 38, 29, 0.07);
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.12s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.hayashi-kit-sample-chip:hover {
+  background: #f5f0e8;
+  border-color: rgba(16, 38, 29, 0.12);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+}
+
+.hayashi-kit-sample-chip:active {
+  cursor: grabbing;
+}
+
+.hayashi-kit-sample-wave {
+  width: 100%;
+  height: 22px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1.5px;
+}
+
+.hayashi-kit-sample-wave-bar {
+  flex: 1;
+  min-width: 1.5px;
+  border-radius: 999px;
+  background: #c9b896;
+  opacity: 0.7;
+  transition: height 0.2s ease;
+}
+
+.hayashi-kit-sample-chip:hover .hayashi-kit-sample-wave-bar {
+  background: #b0a07a;
+}
+
+.hayashi-kit-sample-grip {
+  color: #ccc;
+  opacity: 0.5;
+}
+
+.hayashi-kit-sample-name {
+  font-size: 0.55rem;
+  color: #777;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-family: 'IBM Plex Mono', monospace;
+  text-align: center;
+}
+
+.hayashi-kit-sample-empty {
+  font-size: 0.65rem;
+  color: #aaa;
+  font-family: 'IBM Plex Mono', monospace;
+  padding: 10px 4px;
+  white-space: nowrap;
+}
+
+/* Pulse animation for recording */
+@keyframes hayashi-kit-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }

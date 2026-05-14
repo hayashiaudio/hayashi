@@ -12,6 +12,7 @@ import { fetchDiscordEntitlements, findUnlimitedEntitlement } from './discordEnt
 
 export const FREE_ACTIVE_NODE_LIMIT = 8;
 export const FREE_EXPORTS_PER_DAY = 3;
+export const FREE_SAMPLE_ASSETS_LIMIT = 5;
 export const DISCORD_UNLIMITED_SKU_ID = process.env.DISCORD_UNLIMITED_SKU_ID ?? '';
 
 export class BillingService {
@@ -71,6 +72,8 @@ export class BillingService {
         exportsPerDay: normalized.plan === 'unlimited' ? null : FREE_EXPORTS_PER_DAY,
         guildInstallations: normalized.plan === 'unlimited' ? null : 1,
         dmInstallations: normalized.plan === 'unlimited' ? null : 1,
+        sampleAssetsLimit: normalized.plan === 'unlimited' ? null : FREE_SAMPLE_ASSETS_LIMIT,
+        midiNodeAccess: normalized.plan === 'unlimited',
       },
       usage: {
         dailyExportsUsed: normalized.dailyExportCount,

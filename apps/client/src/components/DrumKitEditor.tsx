@@ -3,6 +3,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { audioEngine } from '@/audio/engine';
 import { triggerPad, stopPad, renderBeat, storeRenderedBeat } from '@/audio/drumEngine';
 import { uploadAsset } from '@/lib/api';
+import { canUploadSample } from '@/lib/billing';
 import type { Asset } from '@/types/project';
 import {
   Square,
@@ -10,6 +11,7 @@ import {
   Volume2,
   VolumeX,
   Disc3,
+  GripVertical,
   X,
 } from 'lucide-react';
 
@@ -20,16 +22,19 @@ const PAD_NAMES = [
   'FX 1', 'FX 2', 'FX 3', 'FX 4',
 ];
 
-function getPadColor(index: number): string {
+/* Warm earthy accents that sing against cream */
+function getPadAccent(index: number): string {
   const colors = [
-    '#ed922f', '#d97757', '#8fb13a', '#6a9bcc',
-    '#6f7b5d', '#f6df9f', '#c75b5b', '#5a8fb8',
+    '#c76a2e', '#b8563d', '#6a8f3d', '#4a7fa8',
+    '#5a6b4a', '#c9a84a', '#a84a4a', '#4a7a9a',
+    '#8a6a3a', '#7a5a4a', '#6a7a5a', '#5a6a7a',
+    '#9a6a3a', '#7a4a5a', '#5a7a6a', '#6a5a8a',
   ];
   return colors[index % colors.length];
 }
 
-/* ── Compact Pad ── */
-function DrawerPad({
+/* ── Pad Component ── */
+function DrumPad({
   index,
   asset,
   muted,
@@ -47,7 +52,8 @@ function DrawerPad({
   onDrop: (assetId: string) => void;
 }) {
   const [pressed, setPressed] = useState(false);
-  const color = getPadColor(index);
+  const [dragOver, setDragOver] = useState(false);
+  const accent = getPadAccent(index);
   const hasAsset = Boolean(asset);
 
   return (
@@ -65,24 +71,39 @@ function DrawerPad({
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
+        setDragOver(true);
       }}
+      onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
         e.preventDefault();
+        setDragOver(false);
         const assetId = e.dataTransfer.getData('application/hayashi-asset');
         if (assetId) onDrop(assetId);
       }}
-      className={`hayashi-kit-drawer-pad ${hasAsset ? 'has-asset' : ''} ${muted ? 'is-muted' : ''} ${pressed ? 'is-active' : ''}`}
-      style={{ '--pad-accent': color } as React.CSSProperties}
+      className={`hayashi-kit-pad ${hasAsset ? 'has-asset' : ''} ${muted ? 'is-muted' : ''} ${pressed ? 'is-active' : ''} ${dragOver ? 'is-dragover' : ''}`}
+      style={{ '--pad-accent': accent } as React.CSSProperties}
       title={asset ? asset.name : PAD_NAMES[index]}
     >
-      <div className="hayashi-kit-drawer-pad-drop" />
-      <span className="hayashi-kit-drawer-pad-index">{(index + 1).toString().padStart(2, '0')}</span>
-      {hasAsset && <span className="hayashi-kit-drawer-pad-dot" />}
-      <span className="hayashi-kit-drawer-pad-name">
+      {/* Mini waveform bar for loaded pads */}
+      {hasAsset && asset?.waveformPeaks && asset.waveformPeaks.length > 0 && (
+        <div className="hayashi-kit-pad-wave" aria-hidden="true">
+          {asset.waveformPeaks.slice(0, 12).map((p, i) => (
+            <span
+              key={i}
+              className="hayashi-kit-pad-wave-bar"
+              style={{ height: `${Math.max(2, p * 14)}px` }}
+            />
+          ))}
+        </div>
+      )}
+
+      <span className="hayashi-kit-pad-index">{(index + 1).toString().padStart(2, '0')}</span>
+
+      <span className="hayashi-kit-pad-name">
         {asset ? asset.name : PAD_NAMES[index]}
       </span>
 
-      {/* Mute toggle — tiny, only visible when hovered or muted */}
+      {/* Mute toggle */}
       {hasAsset && (
         <button
           onClick={(e) => {
@@ -91,30 +112,46 @@ function DrawerPad({
           }}
           title={muted ? 'Unmute' : 'Mute'}
           type="button"
-          style={{
-            position: 'absolute',
-            top: 3,
-            right: 3,
-            zIndex: 2,
-            width: 14,
-            height: 14,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 3,
-            border: 'none',
-            background: muted ? 'rgba(199,91,91,0.3)' : 'rgba(255,255,255,0.08)',
-            color: muted ? '#e08a8a' : 'rgba(255,255,255,0.35)',
-            cursor: 'pointer',
-            padding: 0,
-            opacity: muted ? 1 : 0,
-            transition: 'opacity 0.1s ease',
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+          className="hayashi-kit-pad-mute"
         >
-          {muted ? <VolumeX size={8} /> : <Volume2 size={8} />}
+          {muted ? <VolumeX size={9} /> : <Volume2 size={9} />}
         </button>
       )}
+    </div>
+  );
+}
+
+/* ── Sample Chip ── */
+function SampleChip({ asset }: { asset: Asset }) {
+  return (
+    <div
+      className="hayashi-kit-sample-chip"
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/hayashi-asset', asset.id);
+        e.dataTransfer.effectAllowed = 'copy';
+      }}
+      title={asset.name}
+    >
+      <div className="hayashi-kit-sample-wave" aria-hidden="true">
+        {asset.waveformPeaks && asset.waveformPeaks.length > 0
+          ? asset.waveformPeaks.slice(0, 14).map((p, i) => (
+              <span
+                key={i}
+                className="hayashi-kit-sample-wave-bar"
+                style={{ height: `${Math.max(2, p * 16)}px` }}
+              />
+            ))
+          : Array.from({ length: 14 }, () => Math.random() * 0.5 + 0.15).map((p, i) => (
+              <span
+                key={i}
+                className="hayashi-kit-sample-wave-bar"
+                style={{ height: `${Math.max(2, p * 16)}px` }}
+              />
+            ))}
+      </div>
+      <GripVertical size={10} className="hayashi-kit-sample-grip" />
+      <span className="hayashi-kit-sample-name">{asset.name}</span>
     </div>
   );
 }
@@ -216,6 +253,15 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
         const buffer = await renderBeat(hits, (padIndex) => getPadAssetId(padIndex));
         const name = `Kit Beat ${new Date().toLocaleTimeString()}`;
         const { id, durationSeconds, arrayBuffer } = await storeRenderedBeat(buffer, name);
+
+        const state = useProjectStore.getState();
+        const currentSamples = Object.values(state.assets).filter((a) => a.kind === 'sample').length;
+        const uploadGate = canUploadSample(state.billing.snapshot, currentSamples);
+        if (!uploadGate.allowed) {
+          state.openPaywall('node_limit', uploadGate.message ?? 'Sample limit reached.');
+          throw new Error('Sample limit reached');
+        }
+
         let storageUrl: string | undefined;
         try {
           const res = await uploadAsset(arrayBuffer.slice(0));
@@ -269,6 +315,7 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
   const loadedCount = Array.from({ length: 16 }, (_, i) => getPadAssetId(i)).filter(Boolean).length;
   const outputAssetId = (params.outputAssetId as string) ?? '';
   const mode = (params.mode as string) ?? 'live';
+  const sampleAssets = Object.values(assets).filter((a) => a.kind === 'sample');
 
   useEffect(() => {
     return () => {
@@ -279,105 +326,128 @@ export function DrumKitEditor({ nodeId, onClose }: { nodeId: string; onClose: ()
   }, [nodeId]);
 
   return (
-    <div className="hayashi-kit-drawer">
-      {/* Header */}
-      <div className="hayashi-kit-drawer-header">
-        <div className="hayashi-kit-drawer-header-left">
-          <span>Drum Kit</span>
-          <strong title={nodeId}>{nodeId}</strong>
-        </div>
-        <div className="hayashi-kit-drawer-header-right">
-          {rendering && (
-            <span className="hayashi-kit-drawer-status">Rendering…</span>
-          )}
-          {recording && (
-            <span className="hayashi-kit-drawer-status" style={{ color: '#e08a8a' }}>
-              {hitCount} hits
-            </span>
-          )}
-          {renderError && (
-            <span className="hayashi-kit-drawer-status" style={{ color: '#e08a8a' }}>
-              Error
-            </span>
-          )}
-          <button
-            className={`hayashi-kit-drawer-strip-btn ${recording ? 'is-recording-drawer' : ''}`}
-            onClick={toggleRecord}
-            title={recording ? 'Stop & render' : 'Record beat'}
-            type="button"
-            disabled={rendering}
-          >
-            {recording ? <Square size={10} /> : <CircleDot size={10} />}
-            {recording ? 'Stop' : 'Rec'}
-          </button>
-          <button
-            className="hayashi-kit-drawer-strip-btn"
-            onClick={onClose}
-            title="Close"
-            type="button"
-          >
-            <X size={10} />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="hayashi-kit-drawer-body">
-        {/* Pad grid */}
-        <div className="hayashi-kit-drawer-grid">
-          {Array.from({ length: 16 }, (_, i) => (
-            <DrawerPad
-              key={i}
-              index={i}
-              asset={getPadAsset(i)}
-              muted={isPadMuted(i)}
-              onClick={() => handlePadClick(i)}
-              onMute={(e) => {
-                e.stopPropagation();
-                handleTogglePadMute(i);
-              }}
-              onClear={(e) => {
-                e.stopPropagation();
-                handleClearPad(i);
-              }}
-              onDrop={(assetId) => handleAssetDrop(assetId, i)}
-            />
-          ))}
-        </div>
-
-        {/* Control strip */}
-        <div className="hayashi-kit-drawer-strip">
-          <span className="hayashi-kit-drawer-status">{loadedCount}/16</span>
-
-          {outputAssetId && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(245, 230, 200, 0.85)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="hayashi-kit-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="hayashi-kit-modal-header">
+          <div className="hayashi-kit-modal-header-left">
+            <span className="hayashi-kit-modal-kicker">Drum Kit</span>
+            <strong className="hayashi-kit-modal-title">
+              {nodeId.slice(0, 12)}
+            </strong>
+          </div>
+          <div className="hayashi-kit-modal-header-right">
+            {rendering && (
+              <span className="hayashi-kit-modal-pill is-rendering">Rendering…</span>
+            )}
+            {recording && (
+              <span className="hayashi-kit-modal-pill is-recording">
+                {hitCount} hit{hitCount === 1 ? '' : 's'}
+              </span>
+            )}
+            {renderError && (
+              <span className="hayashi-kit-modal-pill is-error">Error</span>
+            )}
             <button
-              className="hayashi-kit-drawer-strip-btn"
-              onClick={handlePreviewOutput}
-              title="Preview rendered beat"
+              className={`hayashi-kit-modal-record-btn ${recording ? 'is-recording' : ''}`}
+              onClick={toggleRecord}
+              title={recording ? 'Stop & render' : 'Record beat'}
               type="button"
+              disabled={rendering}
             >
-              <Disc3 size={10} />
-              Play
+              {recording ? <Square size={10} /> : <CircleDot size={10} />}
+              {recording ? 'Stop' : 'Rec'}
             </button>
-          )}
+            <button
+              className="hayashi-kit-modal-close"
+              onClick={onClose}
+              type="button"
+              aria-label="Close"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
 
-          <button
-            className={`hayashi-kit-drawer-strip-btn ${mode === 'live' ? 'is-active-mode' : ''}`}
-            onClick={() => handleSwitchMode('live')}
-            title="Live mode"
-            type="button"
-          >
-            Live
-          </button>
-          <button
-            className={`hayashi-kit-drawer-strip-btn ${mode === 'rendered' ? 'is-active-mode' : ''}`}
-            onClick={() => handleSwitchMode('rendered')}
-            title="Rendered mode"
-            type="button"
-            disabled={!outputAssetId}
-          >
-            Render
-          </button>
+        {/* Pad Grid */}
+        <div className="hayashi-kit-modal-body">
+          <div className="hayashi-kit-pad-grid">
+            {Array.from({ length: 16 }, (_, i) => (
+              <DrumPad
+                key={i}
+                index={i}
+                asset={getPadAsset(i)}
+                muted={isPadMuted(i)}
+                onClick={() => handlePadClick(i)}
+                onMute={(e) => {
+                  e.stopPropagation();
+                  handleTogglePadMute(i);
+                }}
+                onClear={(e) => {
+                  e.stopPropagation();
+                  handleClearPad(i);
+                }}
+                onDrop={(assetId) => handleAssetDrop(assetId, i)}
+              />
+            ))}
+          </div>
+
+          {/* Mode + Preview strip */}
+          <div className="hayashi-kit-controls">
+            <span className="hayashi-kit-controls-count">
+              {loadedCount}<span>/16</span>
+            </span>
+
+            <div className="hayashi-kit-controls-modes">
+              <button
+                className={`hayashi-kit-mode-btn ${mode === 'live' ? 'is-active' : ''}`}
+                onClick={() => handleSwitchMode('live')}
+                type="button"
+              >
+                Live
+              </button>
+              <button
+                className={`hayashi-kit-mode-btn ${mode === 'rendered' ? 'is-active' : ''}`}
+                onClick={() => handleSwitchMode('rendered')}
+                type="button"
+                disabled={!outputAssetId}
+              >
+                Render
+              </button>
+            </div>
+
+            {outputAssetId && (
+              <button
+                className="hayashi-kit-preview-btn"
+                onClick={handlePreviewOutput}
+                title="Preview rendered beat"
+                type="button"
+              >
+                <Disc3 size={11} />
+                Play
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Sample strip */}
+        <div className="hayashi-kit-sample-strip">
+          {sampleAssets.length > 0 ? (
+            sampleAssets.map((asset) => (
+              <SampleChip key={asset.id} asset={asset} />
+            ))
+          ) : (
+            <span className="hayashi-kit-sample-empty">
+              Drag samples from the library onto pads
+            </span>
+          )}
         </div>
       </div>
     </div>

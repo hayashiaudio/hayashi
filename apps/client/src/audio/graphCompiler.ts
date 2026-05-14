@@ -1,8 +1,7 @@
 import type { PatchNode, PatchEdge, Track } from '@/types/project';
 import { audioEngine } from './engine';
 import { midiEngine } from './midiEngine';
-import { compileFaustNode } from './faustLoader';
-import { getFaustModule, getSample } from '@/samples/indexedDb';
+import { getSample } from '@/samples/indexedDb';
 import { transportScheduler } from './transportScheduler';
 import { createScheduledSampler } from './scheduledSampler';
 import { registerSubmix, unregisterSubmix } from './drumEngine';
@@ -43,8 +42,6 @@ export function stopRawSource(nodeId: string) {
   }
 }
 
-/* Cache Faust worklets by module id so recompiling the graph doesn't recompile DSP */
-const faustWorkletCache = new Map<string, AudioWorkletNode>();
 const sampleBufferCache = new Map<string, AudioBuffer>();
 
 function clamp(value: number, min: number, max: number) {
@@ -156,8 +153,8 @@ function cleanupGraph(graph: CompiledGraph) {
       }
     }
 
-    // Don't disconnect output (masterGain) or Faust worklets (cached and reused)
-    if (runtime.kind !== 'output' && runtime.kind !== 'faust') {
+    // Don't disconnect output (masterGain)
+    if (runtime.kind !== 'output') {
       try {
         runtime.audioNode.disconnect();
       } catch {
@@ -393,16 +390,6 @@ async function compileGraphInternal(
         }
         break;
       }
-      case 'micInput': {
-        const stream = audioEngine.micStream;
-        if (stream && ctx instanceof AudioContext) {
-          const source = ctx.createMediaStreamSource(stream);
-          const output = createSourceOutput(ctx, node.muted ? 0 : ((node.params.gain as number) ?? 0.8));
-          source.connect(output);
-          audioNode = output;
-        }
-        break;
-      }
       case 'midiBridge': {
         const osc = ctx.createOscillator();
         osc.type = (node.params.waveform as OscillatorType) ?? 'sine';
@@ -582,28 +569,6 @@ async function compileGraphInternal(
         outputNode = output;
         break;
       }
-      case 'faust': {
-        if ('audioWorklet' in ctx && ctx instanceof AudioContext && node.faustModuleId) {
-          const cached = faustWorkletCache.get(node.faustModuleId);
-          if (cached) {
-            audioNode = cached;
-          } else {
-            try {
-              const mod = await getFaustModule(node.faustModuleId);
-              if (mod) {
-                const worklet = await compileFaustNode(ctx, mod.dspCode, node.id);
-                if (worklet) {
-                  faustWorkletCache.set(node.faustModuleId, worklet);
-                  audioNode = worklet;
-                }
-              }
-            } catch (e) {
-              console.warn('[Hayashi] Faust compile failed', e);
-            }
-          }
-        }
-        break;
-      }
       case 'output': {
         audioNode = destination;
         break;
@@ -736,13 +701,6 @@ export function updateNodeParam(nodeId: string, param: string, value: number) {
       ap.setValueAtTime(value, audioEngine.ctx?.currentTime ?? 0);
       return;
     }
-  }
-
-  /* Faust worklet param update via MessagePort */
-  if (runtime.kind === 'faust' && 'port' in node) {
-    const port = (node as unknown as { port: MessagePort }).port;
-    port.postMessage({ type: 'param', key: param, value });
-    return;
   }
 
   console.log('[Hayashi] Param update unhandled', nodeId, param, value);

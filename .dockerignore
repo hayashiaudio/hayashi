@@ -1,0 +1,15 @@
+node_modules
+apps/*/node_modules
+apps/*/dist
+.git
+.gitignore
+*.md
+docs
+.env
+apps/*/.env
+*.log
+.DS_Store
+.vscode
+.idea
+apps/server/src/**/*.test.ts
+apps/client/src/**/*.test.ts

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
@@ -70,15 +70,23 @@ app.post('/billing/bootstrap', async (c) => {
   const body = await c.req.json<{ accessToken?: string; guildId?: string | null; channelId?: string | null }>();
   if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
 
+  let identity;
   try {
-    const identity = await fetchDiscordIdentity(body.accessToken);
+    identity = await fetchDiscordIdentity(body.accessToken);
+  } catch {
+    return c.json({ error: 'Discord identity lookup failed' }, 401);
+  }
+
+  try {
     const context = buildBillingContext(body.guildId, body.channelId);
     const user = await billing.getOrCreateUser(identity);
     const synced = await billing.syncEntitlements(user);
     const snapshot = await billing.registerContext(synced, context);
     return c.json(snapshot);
   } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Billing bootstrap failed' }, 401);
+    const message = error instanceof Error ? error.message : 'Billing bootstrap failed';
+    console.error('[Hayashi] Billing bootstrap error:', message);
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -86,14 +94,22 @@ app.post('/billing/stream-token', async (c) => {
   const body = await c.req.json<{ accessToken?: string; guildId?: string | null; channelId?: string | null }>();
   if (!body.accessToken) return c.json({ error: 'Missing Discord access token' }, 400);
 
+  let identity;
   try {
-    const identity = await fetchDiscordIdentity(body.accessToken);
+    identity = await fetchDiscordIdentity(body.accessToken);
+  } catch {
+    return c.json({ error: 'Discord identity lookup failed' }, 401);
+  }
+
+  try {
     const context = buildBillingContext(body.guildId, body.channelId);
     const user = await billing.getOrCreateUser(identity);
     const token = mintBillingStreamToken(user.discordUserId, context);
     return c.json({ token });
   } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Unable to create stream token' }, 500);
+    const message = error instanceof Error ? error.message : 'Unable to create stream token';
+    console.error('[Hayashi] Billing stream-token error:', message);
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -228,8 +244,9 @@ app.post('/project/save', async (c) => {
     return c.json({ error: 'Missing accessToken, projectId, or snapshot' }, 400);
   }
 
+  let identity;
   try {
-    await fetchDiscordIdentity(accessToken);
+    identity = await fetchDiscordIdentity(accessToken);
   } catch {
     return c.json({ error: 'Unauthorized' }, 401);
   }
@@ -239,6 +256,11 @@ app.post('/project/save', async (c) => {
       await ensureDbSchema();
       const db = getDb();
       const now = Date.now();
+
+      const createdBy = (snapshot as Record<string, unknown>)?.createdBy as string | undefined;
+      if (createdBy && createdBy === identity.id) {
+        await billing.getOrCreateUser(identity);
+      }
 
       await db
         .insert(projects)
@@ -346,6 +368,18 @@ app.post('/assets/upload', async (c) => {
   return c.json({ assetId, url: `/assets/${assetId}` });
 });
 
+app.delete('/assets/:assetId', (c) => {
+  const assetId = c.req.param('assetId');
+  const path = resolve('/tmp/hayashi/assets', assetId);
+  if (!existsSync(path)) return c.notFound();
+  try {
+    unlinkSync(path);
+    return c.json({ deleted: true });
+  } catch {
+    return c.json({ error: 'Failed to delete asset' }, 500);
+  }
+});
+
 const __dirname = import.meta.dirname ?? dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = resolve(__dirname, '../../client/dist');
 const MIME_TYPES: Record<string, string> = {
@@ -374,6 +408,16 @@ app.get('/assets/:assetId', (c) => {
   const uploadedPath = resolve('/tmp/hayashi/assets', assetId);
   if (!existsSync(uploadedPath)) return c.notFound();
   const content = readFileSync(uploadedPath);
+
+  const isDownload = c.req.query('download') === '1';
+  const filename = c.req.query('filename') || assetId;
+  if (isDownload) {
+    return c.body(content, 200, {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+  }
+
   return c.body(content);
 });
 

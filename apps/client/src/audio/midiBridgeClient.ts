@@ -1,4 +1,5 @@
 import { midiEngine, type MidiPacket } from './midiEngine';
+import { getMidiBridgeUrl } from '@/lib/constants';
 
 export interface MidiBridgeMessage {
   type: 'midi' | 'pair' | 'pair_ack' | 'pair_nak' | 'ping';
@@ -8,7 +9,7 @@ export interface MidiBridgeMessage {
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
-const WS_URL = 'ws://localhost:8765';
+const WS_URL = getMidiBridgeUrl();
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 let ws: WebSocket | null = null;

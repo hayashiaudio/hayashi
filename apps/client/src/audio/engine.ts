@@ -85,14 +85,15 @@ export class AudioEngine {
     if (this.micStream) return;
     try {
       this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      if (!this.ctx) return;
-      this.micSource = this.ctx.createMediaStreamSource(this.micStream);
-      this.micAnalyser = this.ctx.createAnalyser();
-      this.micAnalyser.fftSize = 256;
-      this.micSource.connect(this.micAnalyser);
     } catch (e) {
       console.warn('[Hayashi] Mic access denied', e);
+      throw new Error('Microphone not available. Make sure permission is granted.');
     }
+    if (!this.ctx) return;
+    this.micSource = this.ctx.createMediaStreamSource(this.micStream);
+    this.micAnalyser = this.ctx.createAnalyser();
+    this.micAnalyser.fftSize = 256;
+    this.micSource.connect(this.micAnalyser);
   }
 
   stopMic() {

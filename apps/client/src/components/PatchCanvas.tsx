@@ -16,7 +16,6 @@ import '@xyflow/react/dist/style.css';
 import { PatchNode } from './PatchNode';
 import { WorkstationNode } from './WorkstationNode';
 import { DrumKitNode } from './DrumKitNode';
-import { MicInputNode } from './MicInputNode';
 import { MidiBridgeNode } from './MidiBridgeNode';
 import PresenceCursors from './PresenceCursors';
 import { TransportBar } from './TransportBar';
@@ -26,19 +25,18 @@ import { audioEngine } from '@/audio/engine';
 import type { PatchNode as PatchNodeType, PatchEdge as PatchEdgeType } from '@/types/project';
 import { getNodeDefinition } from '@/nodes/registry';
 import { CustomEdge } from './CustomEdge';
-import { canAddNode } from '@/lib/billing';
+import { canAddNode, canUseMidiNode } from '@/lib/billing';
 
 const nodeTypes: import('@xyflow/react').NodeTypes = {
   patchNode: PatchNode as unknown as import('@xyflow/react').NodeTypes[string],
   workstation: WorkstationNode as unknown as import('@xyflow/react').NodeTypes[string],
   drumPad: DrumKitNode as unknown as import('@xyflow/react').NodeTypes[string],
-  micInput: MicInputNode as unknown as import('@xyflow/react').NodeTypes[string],
   midiBridge: MidiBridgeNode as unknown as import('@xyflow/react').NodeTypes[string],
 };
 const edgeTypes: import('@xyflow/react').EdgeTypes = {
   custom: CustomEdge as unknown as import('@xyflow/react').EdgeTypes[string],
 };
-const AUDIBLE_SOURCE_KINDS = new Set<PatchNodeType['kind']>(['oscillator', 'noise', 'sampler', 'drumPad', 'micInput', 'midiBridge']);
+const AUDIBLE_SOURCE_KINDS = new Set<PatchNodeType['kind']>(['oscillator', 'noise', 'sampler', 'drumPad', 'midiBridge']);
 
 function isValidAudioConnection(
   sourceKind: PatchNodeType['kind'],
@@ -51,7 +49,7 @@ function isValidAudioConnection(
 function toFlowNodes(nodes: Record<string, PatchNodeType>): import('@xyflow/react').Node[] {
   return Object.values(nodes).map((n) => ({
     id: n.id,
-    type: n.kind === 'workstation' ? 'workstation' : n.kind === 'drumPad' ? 'drumPad' : n.kind === 'micInput' ? 'micInput' : n.kind === 'midiBridge' ? 'midiBridge' : 'patchNode',
+    type: n.kind === 'workstation' ? 'workstation' : n.kind === 'drumPad' ? 'drumPad' : n.kind === 'midiBridge' ? 'midiBridge' : 'patchNode',
     position: n.position,
     data: n as unknown as Record<string, unknown>,
   }));
@@ -177,7 +175,7 @@ const FlowInner = memo(function FlowInnerComponent({
 
   useEffect(() => {
     const nodeSig = Object.values(storeNodes)
-      .map((n) => `${n.id}:${n.kind}:${n.faustModuleId ?? ''}:${n.muted ? 'muted' : 'live'}:${JSON.stringify(n.params)}`)
+      .map((n) => `${n.id}:${n.kind}:${n.muted ? 'muted' : 'live'}:${JSON.stringify(n.params)}`)
       .sort()
       .join('|');
     const edgeSig = Object.values(storeEdges)
@@ -384,6 +382,13 @@ export function PatchCanvas() {
       if (nodePayload) {
         try {
           const { kind } = JSON.parse(nodePayload) as { kind: string };
+          if (kind === 'midiBridge') {
+            const midiGate = canUseMidiNode(billingSnapshot);
+            if (!midiGate.allowed) {
+              openPaywall('billing_required', midiGate.message ?? 'MIDI Bridge requires an upgrade.');
+              return;
+            }
+          }
           const nodeGate = canAddNode(billingSnapshot, useProjectStore.getState().nodes, kind as PatchNodeType['kind']);
           if (!nodeGate.allowed) {
             openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
@@ -401,31 +406,6 @@ export function PatchCanvas() {
             const outputNode = ensureOutputNode(x, y);
             connectIfMissing(node.id, outputNode.id);
           }
-          audioEngine.resume().catch(() => {});
-        } catch {
-          // ignore malformed payload
-        }
-        return;
-      }
-
-      /* Faust module drop */
-      const faustPayload = e.dataTransfer.getData('application/hayashi-faust');
-      if (faustPayload) {
-        try {
-          const nodeGate = canAddNode(billingSnapshot, useProjectStore.getState().nodes, 'faust');
-          if (!nodeGate.allowed) {
-            openPaywall('node_limit', nodeGate.message ?? 'Node limit reached.');
-            return;
-          }
-          const { faustModuleId } = JSON.parse(faustPayload) as { faustModuleId: string };
-          const node: PatchNodeType = {
-            id: `faust-${crypto.randomUUID().slice(0, 8)}`,
-            kind: 'faust',
-            position: { x, y },
-            params: {},
-            faustModuleId,
-          };
-          addNode(node);
           audioEngine.resume().catch(() => {});
         } catch {
           // ignore malformed payload

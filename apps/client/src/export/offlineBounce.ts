@@ -1,19 +1,19 @@
 export async function exportWav(
   renderFn: (ctx: OfflineAudioContext) => Promise<void> | void,
   durationSeconds: number,
-  sampleRate = 48000
+  sampleRate = 48000,
+  bitDepth: 16 | 24 = 16
 ): Promise<Blob> {
   const offlineCtx = new OfflineAudioContext(2, durationSeconds * sampleRate, sampleRate);
   await renderFn(offlineCtx);
   const rendered = await offlineCtx.startRendering();
-  return audioBufferToWavBlob(rendered);
+  return audioBufferToWavBlob(rendered, bitDepth);
 }
 
-function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+function audioBufferToWavBlob(buffer: AudioBuffer, bitDepth: 16 | 24 = 16): Blob {
   const numChannels = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate;
   const format = 1;
-  const bitDepth = 16;
   const bytesPerSample = bitDepth / 8;
   const blockAlign = numChannels * bytesPerSample;
 
@@ -46,12 +46,31 @@ function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
   const channels: Float32Array[] = [];
   for (let c = 0; c < numChannels; c++) channels.push(buffer.getChannelData(c));
 
-  for (let i = 0; i < buffer.length; i++) {
-    for (let c = 0; c < numChannels; c++) {
-      const sample = Math.max(-1, Math.min(1, channels[c][i]));
-      const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-      view.setInt16(offset, intSample, true);
-      offset += bytesPerSample;
+  if (bitDepth === 16) {
+    for (let i = 0; i < buffer.length; i++) {
+      for (let c = 0; c < numChannels; c++) {
+        const sample = Math.max(-1, Math.min(1, channels[c][i]));
+        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+        view.setInt16(offset, intSample, true);
+        offset += bytesPerSample;
+      }
+    }
+  } else {
+    // 24-bit: store in a Uint8Array view for byte-level writing
+    const dataView = new Uint8Array(arrayBuffer, headerLength, dataLength);
+    let byteOffset = 0;
+    for (let i = 0; i < buffer.length; i++) {
+      for (let c = 0; c < numChannels; c++) {
+        const sample = Math.max(-1, Math.min(1, channels[c][i]));
+        const intSample = sample < 0
+          ? Math.round(sample * 0x800000)
+          : Math.round(sample * 0x7fffff);
+        // Write 3 bytes little-endian
+        dataView[byteOffset] = intSample & 0xff;
+        dataView[byteOffset + 1] = (intSample >> 8) & 0xff;
+        dataView[byteOffset + 2] = (intSample >> 16) & 0xff;
+        byteOffset += 3;
+      }
     }
   }
 

@@ -1,10 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
-import { getFaustModule } from '@/samples/indexedDb';
 import { compileGraph, updateNodeParam } from '@/audio/graphCompiler';
 import { getNodeDefinition } from '@/nodes/registry';
 import {
-  Code2,
   X,
   Activity,
   Music2,
@@ -13,7 +11,6 @@ import {
   Zap,
   Radio,
   Drum,
-  Mic,
   Clock,
   Cloud,
   Flame,
@@ -24,7 +21,6 @@ import {
   LayoutGrid,
   AudioLines,
 } from 'lucide-react';
-import { FaustEditor } from './FaustEditor';
 
 interface NodeInspectorProps {
   embedded?: boolean;
@@ -41,7 +37,6 @@ const kindIcons: Record<string, React.ElementType> = {
   gain: Zap,
   noise: Radio,
   drumPad: Drum,
-  micInput: Mic,
   midiBridge: AudioLines,
   delay: Clock,
   reverb: Cloud,
@@ -54,7 +49,6 @@ const kindIcons: Record<string, React.ElementType> = {
   autopan: Waves,
   chorus: Disc3,
   pingPongDelay: Clock,
-  faust: Code2,
   workstation: LayoutGrid,
 };
 
@@ -65,10 +59,9 @@ export function NodeInspector({ embedded = false, onClose }: NodeInspectorProps)
   const clips = useProjectStore((s) => s.clips);
   const tracks = useProjectStore((s) => s.tracks);
   const assets = useProjectStore((s) => s.assets);
-  const [faustEditorOpen, setFaustEditorOpen] = useState(false);
-  const [faustCode, setFaustCode] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('params');
   const [knobDragging, setKnobDragging] = useState<string | null>(null);
+  const [samplerDropOver, setSamplerDropOver] = useState(false);
   const knobStartRef = useRef({ x: 0, y: 0, value: 0 });
 
   const node = selectedNodeId ? nodes[selectedNodeId] : null;
@@ -144,10 +137,8 @@ export function NodeInspector({ embedded = false, onClose }: NodeInspectorProps)
 
   const hasContentTab =
     node &&
-    (node.kind === 'drumPad' ||
-      node.kind === 'sampler' ||
-      node.kind === 'workstation' ||
-      node.kind === 'faust');
+    (node.kind === 'sampler' ||
+      node.kind === 'workstation');
 
   const startKnobDrag = (key: string, value: number, e: React.MouseEvent | React.TouchEvent) => {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -242,7 +233,7 @@ export function NodeInspector({ embedded = false, onClose }: NodeInspectorProps)
             type="button"
             onClick={() => setActiveTab('content')}
           >
-            {node.kind === 'workstation' ? 'Clips' : node.kind === 'faust' ? 'Code' : 'Content'}
+            {node.kind === 'workstation' ? 'Clips' : 'Content'}
           </button>
         </div>
       )}
@@ -335,25 +326,6 @@ export function NodeInspector({ embedded = false, onClose }: NodeInspectorProps)
               )}
             </div>
 
-            {/* Faust source button */}
-            {node.kind === 'faust' && node.faustModuleId && (
-              <div className="hayashi-rack-faust-row">
-                <button
-                  className="hayashi-rack-faust-btn"
-                  type="button"
-                  onClick={async () => {
-                    const mod = await getFaustModule(node.faustModuleId!);
-                    if (mod) {
-                      setFaustCode(mod.dspCode);
-                      setFaustEditorOpen(true);
-                    }
-                  }}
-                >
-                  <Code2 size={14} />
-                  View DSP Source
-                </button>
-              </div>
-            )}
           </div>
         )}
 
@@ -386,9 +358,25 @@ export function NodeInspector({ embedded = false, onClose }: NodeInspectorProps)
                   const asset = assetId ? assets[assetId] : undefined;
                   if (!asset) {
                     return (
-                      <div className="hayashi-rack-empty mini">
+                      <div
+                        className={`hayashi-rack-empty mini ${samplerDropOver ? 'is-dragover' : ''}`}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'copy';
+                          setSamplerDropOver(true);
+                        }}
+                        onDragLeave={() => setSamplerDropOver(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setSamplerDropOver(false);
+                          const droppedAssetId = e.dataTransfer.getData('application/hayashi-asset');
+                          if (droppedAssetId && node) {
+                            updateNodeParams(node.id, { assetId: droppedAssetId });
+                          }
+                        }}
+                      >
                         <Music2 size={20} strokeWidth={1.2} />
-                        <p>No sample loaded</p>
+                        <p>Drop sample</p>
                       </div>
                     );
                   }
@@ -452,9 +440,6 @@ export function NodeInspector({ embedded = false, onClose }: NodeInspectorProps)
         )}
       </div>
 
-      {faustEditorOpen && (
-        <FaustEditor initialCode={faustCode} onClose={() => setFaustEditorOpen(false)} />
-      )}
     </section>
   );
 }

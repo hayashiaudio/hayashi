@@ -56,16 +56,6 @@ export const BUILTIN_NODES: NodeDefinition[] = [
     outputs: 1,
   },
   {
-    kind: 'micInput',
-    label: 'Mic Input',
-    description: 'Capture live microphone audio',
-    category: 'source',
-    icon: 'Mic',
-    defaultParams: { gain: 0.8, monitor: true },
-    inputs: 0,
-    outputs: 1,
-  },
-  {
     kind: 'midiBridge',
     label: 'MIDI Bridge',
     description: 'Capture MIDI from hardware and synthesize audio',
@@ -203,18 +193,6 @@ export const BUILTIN_NODES: NodeDefinition[] = [
     category: 'processor',
     icon: 'Clock',
     defaultParams: { time: 0.3, feedback: 0.4, mix: 0.5 },
-    inputs: 1,
-    outputs: 1,
-  },
-
-  // Custom
-  {
-    kind: 'faust',
-    label: 'Faust',
-    description: 'Custom Faust DSP module',
-    category: 'processor',
-    icon: 'Code2',
-    defaultParams: {},
     inputs: 1,
     outputs: 1,
   },

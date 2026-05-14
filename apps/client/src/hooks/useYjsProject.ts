@@ -44,7 +44,7 @@ export function diffRecord<T>(
 }
 
 export function useYjsProject(
-  channelId: string | null,
+  instanceId: string | null,
   projectId: string | null,
   discordParticipants: DiscordParticipant[] = []
 ) {
@@ -218,9 +218,9 @@ export function useYjsProject(
 
   /* ── Create / destroy provider when room identity changes ── */
   useEffect(() => {
-    if (!channelId || !projectId) return;
+    if (!instanceId || !projectId) return;
     if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) return;
-    const roomName = `project:${channelId}:${projectId}`;
+    const roomName = `project:${instanceId}:${projectId}`;
 
     setCollabReady(false);
     setRemoteStateLoaded(false);
@@ -400,7 +400,7 @@ export function useYjsProject(
       setBroadcastCursor(null);
       setBroadcastFocus(null);
     };
-  }, [channelId, projectId, mergeCollaborators, setBroadcastCursor, setBroadcastFocus]);
+  }, [instanceId, projectId, mergeCollaborators, setBroadcastCursor, setBroadcastFocus]);
 
   /* ── Outgoing: push local changes into Yjs (granular) ── */
   useEffect(() => {

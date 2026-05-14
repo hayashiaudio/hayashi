@@ -67,7 +67,7 @@ export function StudioScreen() {
       </div>
 
       {/* Bottom asset bar */}
-      <div className={`hayashi-canvas-footer ${selectedNodeId && !drumKitEditorNodeId ? 'hayashi-canvas-footer-focus' : ''}`}>
+      <div className={`hayashi-canvas-footer ${selectedNodeId ? 'hayashi-canvas-footer-focus' : ''}`}>
         {selectedNodeId ? (
           <NodeInspector embedded onClose={() => selectNode(null)} />
         ) : (

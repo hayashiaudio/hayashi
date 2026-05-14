@@ -457,7 +457,7 @@ export function ArrangementGrid({
                       const clipWidth = Math.max(safeLength * BEAT_WIDTH, 20);
 
                       const colorClass =
-                        sourceKind === 'sampler' || sourceKind === 'drumPad' || sourceKind === 'micInput'
+                        sourceKind === 'sampler' || sourceKind === 'drumPad'
                           ? 'arrangement-clip-leaf'
                           : sourceKind === 'oscillator' || sourceKind === 'noise'
                             ? 'arrangement-clip-moss'

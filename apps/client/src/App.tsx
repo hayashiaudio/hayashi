@@ -8,6 +8,10 @@ import {
   loadProjectSnapshot,
   saveProjectSnapshot,
 } from './lib/api';
+import { LandingPage } from './components/LandingPage';
+import { isRunningInDiscord } from './hooks/useDiscordSdk';
+import { MarketingPage } from './pages/MarketingPage';
+import { DownloadPage } from './pages/DownloadPage';
 import { BrandGuidelinesPage } from './components/BrandGuidelinesPage';
 import { CoreWorkspaceMockupPage } from './components/CoreWorkspaceMockupPage';
 import { PerformanceWorkspaceMockupPage } from './components/PerformanceWorkspaceMockupPage';
@@ -15,7 +19,7 @@ import { SessionEntryScreen } from './components/SessionEntryScreen';
 import { StudioScreen } from './components/StudioScreen';
 import MidiBridgePage from './pages/MidiBridgePage';
 import { BillingModal } from './components/BillingModal';
-import { Crown } from 'lucide-react';
+import { Crown, AlertCircle } from 'lucide-react';
 import { startDiscordPurchase } from './hooks/useDiscordSdk';
 import { DISCORD_UNLIMITED_SKU_ID, SERVER_BASE_URL } from './lib/constants';
 import type { BillingSnapshot } from './types/billing';
@@ -32,6 +36,13 @@ function App() {
   if (mockupMode) return <CoreWorkspaceMockupPage />;
   if (performanceMockupMode) return <PerformanceWorkspaceMockupPage />;
   if (midiBridgeMode) return <MidiBridgePage />;
+
+  if (!isRunningInDiscord()) {
+    const path = window.location.pathname;
+    if (path === '/') return <MarketingPage />;
+    if (path === '/download') return <DownloadPage />;
+    return <LandingPage />;
+  }
 
   const { ready, channelId, guildId, instanceId, error, user, participants, accessToken } = useDiscordSdk();
   const setChannelId = useProjectStore((s) => s.setChannelId);
@@ -61,6 +72,7 @@ function App() {
   const hydratedRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
   const [installationAction, setInstallationAction] = useState<'checkout' | null>(null);
+  const [installationError, setInstallationError] = useState<string | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -370,6 +382,7 @@ function App() {
       assets,
       clips,
       tracks,
+      createdBy: user?.id,
     };
 
     saveTimerRef.current = window.setTimeout(() => {
@@ -387,13 +400,17 @@ function App() {
     };
   }, [accessToken, projectId, projectTitle, localTransport, nodes, edges, assets, clips, tracks]);
 
+  const chromeBg = { background: 'var(--hayashi-chrome)' } as React.CSSProperties;
+  const chromeText = { color: '#1a1a1a' } as React.CSSProperties;
+  const chromeMuted = { color: '#555555' } as React.CSSProperties;
+
   if (!ready) {
     return (
-      <div className="hayashi-app-bg hayashi-app-grain relative flex h-screen w-screen items-center justify-center">
+      <div className="relative flex h-screen w-screen items-center justify-center" style={chromeBg}>
         <div className="flex flex-col items-center gap-5">
           <img src="/hayashi-logo.png" alt="Hayashi" className="h-16 w-16 rounded-2xl opacity-80" />
           <div className="hayashi-loader-ring" />
-          <p className="font-mono text-xs tracking-widest uppercase" style={{ color: 'var(--hayashi-text-dim)', fontFamily: 'var(--hayashi-font-mono)' }}>
+          <p className="font-mono text-xs tracking-widest uppercase" style={{ color: '#888888', fontFamily: 'var(--hayashi-font-mono)' }}>
             Connecting to Discord
           </p>
         </div>
@@ -403,12 +420,12 @@ function App() {
 
   if (error) {
     return (
-      <div className="hayashi-app-bg hayashi-app-grain relative flex h-screen w-screen items-center justify-center p-6">
-        <div className="hayashi-surface max-w-lg p-8 text-center">
-          <img src="/hayashi-logo.png" alt="Hayashi" className="mx-auto mb-6 h-14 w-14 rounded-2xl opacity-60" />
-          <h1 className="hayashi-title-display mb-3 text-2xl">Connection Error</h1>
-          <pre className="hayashi-error-box mb-4 whitespace-pre-wrap text-left">{error}</pre>
-          <p className="font-mono text-xs" style={{ color: 'var(--hayashi-text-dim)', fontFamily: 'var(--hayashi-font-mono)' }}>
+      <div className="relative flex h-screen w-screen items-center justify-center p-6" style={chromeBg}>
+        <div className="max-w-lg p-8 text-center space-y-4" style={{ background: '#ffffff', borderRadius: 10, border: '1px solid rgba(16,38,29,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+          <img src="/hayashi-logo.png" alt="Hayashi" className="mx-auto mb-2 h-14 w-14 rounded-2xl opacity-60" />
+          <h1 className="text-2xl font-semibold" style={chromeText}>Connection Error</h1>
+          <pre className="mb-4 whitespace-pre-wrap text-left text-xs p-3 rounded-lg" style={{ background: '#faf5eb', color: '#c75b5b', border: '1px solid rgba(199,91,91,0.2)' }}>{error}</pre>
+          <p className="font-mono text-xs" style={{ color: '#888888', fontFamily: 'var(--hayashi-font-mono)' }}>
             Check the browser console for more details.
           </p>
         </div>
@@ -418,10 +435,10 @@ function App() {
 
   if (!channelId) {
     return (
-      <div className="hayashi-app-bg hayashi-app-grain relative flex h-screen w-screen items-center justify-center p-6">
-        <div className="hayashi-surface max-w-md p-8 text-center">
-          <h1 className="hayashi-title-display mb-2 text-xl">No Channel Context</h1>
-          <p className="hayashi-body text-sm">
+      <div className="relative flex h-screen w-screen items-center justify-center p-6" style={chromeBg}>
+        <div className="max-w-md p-8 text-center space-y-3" style={{ background: '#ffffff', borderRadius: 10, border: '1px solid rgba(16,38,29,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+          <h1 className="text-xl font-semibold" style={chromeText}>No Channel Context</h1>
+          <p className="text-sm" style={chromeMuted}>
             Hayashi must be launched from within a Discord voice channel to establish a collaborative session.
           </p>
         </div>
@@ -434,10 +451,23 @@ function App() {
 
   if (installationBlocked) {
     const handleUpgrade = async () => {
-      if (!accessToken || !DISCORD_UNLIMITED_SKU_ID) return;
+      setInstallationError(null);
+      if (!accessToken) {
+        setInstallationError('Not authenticated. Please restart the app from Discord.');
+        return;
+      }
+      if (!DISCORD_UNLIMITED_SKU_ID) {
+        setInstallationError('Purchase is not configured. Contact support.');
+        return;
+      }
       setInstallationAction('checkout');
       try {
-        await startDiscordPurchase(DISCORD_UNLIMITED_SKU_ID);
+        const success = await startDiscordPurchase(DISCORD_UNLIMITED_SKU_ID);
+        if (!success) {
+          setInstallationError('Purchase could not be started. Make sure you are running inside Discord.');
+        }
+      } catch (e) {
+        setInstallationError(e instanceof Error ? e.message : 'Purchase failed');
       } finally {
         setInstallationAction(null);
       }
@@ -445,18 +475,24 @@ function App() {
 
     return (
       <>
-        <div className="hayashi-app-bg hayashi-app-grain relative flex h-screen w-screen items-center justify-center p-6">
-          <div className="hayashi-surface max-w-xl p-8 text-center">
-            <h1 className="hayashi-title-display mb-2 text-2xl">Upgrade Required</h1>
-            <p className="hayashi-body text-sm">
+        <div className="relative flex h-screen w-screen items-center justify-center p-6" style={chromeBg}>
+          <div className="max-w-xl p-8 text-center space-y-4" style={{ background: '#ffffff', borderRadius: 10, border: '1px solid rgba(16,38,29,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+            <h1 className="text-2xl font-semibold" style={chromeText}>Upgrade Required</h1>
+            <p className="text-sm" style={chromeMuted}>
               {billing.snapshot?.contextAccess.message ?? 'This Discord installation is outside the free plan limits.'}
             </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {installationError && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg p-3 text-sm" style={{ background: 'rgba(199,91,91,0.08)', color: '#b8563d', border: '1px solid rgba(184,86,61,0.2)' }}>
+                <AlertCircle size={14} />
+                {installationError}
+              </div>
+            )}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
               <button
                 className="hayashi-action"
                 type="button"
                 onClick={handleUpgrade}
-                disabled={!accessToken || installationAction !== null}
+                disabled={installationAction !== null}
               >
                 <Crown size={15} />
                 {installationAction === 'checkout' ? 'Opening checkout…' : 'Upgrade to Unlimited'}
