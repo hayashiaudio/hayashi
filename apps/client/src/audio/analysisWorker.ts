@@ -68,5 +68,5 @@ self.onmessage = (e: MessageEvent) => {
     peakDb: computePeakDb(time),
   };
 
-  self.postMessage(result, [frequencyData.buffer, timeDomainData.buffer]);
+  (self as unknown as Worker).postMessage(result);
 };

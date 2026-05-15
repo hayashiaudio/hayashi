@@ -5,7 +5,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Play, Download, Code2, Copy, Check, Square, Loader2, Sparkles } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
 import { usePluginPreview } from '@/hooks/usePluginPreview';
+import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
 import { PreviewPlayer } from './PreviewPlayer';
+import { SpectrumAnalyzer } from './SpectrumAnalyzer';
+import { FeatureReadouts } from './FeatureReadouts';
 import { exportPluginBinary } from '@/lib/api';
 import { useDiscordSdk } from '@/hooks/useDiscordSdk';
 
@@ -46,7 +49,9 @@ export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [refinePrompt, setRefinePrompt] = useState('');
+  const [activeComparison] = useState<{ centroid: number; rms: number; zcr: number; peakDb: number } | null>(null);
   const discord = useDiscordSdk();
+  const analysis = useAudioAnalysis(previewPlaying);
 
   const plugin = plugins.find((p) => p.id === activePluginId);
   if (!plugin) return null;
@@ -150,23 +155,18 @@ export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
           </div>
         </div>
 
-        <div className="rounded-xl p-6 mb-6 flex items-center justify-between" style={{ background: C.void, border: `1px solid ${C.border}` }}>
-          <div className="flex items-end gap-[3px] h-20">
-            {plugin.waveform.map((h, i) => (
-              <div
-                key={i}
-                className="w-[4px] rounded-full"
-                style={{
-                  height: `${h}%`,
-                  background: C.accent,
-                  opacity: 0.3 + (i % 3) * 0.15,
-                  animation: plugin.status === 'generating' ? `waveform-bounce ${0.8 + (i % 4) * 0.2}s ease-in-out infinite` : 'none',
-                  animationDelay: `${i * 0.05}s`,
-                }}
-              />
-            ))}
+        <div className="rounded-xl p-4 mb-6 space-y-3" style={{ background: C.void, border: `1px solid ${C.border}` }}>
+          <SpectrumAnalyzer spectrum={analysis.spectrum} height={80} />
+          <FeatureReadouts
+            centroid={analysis.centroid}
+            rms={analysis.rms}
+            zcr={analysis.zcr}
+            peakDb={analysis.peakDb}
+            comparison={activeComparison}
+          />
+          <div className="flex justify-end">
+            <PreviewPlayer />
           </div>
-          <PreviewPlayer />
         </div>
 
         <div className="grid grid-cols-3 gap-4">

@@ -24,8 +24,8 @@ export function useAudioAnalysis(enabled: boolean): AudioAnalysisState {
   const [state, setState] = useState<AudioAnalysisState>(DEFAULT_STATE);
   const workerRef = useRef<Worker | null>(null);
   const rafRef = useRef<number>(0);
-  const freqBufferRef = useRef<Float32Array | null>(null);
-  const timeBufferRef = useRef<Float32Array | null>(null);
+  const freqBufferRef = useRef<Float32Array<ArrayBuffer> | null>(null);
+  const timeBufferRef = useRef<Float32Array<ArrayBuffer> | null>(null);
 
   const analyze = useCallback(() => {
     const analyser = audioEngine.analyserNode;
@@ -33,20 +33,23 @@ export function useAudioAnalysis(enabled: boolean): AudioAnalysisState {
 
     const fftSize = analyser.frequencyBinCount;
     if (!freqBufferRef.current || freqBufferRef.current.length !== fftSize) {
-      freqBufferRef.current = new Float32Array(fftSize);
-      timeBufferRef.current = new Float32Array(fftSize);
+      freqBufferRef.current = new Float32Array(fftSize) as unknown as Float32Array<ArrayBuffer>;
+      timeBufferRef.current = new Float32Array(fftSize) as unknown as Float32Array<ArrayBuffer>;
     }
 
-    analyser.getFloatFrequencyData(freqBufferRef.current);
-    analyser.getFloatTimeDomainData(timeBufferRef.current);
+    const freqBuf = freqBufferRef.current as unknown as Float32Array<ArrayBuffer>;
+    const timeBuf = timeBufferRef.current as unknown as Float32Array<ArrayBuffer>;
+
+    analyser.getFloatFrequencyData(freqBuf);
+    analyser.getFloatTimeDomainData(timeBuf);
 
     const worker = workerRef.current;
     if (worker) {
       worker.postMessage({
-        frequencyData: freqBufferRef.current.buffer,
-        timeDomainData: timeBufferRef.current.buffer,
+        frequencyData: freqBuf.buffer,
+        timeDomainData: timeBuf.buffer,
         sampleRate: audioEngine.sampleRate,
-      }, [freqBufferRef.current.buffer, timeBufferRef.current.buffer]);
+      }, [freqBuf.buffer, timeBuf.buffer] as Transferable[]);
     }
 
     rafRef.current = requestAnimationFrame(analyze);
