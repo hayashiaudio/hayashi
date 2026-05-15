@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useDiscordSdk } from './hooks/useDiscordSdk';
 import { useProjectStore } from './stores/projectStore';
 import { useYjsProject } from './hooks/useYjsProject';
@@ -8,48 +8,30 @@ import {
   loadProjectSnapshot,
   saveProjectSnapshot,
 } from './lib/api';
-import { LandingPage } from './components/LandingPage';
-import { isRunningInDiscord } from './hooks/useDiscordSdk';
 import { MarketingPage } from './pages/MarketingPage';
-import { DownloadPage } from './pages/DownloadPage';
 import { BrandGuidelinesPage } from './components/BrandGuidelinesPage';
-import { CoreWorkspaceMockupPage } from './components/CoreWorkspaceMockupPage';
-import { PerformanceWorkspaceMockupPage } from './components/PerformanceWorkspaceMockupPage';
+import StudioMockup from './components/StudioMockup';
 import { SessionEntryScreen } from './components/SessionEntryScreen';
 import { StudioScreen } from './components/StudioScreen';
-import MidiBridgePage from './pages/MidiBridgePage';
 import { BillingModal } from './components/BillingModal';
-import { Crown, AlertCircle } from 'lucide-react';
-import { startDiscordPurchase } from './hooks/useDiscordSdk';
-import { DISCORD_UNLIMITED_SKU_ID, SERVER_BASE_URL } from './lib/constants';
+import { Toast } from './components/Toast';
+import { SERVER_BASE_URL } from './lib/constants';
 import type { BillingSnapshot } from './types/billing';
 import { getHasRemoteRealtimeState, hydrateYjsFromSnapshot, createRealtimeSnapshot } from './lib/projectSync';
 
 function App() {
   const params = new URLSearchParams(window.location.search);
   const brandMode = params.get('brand') === '1';
-  const mockupMode = params.get('mockup') === '1';
-  const performanceMockupMode = params.get('mockup') === 'performance';
-  const midiBridgeMode = window.location.pathname.startsWith('/midi-bridge') || params.get('midi') === '1';
 
   if (brandMode) return <BrandGuidelinesPage />;
-  if (mockupMode) return <CoreWorkspaceMockupPage />;
-  if (performanceMockupMode) return <PerformanceWorkspaceMockupPage />;
-  if (midiBridgeMode) return <MidiBridgePage />;
-
-  if (!isRunningInDiscord()) {
-    const path = window.location.pathname;
-    if (path === '/') return <MarketingPage />;
-    if (path === '/download') return <DownloadPage />;
-    return <LandingPage />;
-  }
+  if (params.get('studio') === '1') return <StudioMockup />;
+  if (window.location.pathname === '/') return <MarketingPage />;
 
   const { ready, channelId, guildId, instanceId, error, user, participants, accessToken } = useDiscordSdk();
   const setChannelId = useProjectStore((s) => s.setChannelId);
   const setGuildId = useProjectStore((s) => s.setGuildId);
   const setAccessToken = useProjectStore((s) => s.setAccessToken);
   const setUser = useProjectStore((s) => s.setUser);
-  const billing = useProjectStore((s) => s.billing);
   const setBillingLoading = useProjectStore((s) => s.setBillingLoading);
   const setBillingSnapshot = useProjectStore((s) => s.setBillingSnapshot);
   const setBillingError = useProjectStore((s) => s.setBillingError);
@@ -71,9 +53,6 @@ function App() {
   const setTracks = useProjectStore((s) => s.setTracks);
   const hydratedRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
-  const [installationAction, setInstallationAction] = useState<'checkout' | null>(null);
-  const [installationError, setInstallationError] = useState<string | null>(null);
-
   useEffect(() => {
     const root = document.documentElement;
     const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -448,69 +427,11 @@ function App() {
     );
   }
 
-  const installationBlocked =
-    billing.snapshot?.contextAccess.allowed === false && billing.snapshot.contextAccess.reason === 'installation_limit';
-
-  if (installationBlocked) {
-    const handleUpgrade = async () => {
-      setInstallationError(null);
-      if (!accessToken) {
-        setInstallationError('Not authenticated. Please restart the app from Discord.');
-        return;
-      }
-      if (!DISCORD_UNLIMITED_SKU_ID) {
-        setInstallationError('Purchase is not configured. Contact support.');
-        return;
-      }
-      setInstallationAction('checkout');
-      try {
-        const success = await startDiscordPurchase(DISCORD_UNLIMITED_SKU_ID);
-        if (!success) {
-          setInstallationError('Purchase could not be started. Make sure you are running inside Discord.');
-        }
-      } catch (e) {
-        setInstallationError(e instanceof Error ? e.message : 'Purchase failed');
-      } finally {
-        setInstallationAction(null);
-      }
-    };
-
-    return (
-      <>
-        <div className="relative flex h-screen w-screen items-center justify-center p-6" style={chromeBg}>
-          <div className="max-w-xl p-8 text-center space-y-4" style={{ background: '#ffffff', borderRadius: 10, border: '1px solid rgba(16,38,29,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
-            <h1 className="text-2xl font-semibold" style={chromeText}>Upgrade Required</h1>
-            <p className="text-sm" style={chromeMuted}>
-              {billing.snapshot?.contextAccess.message ?? 'This Discord installation is outside the free plan limits.'}
-            </p>
-            {installationError && (
-              <div className="mt-3 flex items-center gap-2 rounded-lg p-3 text-sm" style={{ background: 'rgba(199,91,91,0.08)', color: '#b8563d', border: '1px solid rgba(184,86,61,0.2)' }}>
-                <AlertCircle size={14} />
-                {installationError}
-              </div>
-            )}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-              <button
-                className="hayashi-action"
-                type="button"
-                onClick={handleUpgrade}
-                disabled={installationAction !== null}
-              >
-                <Crown size={15} />
-                {installationAction === 'checkout' ? 'Opening checkout…' : 'Upgrade to Unlimited'}
-              </button>
-            </div>
-          </div>
-        </div>
-        <BillingModal accessToken={accessToken} />
-      </>
-    );
-  }
-
   return (
     <>
       {projectId ? <StudioScreen /> : <SessionEntryScreen />}
       <BillingModal accessToken={accessToken} />
+      <Toast />
     </>
   );
 }
