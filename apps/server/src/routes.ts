@@ -15,8 +15,17 @@ import {
 } from './billing/events.js';
 import { getBillingRepository } from './billing/repository.js';
 import { BillingService, buildBillingContext } from './billing/service.js';
-import { generateFaustFromPrompt } from './faust/generate.js';
+import { generateFaustFromPrompt, iterateFaustFromPrompt, inferPluginType } from './faust/generate.js';
+import { parseFaustParams, paramsToJson } from './faust/params.js';
 import { compileDspToNative } from './export/compiler.js';
+import {
+  createPlugin,
+  addVersion,
+  addMessage,
+  getPluginThread,
+  getLatestVersionNumber,
+  listPluginsForUser,
+} from './plugin/repository.js';
 
 const app = new Hono();
 app.use(cors({
@@ -431,6 +440,138 @@ app.get('/assets/:assetId', (c) => {
   }
 
   return c.redirect(publicUrl, 302);
+});
+
+app.post('/api/plugins', async (c) => {
+  const body = await c.req.json<{ accessToken?: string; prompt?: string }>();
+  if (!body.accessToken) return c.json({ error: 'Missing access token' }, 400);
+  if (!body.prompt || !body.prompt.trim()) return c.json({ error: 'Missing prompt' }, 400);
+
+  let identity;
+  try {
+    identity = await fetchDiscordIdentity(body.accessToken);
+  } catch {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const pluginId = `plugin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const type = inferPluginType(body.prompt);
+  const name = body.prompt.slice(0, 40);
+
+  try {
+    await createPlugin({ id: pluginId, ownerId: identity.id, name, type });
+
+    const faustCode = await generateFaustFromPrompt(body.prompt);
+    const params = parseFaustParams(faustCode);
+
+    const versionId = `${pluginId}-v1`;
+    await addVersion({
+      id: versionId,
+      pluginId,
+      versionNumber: 1,
+      prompt: body.prompt,
+      faustCode,
+      paramsJson: paramsToJson(params),
+    });
+
+    await addMessage({ id: `msg-${Date.now()}-user`, pluginId, role: 'user', content: body.prompt });
+    await addMessage({ id: `msg-${Date.now()}-assistant`, pluginId, role: 'assistant', content: faustCode, versionId });
+
+    return c.json({ pluginId, versionId, faustCode, params, type, name });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Generation failed';
+    console.error('[Hayashi] Plugin creation failed:', message);
+    return c.json({ error: message }, 500);
+  }
+});
+
+app.post('/api/plugins/:id/iterate', async (c) => {
+  const pluginId = c.req.param('id');
+  const body = await c.req.json<{ accessToken?: string; instruction?: string }>();
+  if (!body.accessToken) return c.json({ error: 'Missing access token' }, 400);
+  if (!body.instruction || !body.instruction.trim()) return c.json({ error: 'Missing instruction' }, 400);
+
+  let identity;
+  try {
+    identity = await fetchDiscordIdentity(body.accessToken);
+  } catch {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const thread = await getPluginThread(pluginId);
+  if (!thread) return c.json({ error: 'Plugin not found' }, 404);
+  if (thread.ownerId !== identity.id) return c.json({ error: 'Forbidden' }, 403);
+
+  const latestVersion = thread.versions[0];
+  if (!latestVersion) return c.json({ error: 'No versions found' }, 404);
+
+  const previousParams = JSON.parse(latestVersion.paramsJson) as { name: string; min: number; max: number }[];
+  const previousPrompts = thread.messages
+    .filter((m) => m.role === 'user')
+    .map((m) => m.content);
+
+  const nextVersionNumber = await getLatestVersionNumber(pluginId) + 1;
+
+  try {
+    const faustCode = await iterateFaustFromPrompt(
+      body.instruction,
+      latestVersion.faustCode,
+      previousPrompts,
+      thread.type as 'synth' | 'effect' | 'percussion',
+      previousParams
+    );
+
+    const params = parseFaustParams(faustCode);
+    const versionId = `${pluginId}-v${nextVersionNumber}`;
+
+    await addVersion({
+      id: versionId,
+      pluginId,
+      versionNumber: nextVersionNumber,
+      prompt: body.instruction,
+      faustCode,
+      paramsJson: paramsToJson(params),
+    });
+
+    await addMessage({ id: `msg-${Date.now()}-user`, pluginId, role: 'user', content: body.instruction });
+    await addMessage({ id: `msg-${Date.now()}-assistant`, pluginId, role: 'assistant', content: faustCode, versionId });
+
+    return c.json({ pluginId, versionId, versionNumber: nextVersionNumber, faustCode, params });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Iteration failed';
+    console.error('[Hayashi] Plugin iteration failed:', message);
+    return c.json({ error: message }, 500);
+  }
+});
+
+app.get('/api/plugins/:id', async (c) => {
+  const pluginId = c.req.param('id');
+  const accessToken = c.req.query('accessToken');
+  if (!accessToken) return c.json({ error: 'Missing access token' }, 400);
+
+  let identity;
+  try {
+    identity = await fetchDiscordIdentity(accessToken);
+  } catch {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const thread = await getPluginThread(pluginId);
+  if (!thread) return c.json({ error: 'Plugin not found' }, 404);
+  if (thread.ownerId !== identity.id) return c.json({ error: 'Forbidden' }, 403);
+
+  return c.json({
+    id: thread.id,
+    name: thread.name,
+    type: thread.type,
+    createdAt: thread.createdAt,
+    updatedAt: thread.updatedAt,
+    versions: thread.versions.map((v) => ({
+      ...v,
+      params: JSON.parse(v.paramsJson),
+    })),
+    messages: thread.messages,
+  });
 });
 
 app.post('/api/generate-faust', async (c) => {
