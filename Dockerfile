@@ -42,6 +42,18 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV SERVER_PORT=8080
 
+# Install Faust compiler + C++ toolchain for DSP→native builds
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    faust \
+    g++ \
+    build-essential \
+    libc6-dev \
+    tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# Sanity check: fail build if faust is missing
+RUN faust --version
+
 # Only runtime deps
 COPY package*.json ./
 COPY apps/server/package*.json ./apps/server/
@@ -52,9 +64,6 @@ COPY --from=builder /app/apps/client/dist ./apps/client/dist
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
 EXPOSE 8080
-
-# Use tini for proper signal handling (Fly sends SIGINT on shutdown)
-RUN apt-get update && apt-get install -y --no-install-recommends tini && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "apps/server/dist/server.js"]

@@ -5,7 +5,7 @@ const endpoint = process.env.AWS_ENDPOINT_URL_S3 ?? 'https://fly.storage.tigris.
 const region = process.env.AWS_REGION ?? 'auto';
 const bucket = process.env.BUCKET_NAME ?? 'hayashi-assets';
 
-const s3 = new S3Client({
+export const s3 = new S3Client({
   endpoint,
   region,
   credentials: {

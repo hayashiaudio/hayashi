@@ -6,6 +6,8 @@ import { Play, Download, Code2, Copy, Check, Square, Loader2 } from 'lucide-reac
 import { usePluginStore } from '@/stores/pluginStore';
 import { usePluginPreview } from '@/hooks/usePluginPreview';
 import { PreviewPlayer } from './PreviewPlayer';
+import { exportPluginBinary } from '@/lib/api';
+import { useDiscordSdk } from '@/hooks/useDiscordSdk';
 
 const C = {
   border: 'rgba(255,255,255,0.06)',
@@ -22,11 +24,23 @@ function formatParamValue(v: number, min: number, max: number) {
   return v.toFixed(2);
 }
 
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    .replace(/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/i, '_$1')
+    .replace(/^[.\s]+|[.\s]+$/g, '')
+    .replace(/\s+/g, '_') || 'plugin';
+}
+
 export function PluginPreview() {
   const { plugins, activePluginId } = usePluginStore();
   const { previewPlaying, compiling, toggle } = usePluginPreview();
   const [copied, setCopied] = useState(false);
   const [showSource, setShowSource] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'vst3' | 'clap'>('vst3');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const discord = useDiscordSdk();
 
   const plugin = plugins.find((p) => p.id === activePluginId);
   if (!plugin) return null;
@@ -38,17 +52,43 @@ export function PluginPreview() {
     });
   };
 
-  const handleExport = () => {
-    if (!plugin.faustCode) return;
-    const blob = new Blob([plugin.faustCode], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${plugin.name.replace(/\s+/g, '_')}.dsp`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    if (!plugin.faustCode || exporting) return;
+    const accessToken = discord.accessToken;
+    if (!accessToken) {
+      setExportError('Please sign in to export plugins');
+      return;
+    }
+    setExporting(true);
+    try {
+      const result = await exportPluginBinary({
+        accessToken,
+        pluginName: plugin.name,
+        pluginId: plugin.id,
+        version: 'v1',
+        faustCode: plugin.faustCode,
+        format: exportFormat,
+        guildId: discord.guildId,
+        channelId: discord.channelId,
+      });
+      const blobRes = await fetch(result.downloadUrl);
+      if (!blobRes.ok) throw new Error('Download failed');
+      const blob = await blobRes.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${sanitizeFilename(plugin.name)}.${exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setExportError(null);
+    } catch (err) {
+      console.error('[Hayashi] Export failed:', err);
+      setExportError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -75,9 +115,32 @@ export function PluginPreview() {
               </TooltipTrigger>
               <TooltipContent side="bottom">{showSource ? 'Hide Source' : 'View Source'}</TooltipContent>
             </Tooltip>
-            <Button size="sm" className="h-8 text-[11px] font-bold rounded-md gap-1.5" style={{ background: C.accent, color: C.void }} onClick={handleExport}>
-              <Download className="h-3.5 w-3.5" /> EXPORT
-            </Button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <select
+                aria-label="Export format"
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'vst3' | 'clap')}
+                className="h-8 text-[11px] bg-transparent border border-[#525252] text-[#737373] rounded-md px-2 outline-none"
+              >
+                <option value="vst3">VST3</option>
+                <option value="clap">CLAP</option>
+              </select>
+              <Button
+                size="sm"
+                className="h-8 text-[11px] font-bold rounded-md gap-1.5"
+                style={{ background: C.accent, color: C.void }}
+                onClick={handleExport}
+                disabled={exporting || !plugin.faustCode}
+                aria-label={exporting ? 'Exporting plugin' : 'Export plugin'}
+                aria-busy={exporting}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {exporting ? 'BUILDING...' : 'EXPORT'}
+              </Button>
+              {exportError && (
+                <span className="text-[10px] text-[#ff3b30] ml-2">{exportError}</span>
+              )}
+            </div>
           </div>
         </div>
 

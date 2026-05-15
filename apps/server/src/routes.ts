@@ -16,6 +16,7 @@ import {
 import { getBillingRepository } from './billing/repository.js';
 import { BillingService, buildBillingContext } from './billing/service.js';
 import { generateFaustFromPrompt } from './faust/generate.js';
+import { compileDspToNative } from './export/compiler.js';
 
 const app = new Hono();
 app.use(cors({
@@ -444,6 +445,57 @@ app.post('/api/generate-faust', async (c) => {
   } catch (err) {
     console.error('[FaustGen]', err);
     return c.json({ error: 'generation failed' }, 500);
+  }
+});
+
+app.post('/api/export/:format', async (c) => {
+  const format = c.req.param('format');
+  if (format !== 'vst3' && format !== 'clap') {
+    return c.json({ error: 'Unsupported format. Use vst3 or clap.' }, 400);
+  }
+
+  const body = await c.req.json<{ accessToken?: string; pluginName?: string; pluginId?: string; version?: string; faustCode?: string; guildId?: string | null; channelId?: string | null }>();
+  if (!body.accessToken) return c.json({ error: 'Missing access token' }, 400);
+  if (!body.faustCode || !body.faustCode.trim()) return c.json({ error: 'Missing faustCode' }, 400);
+  const MAX_DSP_SIZE = 1024 * 1024; // 1MB
+  if (body.faustCode.length > MAX_DSP_SIZE) {
+    return c.json({ error: 'Faust code exceeds maximum size of 1MB' }, 413);
+  }
+  if (!body.pluginId) return c.json({ error: 'Missing pluginId' }, 400);
+
+  let identity;
+  try {
+    identity = await fetchDiscordIdentity(body.accessToken);
+  } catch {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const safePluginId = (body.pluginId ?? 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+  const version = (body.version?.trim() || 'v1').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 20);
+
+  try {
+    const context = buildBillingContext(body.guildId ?? null, body.channelId ?? null);
+    const user = await billing.getOrCreateUser(identity);
+    const synced = await billing.syncEntitlements(user);
+    const snapshot = await billing.authorizeExport(synced, context);
+    if (!snapshot.contextAccess.allowed) {
+      return c.json({ error: 'Export not allowed for this context' }, 403);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Billing check failed';
+    console.error('[Hayashi] Export billing check failed:', message, { pluginId: safePluginId, format });
+    return c.json({ error: 'Billing check failed' }, 500);
+  }
+
+  const pluginName = (body.pluginName ?? 'HayashiPlugin').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+
+  try {
+    const result = await compileDspToNative(body.faustCode, pluginName, safePluginId, version, format);
+    return c.json({ downloadUrl: result.downloadUrl, fromCache: result.fromCache, format });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Compilation failed';
+    console.error('[Hayashi] Export compilation failed:', message, { pluginId: safePluginId, pluginName, format });
+    return c.json({ error: 'Export compilation failed' }, 500);
   }
 });
 

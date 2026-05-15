@@ -133,3 +133,35 @@ export async function authorizeExport(input: {
   }
   return body as BillingSnapshot;
 }
+
+export interface ExportResult {
+  downloadUrl: string;
+  fromCache: boolean;
+  format: 'vst3' | 'clap';
+}
+
+export interface ExportPluginOptions {
+  accessToken: string;
+  pluginName: string;
+  pluginId: string;
+  version: string;
+  faustCode: string;
+  format: 'vst3' | 'clap';
+  guildId?: string | null;
+  channelId?: string | null;
+}
+
+export async function exportPluginBinary(options: ExportPluginOptions): Promise<ExportResult> {
+  const res = await fetch(`${SERVER_BASE_URL}/api/export/${options.format}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Export failed (${res.status})`);
+  }
+
+  return res.json();
+}
