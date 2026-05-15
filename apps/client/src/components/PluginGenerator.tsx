@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { PluginLibrary } from './PluginLibrary';
 import { PluginPreview } from './PluginPreview';
@@ -12,6 +12,27 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Terminal, Sparkles, Wand2, Code2, Lock } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
+
+function useTypewriter(text: string, speed: number, enabled: boolean) {
+  const [displayed, setDisplayed] = useState('');
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    if (!enabled) { setDisplayed(''); indexRef.current = 0; return; }
+    indexRef.current = 0;
+    const tick = () => {
+      if (indexRef.current < text.length) {
+        indexRef.current += 1;
+        setDisplayed(text.slice(0, indexRef.current));
+        setTimeout(tick, Math.max(10, speed + (Math.random() * 20 - 10)));
+      }
+    };
+    tick();
+    return () => { indexRef.current = text.length; };
+  }, [text, speed, enabled]);
+
+  return displayed;
+}
 
 const C = {
   void: '#0a0a0a',
@@ -29,6 +50,8 @@ export default function PluginGenerator() {
   const [midiOpen, setMidiOpen] = useState(false);
   const [btOpen, setBtOpen] = useState(false);
   const [usbOpen, setUsbOpen] = useState(false);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [streamText, setStreamText] = useState('');
   const { selectedStyle, setSelectedStyle, addPlugin, updatePluginStatus } = usePluginStore();
 
   const handleSubmit = async () => {
@@ -61,9 +84,12 @@ export default function PluginGenerator() {
       createdAt: Date.now(),
     });
     setPrompt('');
+    setGeneratingId(id);
+    setStreamText(`> prompt: "${prompt.trim()}"\n> compiling...\n`);
 
     try {
       const result = await generateFaust(prompt.trim());
+      setStreamText((prev) => prev + `> generating Faust code...\n\n${result.faustCode}\n\n> done.`);
       usePluginStore.setState((s) => ({
         plugins: s.plugins.map((p) =>
           p.id === id ? { ...p, faustCode: result.faustCode, name: result.prompt.slice(0, 24), status: 'ready' as const } : p
@@ -71,9 +97,14 @@ export default function PluginGenerator() {
       }));
     } catch (err) {
       updatePluginStatus(id, 'error');
+      setStreamText((prev) => prev + `> error: generation failed\n`);
       console.error('[Hayashi] Generation failed:', err);
+    } finally {
+      setGeneratingId(null);
     }
   };
+
+  const displayedStream = useTypewriter(streamText, 12, Boolean(generatingId) || streamText.length > 0);
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ background: C.void, color: C.text, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -190,6 +221,23 @@ export default function PluginGenerator() {
               ))}
             </div>
           </div>
+
+          {/* Terminal stream output */}
+          {(generatingId || streamText) && (
+            <div className="w-full max-w-2xl mx-auto mb-8 animate-slide-up rounded-2xl border overflow-hidden" style={{ borderColor: C.border, background: C.void }}>
+              <div className="flex items-center gap-2 px-4 py-2 border-b" style={{ borderColor: C.border, background: C.panel }}>
+                <Terminal className="h-3.5 w-3.5 text-[#525252]" />
+                <span className="text-[10px] font-bold tracking-wider text-[#525252]">HAYASHI ENGINE</span>
+                {generatingId && <span className="ml-auto inline-block w-1.5 h-1.5 rounded-full bg-[#34c759] animate-pulse" />}
+              </div>
+              <div className="p-4">
+                <pre className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap" style={{ color: '#e5e5e5' }}>
+                  {displayedStream}
+                  {generatingId && <span className="inline-block w-2 h-4 align-middle bg-[#ff8c61] ml-0.5 animate-pulse" />}
+                </pre>
+              </div>
+            </div>
+          )}
 
           {/* Active plugin detail */}
           <PluginPreview />

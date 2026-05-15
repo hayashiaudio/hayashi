@@ -1,6 +1,3 @@
-import { generateText } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-
 const SYSTEM_PROMPT = `
 You are a Faust DSP compiler. The user describes a sound. You output ONLY valid Faust code that produces that sound as a synthesizer or effect.
 
@@ -15,14 +12,51 @@ Rules:
 - Include a simple ADSR or percussive envelope for synth sounds.
 `;
 
-export async function generateFaustFromPrompt(prompt: string): Promise<string> {
-  const result = await generateText({
-    model: anthropic('claude-3-sonnet-20240229'),
-    system: SYSTEM_PROMPT,
-    prompt,
-  });
+const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID ?? '';
+const CF_API_TOKEN = process.env.CF_API_TOKEN ?? '';
 
-  return result.text
+interface WorkersAIResponse {
+  result?: { response?: string };
+  success?: boolean;
+  errors?: Array<{ code: number; message: string }>;
+}
+
+export async function generateFaustFromPrompt(prompt: string): Promise<string> {
+  if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
+    throw new Error('Cloudflare Workers AI credentials not configured. Set CF_ACCOUNT_ID and CF_API_TOKEN.');
+  }
+
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/moonshotai/kimi-k2.6`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${CF_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'Unknown error');
+    throw new Error(`Workers AI error (${res.status}): ${text}`);
+  }
+
+  const data = (await res.json()) as WorkersAIResponse;
+
+  if (!data.success && data.errors && data.errors.length > 0) {
+    throw new Error(`Workers AI error: ${data.errors[0].message}`);
+  }
+
+  const raw = data.result?.response ?? '';
+
+  return raw
     .replace(/```faust\n?/g, '')
     .replace(/```\n?/g, '')
     .trim();
