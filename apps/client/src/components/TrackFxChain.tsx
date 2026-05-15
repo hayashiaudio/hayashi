@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Plus } from 'lucide-react';
+import { getSuggestedProcessorIds } from '@/lib/fxChainSuggestions';
 
 interface TrackFxChainProps {
   trackId: string;
@@ -63,6 +64,14 @@ export function TrackFxChain({ trackId, fxChain, onClose }: TrackFxChainProps) {
   const nodes = useProjectStore((s) => s.nodes);
   const updateNodeParams = useProjectStore((s) => s.updateNodeParams);
   const updateTrackFxChain = useProjectStore((s) => s.updateTrackFxChain);
+  const edges = useProjectStore((s) => s.edges);
+  const tracks = useProjectStore((s) => s.tracks);
+  const track = tracks[trackId];
+
+  const suggestedIds = useMemo(
+    () => getSuggestedProcessorIds(track?.sourceNodeId, track?.workstationNodeId, nodes, edges, fxChain),
+    [track?.sourceNodeId, track?.workstationNodeId, nodes, edges, fxChain]
+  );
 
   const processors = useMemo(() => {
     return fxChain
@@ -87,6 +96,14 @@ export function TrackFxChain({ trackId, fxChain, onClose }: TrackFxChainProps) {
     (index: number) => {
       const next = fxChain.filter((_, i) => i !== index);
       updateTrackFxChain(trackId, next);
+    },
+    [fxChain, trackId, updateTrackFxChain]
+  );
+
+  const handleAddSuggestion = useCallback(
+    (nodeId: string) => {
+      if (fxChain.includes(nodeId)) return;
+      updateTrackFxChain(trackId, [...fxChain, nodeId]);
     },
     [fxChain, trackId, updateTrackFxChain]
   );
@@ -172,6 +189,35 @@ export function TrackFxChain({ trackId, fxChain, onClose }: TrackFxChainProps) {
             {index < processors.length - 1 && (
               <ArrowRight size={10} className="hayashi-daw-fx-arrow" />
             )}
+          </div>
+        );
+      })}
+
+      {/* Suggested slots */}
+      {suggestedIds.map((nodeId) => {
+        const node = nodes[nodeId];
+        if (!node) return null;
+        const color = FX_KIND_COLORS[node.kind] ?? '#ed922f';
+        const label = FX_KIND_LABELS[node.kind] ?? node.kind.slice(0, 3).toUpperCase();
+        return (
+          <div
+            key={`suggested-${nodeId}`}
+            className="hayashi-daw-fx-slot-suggested"
+            onClick={() => handleAddSuggestion(nodeId)}
+            title={`Click to add ${node.kind}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 3 }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span className="hayashi-daw-fx-kind" style={{ color }}>
+                  {label}
+                </span>
+                <span className="hayashi-daw-fx-name">{nodeId.slice(0, 8)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, marginTop: 2 }}>
+                <Plus size={10} style={{ color: '#8a7d6a' }} />
+              </div>
+            </div>
           </div>
         );
       })}
