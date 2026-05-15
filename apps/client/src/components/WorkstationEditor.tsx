@@ -1,28 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
+import { WorkstationShell } from './WorkstationShell';
 import { ArrangementGrid } from './ArrangementGrid';
 import { audioEngine } from '@/audio/engine';
 import { transportScheduler } from '@/audio/transportScheduler';
-import type { PatchNode, Track, NodeKind } from '@/types/project';
-import { Play, Square, Plus, CircleDot, Volume2, VolumeX, Disc3, Trash2 } from 'lucide-react';
 import { updateTrackBus, tapNode } from '@/audio/graphCompiler';
 import { encodeWav } from '@/audio/drumEngine';
 import { storeSample } from '@/samples/indexedDb';
+import type { Track, NodeKind } from '@/types/project';
 
 const SKIP_AUTO_TRACK_KINDS: Set<NodeKind> = new Set(['oscillator', 'noise']);
-
-function getNodeColor(kind: NodeKind): string {
-  switch (kind) {
-    case 'sampler':
-    case 'drumPad':
-      return '#8fb13a';
-    case 'oscillator':
-    case 'noise':
-      return '#6f7b5d';
-    default:
-      return '#ed922f';
-  }
-}
 
 export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose: () => void }) {
   const clips = useProjectStore((s) => s.clips);
@@ -51,18 +38,10 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
     nodeTracks.some((t) => t.id === c.trackId)
   );
 
-  /* Auto-populate source-backed tracks from incoming connections.
-     Skip pure synthesis sources (oscillator, noise) to avoid
-     duplicating oscillation lanes. Only sample-based / event sources
-     get their own track automatically.
-     We read tracks from getState() to avoid depending on nodeTracks
-     in the effect deps, which would re-fire every time addTrack runs. */
+  /* Auto-populate source-backed tracks */
   useEffect(() => {
     const incomingEdges = Object.values(edges).filter((e) => e.targetNodeId === nodeId);
-    const incomingSources = incomingEdges
-      .map((e) => nodes[e.sourceNodeId])
-      .filter(Boolean);
-
+    const incomingSources = incomingEdges.map((e) => nodes[e.sourceNodeId]).filter(Boolean);
     const existingTracks = Object.values(useProjectStore.getState().tracks).filter(
       (t) => t.workstationNodeId === nodeId
     );
@@ -94,14 +73,12 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
     }
   }, [nodeId, edges, nodes, addTrack]);
 
-  /* Remove auto-created tracks when their source node is deleted or
-     disconnected from this workstation. Also remove orphaned clips. */
+  /* Remove orphaned tracks */
   useEffect(() => {
     const state = useProjectStore.getState();
     const tracksForNode = Object.values(state.tracks).filter(
       (t) => t.workstationNodeId === nodeId && t.sourceNodeId
     );
-
     const currentIncomingEdgeSourceIds = new Set(
       Object.values(state.edges)
         .filter((e) => e.targetNodeId === nodeId)
@@ -112,7 +89,6 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
       const sourceStillExists = track.sourceNodeId && state.nodes[track.sourceNodeId];
       const sourceStillConnected = track.sourceNodeId && currentIncomingEdgeSourceIds.has(track.sourceNodeId);
       if (!sourceStillExists || !sourceStillConnected) {
-        // Remove clips on this track first
         Object.values(state.clips)
           .filter((c) => c.trackId === track.id)
           .forEach((c) => removeClip(c.id));
@@ -121,6 +97,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
     }
   }, [nodeId, edges, nodes, removeTrack, removeClip]);
 
+  /* Playhead RAF tick */
   useEffect(() => {
     let raf = 0;
     const tick = () => {
@@ -132,11 +109,8 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
       }
       raf = window.requestAnimationFrame(tick);
     };
-
     raf = window.requestAnimationFrame(tick);
-    return () => {
-      window.cancelAnimationFrame(raf);
-    };
+    return () => window.cancelAnimationFrame(raf);
   }, []);
 
   const togglePlay = useCallback(async () => {
@@ -163,9 +137,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
   const stopRecording = useCallback(async () => {
     const entries = Array.from(trackRecordersRef.current.entries());
     for (const [, { recorder }] of entries) {
-      if (recorder.state !== 'inactive') {
-        recorder.stop();
-      }
+      if (recorder.state !== 'inactive') recorder.stop();
     }
 
     setRecording(false);
@@ -173,9 +145,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
 
     const ctx = audioEngine.ctx;
     if (!ctx) {
-      for (const [, { cleanup }] of entries) {
-        cleanup();
-      }
+      for (const [, { cleanup }] of entries) cleanup();
       trackRecordersRef.current.clear();
       recordingClipIdsRef.current.forEach((id) => removeClip(id));
       recordingClipIdsRef.current = [];
@@ -240,9 +210,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
 
   const startRecording = useCallback(async () => {
     await audioEngine.resume().catch(() => {});
-    if (!transport.playing) {
-      updateTransport({ playing: true });
-    }
+    if (!transport.playing) updateTransport({ playing: true });
 
     const armedTracks = nodeTracks.filter((t) => t.armed);
     if (armedTracks.length === 0) return;
@@ -308,19 +276,16 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
   }, [nodeTracks, playheadBeat, transport.playing, updateTransport, addClip, recording, nodes]);
 
   const toggleRecord = useCallback(() => {
-    if (recording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
+    if (recording) stopRecording();
+    else startRecording();
   }, [recording, startRecording, stopRecording]);
 
+  /* ── Track callbacks ── */
   const handleAssetDrop = useCallback(
     (assetId: string, trackId: string, startBeat: number) => {
       const asset = assets[assetId];
       const durationSeconds = asset?.durationSeconds ?? 4;
       const lengthBeats = Math.max(1, Math.round((durationSeconds * transport.bpm) / 60));
-
       addClip({
         id: `clip-${crypto.randomUUID().slice(0, 8)}`,
         trackId,
@@ -346,9 +311,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
 
   const handleRemoveTrack = useCallback(
     (track: Track) => {
-      if (track.sourceNodeId) {
-        manuallyRemovedSources.current.add(track.sourceNodeId);
-      }
+      if (track.sourceNodeId) manuallyRemovedSources.current.add(track.sourceNodeId);
       const clipsToRemove = nodeClips.filter((c) => c.trackId === track.id);
       clipsToRemove.forEach((c) => removeClip(c.id));
       removeTrack(track.id);
@@ -362,11 +325,11 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
   }, [updateTransport]);
 
   const getSourceNode = useCallback(
-    (track: Track): PatchNode | null => (track.sourceNodeId ? nodes[track.sourceNodeId] ?? null : null),
+    (track: Track) => (track.sourceNodeId ? nodes[track.sourceNodeId] ?? null : null),
     [nodes]
   );
 
-  const getSourceAssetId = useCallback((source: PatchNode | null) => {
+  const getSourceAssetId = useCallback((source: ReturnType<typeof getSourceNode>) => {
     if (!source) return undefined;
     if (typeof source.params.assetId === 'string') return source.params.assetId;
     if (typeof source.params.sample === 'string') return source.params.sample;
@@ -374,9 +337,7 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
   }, []);
 
   const handleToggleArm = useCallback(
-    (track: Track) => {
-      updateTrack(track.id, { armed: !track.armed });
-    },
+    (track: Track) => updateTrack(track.id, { armed: !track.armed }),
     [updateTrack]
   );
 
@@ -385,12 +346,10 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
       const source = getSourceNode(track);
       const assetId = getSourceAssetId(source);
       const asset = assetId ? assets[assetId] : undefined;
-
       const startBeat = Math.max(0, Math.round(playheadBeat));
       const lengthBeats = asset
         ? Math.max(1, Math.round((asset.durationSeconds * transport.bpm) / 60))
         : 4;
-
       addClip({
         id: `clip-${crypto.randomUUID().slice(0, 8)}`,
         trackId: track.id,
@@ -529,272 +488,25 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
     [nodeTracks, nodes]
   );
 
-  const renderTrackHeader = useCallback(
-    (track: Track) => {
-      const source = getSourceNode(track);
-      const assetId = getSourceAssetId(source);
-      const asset = assetId ? assets[assetId] : undefined;
-      const color = source ? getNodeColor(source.kind) : 'rgba(245,230,200,0.4)';
-      const isContinuous = source ? SKIP_AUTO_TRACK_KINDS.has(source.kind) : false;
-
-      return (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            width: '100%',
-            height: '100%',
-            padding: '3px 8px',
-            minWidth: 0,
-            boxSizing: 'border-box',
-          }}
-        >
-          {/* Top row: dot + name + kind badge */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              minWidth: 0,
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              title={source?.kind ?? 'Clip lane'}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: color,
-                flexShrink: 0,
-                boxShadow: `0 0 6px ${color}`,
-              }}
-            />
-            <span
-              title={track.name}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                fontFamily: "'Poppins', Arial, sans-serif",
-                fontSize: '0.72rem',
-                letterSpacing: '0.02em',
-                color: 'rgba(16, 38, 29, 0.9)',
-              }}
-            >
-              {track.name}
-            </span>
-            {asset && (
-              <span title={asset.name} style={{ flexShrink: 0, color: 'rgba(16, 38, 29, 0.42)' }}>
-                <Disc3 size={10} />
-              </span>
-            )}
-            {isContinuous && (
-              <span
-                style={{
-                  flexShrink: 0,
-                  fontSize: '0.58rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'rgba(16, 38, 29, 0.45)',
-                }}
-              >
-                {source?.kind}
-              </span>
-            )}
-            {source?.kind === 'midiBridge' && (
-              <span
-                style={{
-                  flexShrink: 0,
-                  fontSize: '0.58rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'rgba(212, 140, 46, 0.65)',
-                }}
-              >
-                Synthesis
-              </span>
-            )}
-          </div>
-
-          {/* Bottom row: faders + buttons */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              minWidth: 0,
-            }}
-          >
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={track.gain ?? 1}
-              onChange={(e) => handleTrackGainChange(track.id, parseFloat(e.target.value))}
-              title={`Gain: ${Math.round((track.gain ?? 1) * 100)}%`}
-              className="hayashi-track-fader"
-              style={{ width: 60, flexShrink: 0 }}
-            />
-            <input
-              type="range"
-              min={-1}
-              max={1}
-              step={0.01}
-              value={track.pan ?? 0}
-              onChange={(e) => handleTrackPanChange(track.id, parseFloat(e.target.value))}
-              title={`Pan: ${track.pan ?? 0}`}
-              className="hayashi-track-fader"
-              style={{ width: 48, flexShrink: 0 }}
-            />
-
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-              <button
-                className={`hayashi-workstation-toggle ${track.muted ? 'is-muted' : ''}`}
-                onClick={() => handleTrackMuteToggle(track)}
-                type="button"
-                title={track.muted ? 'Unmute track' : 'Mute track'}
-                style={{ width: 22, height: 22, padding: 0, justifyContent: 'center' }}
-              >
-                {track.muted ? <VolumeX size={11} /> : <Volume2 size={11} />}
-              </button>
-
-              <button
-                className={`hayashi-workstation-toggle ${track.armed ? 'is-armed' : ''}`}
-                onClick={() => handleToggleArm(track)}
-                type="button"
-                title={track.armed ? 'Disarm recording lane' : 'Arm recording lane'}
-                style={{ width: 22, height: 22, padding: 0, justifyContent: 'center' }}
-              >
-                <CircleDot size={11} />
-              </button>
-
-              {isContinuous && (
-                <button
-                  className="hayashi-workstation-toggle is-print"
-                  onClick={() => handleBounceTrack(track)}
-                  type="button"
-                  title="Bounce continuous source to clip"
-                  style={{ width: 22, height: 22, padding: 0, justifyContent: 'center' }}
-                >
-                  <Disc3 size={11} />
-                </button>
-              )}
-
-              {source && (
-                <button
-                  className="hayashi-workstation-toggle is-print"
-                  onClick={() => handlePrintClip(track)}
-                  type="button"
-                  title="Print a clip at the playhead"
-                  style={{ width: 22, height: 22, padding: 0, justifyContent: 'center' }}
-                >
-                  <Plus size={11} />
-                </button>
-              )}
-
-              <button
-                className="hayashi-workstation-toggle"
-                onClick={() => handleRemoveTrack(track)}
-                type="button"
-                title="Remove track"
-                style={{ width: 22, height: 22, padding: 0, justifyContent: 'center', color: 'rgba(165,67,67,0.75)' }}
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    },
-    [
-      assets,
-      getSourceAssetId,
-      getSourceNode,
-      handlePrintClip,
-      handleToggleArm,
-      handleTrackGainChange,
-      handleTrackPanChange,
-      handleTrackMuteToggle,
-      handleBounceTrack,
-      handleRemoveTrack,
-    ]
-  );
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div
-        className="hayashi-surface"
-        style={{
-          width: 'min(1100px, 94vw)',
-          height: 'min(720px, 85vh)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-        onClick={(e) => e.stopPropagation()}
+      <WorkstationShell
+        nodeId={nodeId}
+        transport={transport}
+        recording={recording}
+        trackCount={nodeTracks.length}
+        clipCount={nodeClips.length}
+        onTogglePlay={togglePlay}
+        onToggleRecord={toggleRecord}
+        onAddTrack={handleAddTrack}
+        onClose={onClose}
       >
-        {/* Header */}
-        <div className="hayashi-panel-header" style={{ flexShrink: 0 }}>
-          <div className="flex items-center gap-3">
-            <span className="hayashi-kicker-app">Workstation</span>
-            <strong className="hayashi-title-display" style={{ fontSize: '1rem' }}>
-              {nodeId}
-            </strong>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="hayashi-daw-tbtn" onClick={togglePlay}>
-              {transport.playing ? <Square size={14} /> : <Play size={14} />}
-            </button>
-            <button
-              className={`hayashi-daw-tbtn hayashi-daw-tbtn-rec ${recording ? 'is-recording' : ''}`}
-              onClick={toggleRecord}
-              type="button"
-              title={recording ? 'Stop recording' : 'Start recording'}
-            >
-              <CircleDot size={14} />
-            </button>
-            <button className="hayashi-btn-ghost hayashi-button-xs" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 px-4 py-2" style={{ borderBottom: '1px solid var(--hayashi-border)', flexShrink: 0 }}>
-          <div className="flex items-center gap-2">
-            <span className="hayashi-status-pill hayashi-status-pill-bpm">{transport.bpm} BPM</span>
-            <span className="hayashi-status-pill">{nodeTracks.length} {nodeTracks.length === 1 ? 'track' : 'tracks'}</span>
-            <span className="hayashi-status-pill">{nodeClips.length} {nodeClips.length === 1 ? 'clip' : 'clips'}</span>
-          </div>
-          <span
-            style={{
-              fontSize: '0.68rem',
-              color: 'var(--hayashi-text-dim)',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {nodeTracks.length > 0 ? 'Scroll or drag to navigate' : 'Add tracks to start'}
-          </span>
-          <button
-            className="hayashi-btn-ghost hayashi-button-xs ml-auto"
-            onClick={handleAddTrack}
-          >
-            <Plus size={12} /> Add Track
-          </button>
-        </div>
-
-        {/* Arrangement */}
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           {nodeTracks.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 opacity-60">
               <p className="text-sm">No tracks yet.</p>
               <button className="hayashi-btn-ghost hayashi-button-xs" onClick={handleAddTrack}>
-                <Plus size={12} /> Add Track
+                Add Track
               </button>
             </div>
           ) : (
@@ -809,12 +521,21 @@ export function WorkstationEditor({ nodeId, onClose }: { nodeId: string; onClose
               onClipDelete={removeClip}
               onAssetDrop={handleAssetDrop}
               onSeekToBeat={handleSeekToBeat}
-              renderTrackHeader={renderTrackHeader}
               getTrackSourceKind={getTrackSourceKind}
+              onTrackGainChange={handleTrackGainChange}
+              onTrackPanChange={handleTrackPanChange}
+              onTrackMuteToggle={handleTrackMuteToggle}
+              onTrackArmToggle={handleToggleArm}
+              onTrackPrintClip={handlePrintClip}
+              onTrackBounce={handleBounceTrack}
+              onTrackRemove={handleRemoveTrack}
+              getSourceNode={getSourceNode}
+              getSourceAssetId={getSourceAssetId}
+              assets={assets}
             />
           )}
         </div>
-      </div>
+      </WorkstationShell>
     </div>
   );
 }
