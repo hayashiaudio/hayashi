@@ -42,6 +42,14 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV SERVER_PORT=8080
 
+# Install Faust compiler + C++ toolchain for DSP→native builds
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    faust \
+    g++ \
+    build-essential \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Only runtime deps
 COPY package*.json ./
 COPY apps/server/package*.json ./apps/server/
@@ -58,3 +66,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini && rm -rf 
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "apps/server/dist/server.js"]
+
+# Sanity check: fail build if faust is missing
+RUN faust --version
