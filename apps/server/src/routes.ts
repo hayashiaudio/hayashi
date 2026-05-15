@@ -454,7 +454,7 @@ app.post('/api/export/:format', async (c) => {
     return c.json({ error: 'Unsupported format. Use vst3 or clap.' }, 400);
   }
 
-  const body = await c.req.json<{ accessToken?: string; pluginName?: string; pluginId?: string; version?: string; faustCode?: string }>();
+  const body = await c.req.json<{ accessToken?: string; pluginName?: string; pluginId?: string; version?: string; faustCode?: string; guildId?: string | null; channelId?: string | null }>();
   if (!body.accessToken) return c.json({ error: 'Missing access token' }, 400);
   if (!body.faustCode || !body.faustCode.trim()) return c.json({ error: 'Missing faustCode' }, 400);
   if (!body.pluginId) return c.json({ error: 'Missing pluginId' }, 400);
@@ -466,6 +466,9 @@ app.post('/api/export/:format', async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
+  const safePluginId = (body.pluginId ?? 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+  const version = (body.version?.trim() || 'v1').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 20);
+
   try {
     const context = buildBillingContext(body.guildId ?? null, body.channelId ?? null);
     const user = await billing.getOrCreateUser(identity);
@@ -475,19 +478,20 @@ app.post('/api/export/:format', async (c) => {
       return c.json({ error: 'Export not allowed for this context' }, 403);
     }
   } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Billing check failed' }, 500);
+    const message = error instanceof Error ? error.message : 'Billing check failed';
+    console.error('[Hayashi] Export billing check failed:', message, { pluginId: safePluginId, format });
+    return c.json({ error: 'Billing check failed' }, 500);
   }
 
   const pluginName = (body.pluginName ?? 'HayashiPlugin').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
-  const version = body.version ?? 'v1';
 
   try {
-    const result = await compileDspToNative(body.faustCode, pluginName, body.pluginId, version, format);
+    const result = await compileDspToNative(body.faustCode, pluginName, safePluginId, version, format);
     return c.json({ downloadUrl: result.downloadUrl, fromCache: result.fromCache, format });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Compilation failed';
-    console.error('[Hayashi] Export compilation failed:', message);
-    return c.json({ error: message }, 500);
+    console.error('[Hayashi] Export compilation failed:', message, { pluginId: safePluginId, pluginName, format });
+    return c.json({ error: 'Export compilation failed' }, 500);
   }
 });
 
