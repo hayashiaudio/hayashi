@@ -21,7 +21,8 @@ The current `WorkstationEditor.tsx` (~820 lines) uses heavy inline styles, dupli
 | `WorkstationEditor.tsx` | Thin orchestrator. Modal shell, header, transport bar, delegates timeline. | Shrinks from ~820 to ~200 lines. |
 | `WorkstationShell.tsx` | Top chrome: title, transport controls (play/stop/record), BPM/key/meter pills, track/clip counts, Add Track button. | Extracted from `WorkstationEditor` header + toolbar. |
 | `ArrangementGrid.tsx` | Timeline body: ruler, track headers panel, clip lanes area, playhead, zoom/scroll. | Keeps `@tanstack/react-virtual`. Refactored to use CSS classes and new sub-components. |
-| `TrackHeader.tsx` | Single track's left sidebar. | New component. Replaces `renderTrackHeader` callback. |
+| `TrackHeader.tsx` | Single track's left sidebar + inline FX chain panel. | New component. Replaces `renderTrackHeader` callback. Includes FX chain row when expanded. |
+| `TrackFxChain.tsx` | Inline FX chain panel: shows processor chain, mini param knobs, drag-to-reorder. | New component. Rendered inside `TrackHeader` when FX is toggled open. |
 | `ClipLane.tsx` | Single clip's visual + interaction. | New component. Replaces inline clip map in `ArrangementGrid`. |
 | `useClipDrag.ts` | Shared hook for clip drag, resize, split, and keyboard interactions. | New hook. Consolidates three duplicated `useRef` + `window.addEventListener` patterns. |
 
@@ -187,6 +188,38 @@ All buttons use `hayashi-workstation-toggle` class with `is-muted`, `is-armed`, 
 - Thin ticks between bars: 1px, `--hayashi-border`.
 - Current bar: subtle background highlight in `--hayashi-amber` at 5%.
 
+### 4.7 Track Effect Chain (FX)
+
+Each track can have an insert FX chain — DAW-style processors between the source and the track bus.
+
+**Collapsed state (default):**
+Track header shows the existing 2-row layout. An "FX" button appears in the bottom-right button cluster (22px, after the remove button). If the track has active FX, the button shows a small dot indicator in `--hayashi-amber`.
+
+**Expanded state (click FX button):**
+The track header expands to 88px total height. A third visual row appears below the faders/buttons row:
+
+- **Background:** Slightly darker than the track header (`#e8e0d0` on the offwhite header).
+- **Chain display:** Horizontal row of "FX slots" at `height: 28px`.
+- **Each FX slot:**
+  - `width: 72px`, `border-radius: 4px`, `background: #f5f0e8`, `border: 1px solid #d8cdb8`.
+  - Shows processor kind icon (abbreviated): `F` for filter, `D` for delay, `R` for reverb, `G` for gain, etc.
+  - Shows processor name truncated to 8 chars: `font-size: 0.55rem`.
+  - Shows 1-2 mini param knobs below the name if the processor has parameters (e.g., cutoff for filter, mix for reverb).
+  - Mini knob: `width: 14px`, `height: 14px`, circular, `accent-color` matches processor color.
+- **Between slots:** Small chevron (`→`) in `#8a7d6a` at `font-size: 0.5rem`.
+- **Empty slot placeholder:** Dashed border `1px dashed #c8c0b0`, shows "+" icon. Drop target for dragging processor nodes from the patch canvas.
+- **Active slot hover:** Border darkens to `#b0a890`. Drag handle appears on left edge for reordering.
+
+**Drag-to-add behavior:**
+- User drags a processor node from the patch canvas onto an empty FX slot or onto the chain row.
+- The processor is "inserted" into the chain at that position.
+- The audio graph is recompiled via `graphCompiler.ts` to route source → [FX chain] → track bus.
+
+**Parameter editing:**
+- Click a mini param knob to open a small inline popup (120px wide) with a vertical slider for that parameter.
+- Popup closes on click outside or after 3s of inactivity.
+- Changes update `useProjectStore.updateNodeParams` and trigger graph recompile.
+
 ---
 
 ## 5. CSS Strategy
@@ -325,7 +358,7 @@ These are noted as **future work** aligned with the user's stated next prioritie
 - **Comping / takes:** Multiple recording passes on the same armed track, lane stacking, comp selection.
 - **Punch-in recording:** Define pre-roll and post-roll bars, auto-record only within a defined range.
 - **MIDI piano roll editor:** Bottom panel for editing `notes` on MIDI clips.
-- **Automation lanes:** Per-clip or per-track parameter automation curves.
+- **Automation lanes:** Per-clip or per-track parameter automation curves (note: track FX param editing via inline popup IS in scope).
 - **Cross-fade / clip blending:** Overlapping clips with fade handles.
 
 ---
@@ -334,6 +367,7 @@ These are noted as **future work** aligned with the user's stated next prioritie
 
 1. **Visual:** The editor looks like a professional DAW, not a prototype. All inline styles replaced by CSS classes.
 2. **Interaction:** Clip drag, resize, split, and playhead scrub feel fluid and predictable. Snap feedback is visible.
-3. **Performance:** No jank during drag/resize on projects with 20+ tracks and 50+ clips.
-4. **Consistency:** Colors, spacing, and typography match the existing Hayashi design language.
-5. **Maintainability:** `WorkstationEditor.tsx` is under 250 lines. `ArrangementGrid` is under 300 lines. New files are focused and single-purpose.
+3. **FX Chain:** Track FX panel expands/collapses smoothly. Processor slots show kind, name, and mini param knobs. Drag-to-add from patch canvas works.
+4. **Performance:** No jank during drag/resize on projects with 20+ tracks and 50+ clips.
+5. **Consistency:** Colors, spacing, and typography match the existing Hayashi design language.
+6. **Maintainability:** `WorkstationEditor.tsx` is under 250 lines. `ArrangementGrid` is under 300 lines. New files are focused and single-purpose.
