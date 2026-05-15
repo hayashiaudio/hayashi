@@ -96,6 +96,155 @@ function createBitcrusherCurve(bits: number) {
   return curve;
 }
 
+function createProcessorNode(
+  ctx: AudioContext,
+  kind: string,
+  params: Record<string, number | string | boolean>
+): { input: AudioNode; output: AudioNode } {
+  switch (kind) {
+    case 'stereoPanner': {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = (params.pan as number) ?? 0;
+      return { input: panner, output: panner };
+    }
+    case 'limiter': {
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = (params.threshold as number) ?? -0.1;
+      limiter.ratio.value = (params.ratio as number) ?? 20;
+      limiter.attack.value = (params.attack as number) ?? 0.003;
+      limiter.release.value = (params.release as number) ?? 0.1;
+      limiter.knee.value = 0;
+      return { input: limiter, output: limiter };
+    }
+    case 'tremolo': {
+      const gain = ctx.createGain();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.value = (params.rate as number) ?? 5;
+      lfoGain.gain.value = ((params.depth as number) ?? 0.5) * 0.5;
+      lfo.connect(lfoGain);
+      lfoGain.connect(gain.gain);
+      lfo.start();
+      return { input: gain, output: gain };
+    }
+    case 'autopan': {
+      const panner = ctx.createStereoPanner();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.value = (params.rate as number) ?? 0.5;
+      lfoGain.gain.value = ((params.depth as number) ?? 0.8) * 0.5;
+      lfo.connect(lfoGain);
+      lfoGain.connect(panner.pan);
+      lfo.start();
+      return { input: panner, output: panner };
+    }
+    case 'gain': {
+      const gain = ctx.createGain();
+      gain.gain.value = (params.gain as number) ?? 1;
+      return { input: gain, output: gain };
+    }
+    case 'filter': {
+      const filter = ctx.createBiquadFilter();
+      filter.type = (params.type as BiquadFilterType) ?? 'lowpass';
+      filter.frequency.value = (params.frequency as number) ?? 1000;
+      filter.Q.value = (params.Q as number) ?? 1;
+      return { input: filter, output: filter };
+    }
+    case 'delay': {
+      const delay = ctx.createDelay(5);
+      delay.delayTime.value = (params.delayTime as number) ?? (params.time as number) ?? 0.3;
+      return { input: delay, output: delay };
+    }
+    case 'reverb': {
+      const convolver = ctx.createConvolver();
+      convolver.normalize = true;
+      convolver.buffer = createImpulseResponse(ctx, (params.decay as number) ?? 2);
+      return { input: convolver, output: convolver };
+    }
+    case 'distortion': {
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = createDistortionCurve((params.amount as number) ?? 0.5);
+      shaper.oversample = '4x';
+      return { input: shaper, output: shaper };
+    }
+    case 'compressor': {
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = (params.threshold as number) ?? -24;
+      compressor.ratio.value = (params.ratio as number) ?? 4;
+      compressor.attack.value = (params.attack as number) ?? 0.01;
+      compressor.release.value = (params.release as number) ?? 0.1;
+      return { input: compressor, output: compressor };
+    }
+    case 'bitcrusher': {
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = createBitcrusherCurve((params.bits as number) ?? 8);
+      return { input: shaper, output: shaper };
+    }
+    case 'chorus': {
+      const input = ctx.createGain();
+      const delay = ctx.createDelay(0.05);
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      const wet = ctx.createGain();
+      const dry = ctx.createGain();
+      const output = ctx.createGain();
+      delay.delayTime.value = 0.015;
+      lfo.type = 'sine';
+      lfo.frequency.value = (params.rate as number) ?? 0.5;
+      lfoGain.gain.value = ((params.depth as number) ?? 0.5) * 0.005;
+      wet.gain.value = (params.mix as number) ?? 0.5;
+      dry.gain.value = 1 - wet.gain.value;
+      lfo.connect(lfoGain);
+      lfoGain.connect(delay.delayTime);
+      input.connect(delay);
+      input.connect(dry);
+      delay.connect(wet);
+      dry.connect(output);
+      wet.connect(output);
+      lfo.start();
+      return { input, output };
+    }
+    case 'pingPongDelay': {
+      const input = ctx.createGain();
+      const leftDelay = ctx.createDelay(2);
+      const rightDelay = ctx.createDelay(2);
+      const leftPan = ctx.createStereoPanner();
+      const rightPan = ctx.createStereoPanner();
+      const feedback = ctx.createGain();
+      const wet = ctx.createGain();
+      const dry = ctx.createGain();
+      const output = ctx.createGain();
+      leftDelay.delayTime.value = (params.time as number) ?? 0.3;
+      rightDelay.delayTime.value = leftDelay.delayTime.value * 1.5;
+      feedback.gain.value = (params.feedback as number) ?? 0.4;
+      leftPan.pan.value = -1;
+      rightPan.pan.value = 1;
+      wet.gain.value = (params.mix as number) ?? 0.5;
+      dry.gain.value = 1 - wet.gain.value;
+      input.connect(leftDelay);
+      input.connect(rightDelay);
+      leftDelay.connect(feedback);
+      rightDelay.connect(feedback);
+      feedback.connect(leftDelay);
+      feedback.connect(rightDelay);
+      leftDelay.connect(leftPan);
+      rightDelay.connect(rightPan);
+      leftPan.connect(wet);
+      rightPan.connect(wet);
+      input.connect(dry);
+      dry.connect(output);
+      wet.connect(output);
+      return { input, output };
+    }
+    default: {
+      const pass = ctx.createGain();
+      return { input: pass, output: pass };
+    }
+  }
+}
+
 export async function getCachedSampleBuffer(assetId: string, ctx: RenderContext): Promise<AudioBuffer | null> {
   let ctxCache = sampleBufferCache.get(ctx);
   if (!ctxCache) {
@@ -188,6 +337,7 @@ function cleanupGraph(graph: CompiledGraph) {
 
 const activeSourcesByClip = new Map<string, AudioBufferSourceNode[]>();
 const subMixBuses = new Map<string, { gain: GainNode; pan: StereoPannerNode }>();
+const trackFxInputs = new Map<string, AudioNode>();
 
 function clearTrackBuses() {
   for (const bus of subMixBuses.values()) {
@@ -199,12 +349,14 @@ function clearTrackBuses() {
     }
   }
   subMixBuses.clear();
+  trackFxInputs.clear();
 }
 
 function buildTrackBuses(
   ctx: AudioContext,
   tracks: Record<string, Track>,
-  graph: CompiledGraph
+  graph: CompiledGraph,
+  nodes: Record<string, PatchNode>
 ) {
   clearTrackBuses();
   for (const track of Object.values(tracks)) {
@@ -221,6 +373,34 @@ function buildTrackBuses(
     gain.connect(pan);
     pan.connect(workstation.audioNode);
     subMixBuses.set(track.id, { gain, pan });
+
+    // Insert FX chain between source and track bus
+    if (track.fxChain && track.fxChain.length > 0) {
+      let currentNode: AudioNode = gain;
+      for (let i = track.fxChain.length - 1; i >= 0; i--) {
+        const nodeId = track.fxChain[i];
+        const node = nodes[nodeId];
+        if (!node) continue;
+        const proc = createProcessorNode(ctx, node.kind, node.params);
+        proc.output.connect(currentNode);
+        currentNode = proc.input;
+      }
+      trackFxInputs.set(track.id, currentNode);
+
+      // Reroute live source from workstation to FX input
+      if (track.sourceNodeId) {
+        const sourceRuntime = graph.nodes.get(track.sourceNodeId);
+        const sourceOut = sourceRuntime?.outputNode ?? sourceRuntime?.audioNode;
+        if (sourceOut && workstation.audioNode) {
+          try {
+            sourceOut.disconnect(workstation.audioNode);
+          } catch {
+            /* may not be connected */
+          }
+          sourceOut.connect(currentNode);
+        }
+      }
+    }
   }
 }
 
@@ -254,7 +434,8 @@ transportScheduler.onStartClip = async (clip, when) => {
     if (source?.muted) return;
   }
 
-  const bus = subMixBuses.get(clip.trackId)?.gain ?? audioEngine.destination;
+  const fxInput = trackFxInputs.get(clip.trackId);
+  const bus = fxInput ?? subMixBuses.get(clip.trackId)?.gain ?? audioEngine.destination;
   if (!bus) return;
 
   try {
@@ -641,7 +822,7 @@ export async function compileGraph(
   lastCompiledGraph = graph;
 
   if (tracks) {
-    buildTrackBuses(ctx, tracks, graph);
+    buildTrackBuses(ctx, tracks, graph, nodes);
   }
 
   return graph;
