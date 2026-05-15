@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
-import { Plus, Loader2, X } from 'lucide-react';
+import { Plus, Loader2, X, Radio } from 'lucide-react';
 import { listProjects } from '@/lib/api';
 
 interface ProjectItem {
   id: string;
   title: string;
+  channelId?: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -13,6 +14,7 @@ interface ProjectItem {
 export function SessionEntryScreen() {
   const user = useProjectStore((s) => s.user);
   const accessToken = useProjectStore((s) => s.accessToken);
+  const channelId = useProjectStore((s) => s.channelId);
   const setProjectId = useProjectStore((s) => s.setProjectId);
   const setProjectTitle = useProjectStore((s) => s.setProjectTitle);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -25,7 +27,7 @@ export function SessionEntryScreen() {
   useEffect(() => {
     if (!accessToken) return;
     setLoading(true);
-    listProjects(accessToken)
+    listProjects(accessToken, channelId)
       .then((res) => {
         setProjects(res.projects ?? []);
       })
@@ -33,7 +35,10 @@ export function SessionEntryScreen() {
         setError(err instanceof Error ? err.message : 'Failed to load projects');
       })
       .finally(() => setLoading(false));
-  }, [accessToken]);
+  }, [accessToken, channelId]);
+
+  const activeProjects = projects.filter((p) => p.channelId && p.channelId === channelId);
+  const recentProjects = projects.filter((p) => !p.channelId || p.channelId !== channelId);
 
   const createProject = useCallback(() => {
     const defaultTitle = `${user?.username ?? "Anonymous"}'s Jam`;
@@ -116,7 +121,48 @@ export function SessionEntryScreen() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        {projects.length > 0 && (
+        {/* Active Room */}
+        {activeProjects.length > 0 && (
+          <div className="space-y-2 text-left">
+            <p
+              className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
+              style={{ color: '#8fb359' }}
+            >
+              <Radio size={12} />
+              Active Room
+            </p>
+            <div className="space-y-2">
+              {activeProjects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => loadProject(project)}
+                  className="w-full text-left p-3 rounded-lg transition-colors"
+                  style={{
+                    background: '#f5f0e8',
+                    border: '1px solid rgba(143, 179, 89, 0.25)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ede8d8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#f5f0e8';
+                  }}
+                >
+                  <p className="font-semibold text-sm" style={{ color: '#1a1a1a' }}>
+                    {project.title}
+                  </p>
+                  <p className="text-xs" style={{ color: '#888' }}>
+                    {new Date(project.updatedAt).toLocaleDateString()}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Projects */}
+        {recentProjects.length > 0 && (
           <div className="space-y-2 text-left">
             <p
               className="text-xs font-semibold uppercase tracking-wider"
@@ -125,7 +171,7 @@ export function SessionEntryScreen() {
               Recent Projects
             </p>
             <div className="space-y-2">
-              {projects.map((project) => (
+              {recentProjects.map((project) => (
                 <button
                   key={project.id}
                   type="button"

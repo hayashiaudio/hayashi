@@ -1,0 +1,249 @@
+<h2>Proposed WorkstationEditor — With Track FX Chain</h2>
+<p class="subtitle">Final design: opaque offwhite timeline + track effect chains. Lock this?</p>
+
+<div class="mockup">
+  <div class="mockup-header">Workstation with Expanded FX Chain (Track 2)</div>
+  <div class="mockup-body" style="background:#0d1a12; color:#f5e6c8; font-size:0.72rem; overflow:hidden; border-radius:6px;">
+    <!-- Transport bar -->
+    <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#111f17; border-bottom:1px solid rgba(245,230,200,0.08);">
+      <span style="font-weight:700; font-size:0.78rem; letter-spacing:0.02em; color:#f5e6c8;">Hayashi</span>
+      <div style="display:flex; gap:4px; margin-left:8px;">
+        <div style="width:24px;height:24px;background:rgba(212,140,46,0.15);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.55rem; color:#f5e6c8; border:1px solid rgba(212,140,46,0.2);">&#9654;</div>
+        <div style="width:24px;height:24px;background:rgba(199,91,91,0.12);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.55rem; color:#c75b5b; border:1px solid rgba(199,91,91,0.25);">&#9679;</div>
+      </div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font-size:0.62rem;">
+        <span style="background:#1a2e22; padding:3px 10px; border-radius:999px; border:1px solid rgba(245,230,200,0.06);">128 BPM</span>
+        <span style="background:#1a2e22; padding:3px 10px; border-radius:999px; border:1px solid rgba(245,230,200,0.06);">4/4</span>
+        <span style="background:#1a2e22; padding:3px 10px; border-radius:999px; border:1px solid rgba(245,230,200,0.06);">D min</span>
+        <span style="opacity:0.6; font-family:SFMono-Regular,Menlo,monospace;">00:04:15</span>
+      </div>
+      <button style="background:transparent; border:1px solid rgba(245,230,200,0.12); border-radius:5px; padding:3px 10px; font-size:0.62rem; color:#f5e6c8; cursor:pointer;">Close</button>
+    </div>
+
+    <!-- Timeline body -->
+    <div style="display:flex; height:260px;">
+      <!-- Track headers -->
+      <div style="width:160px; background:#f5f0e8; border-right:1px solid #e8dcc8; flex-shrink:0;">
+        <!-- Header 1: Kick Drum (collapsed, no FX) -->
+        <div style="height:40px; border-bottom:1px solid #e8dcc8; padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#8fb13a;box-shadow:0 0 6px #8fb13a; flex-shrink:0;"></div>
+            <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#10261d;">Kick Drum</span>
+            <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:#8a7d6a; flex-shrink:0; margin-left:auto;">sampler</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="range" min="0" max="1" step="0.01" value="0.85" style="width:52px; height:3px; accent-color:#ed922f;">
+            <input type="range" min="-1" max="1" step="0.01" value="0" style="width:40px; height:3px; accent-color:#ed922f;">
+            <div style="margin-left:auto; display:flex; gap:2px;">
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">M</div>
+              <div style="width:18px;height:18px;background:#f0d5d5;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#c75b5b;">R</div>
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">FX</div>
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#a56767;">&#128465;</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Header 2: Lead Synth (EXPANDED with FX chain) -->
+        <div style="height:88px; border-bottom:1px solid #e8dcc8;">
+          <!-- Top 40px: standard header -->
+          <div style="height:40px; padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#ed922f;box-shadow:0 0 6px #ed922f; flex-shrink:0;"></div>
+              <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#10261d;">Lead Synth</span>
+              <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:#8a7d6a; flex-shrink:0; margin-left:auto;">midiBridge</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <input type="range" min="0" max="1" step="0.01" value="0.6" style="width:52px; height:3px; accent-color:#ed922f;">
+              <input type="range" min="-1" max="1" step="0.01" value="-0.3" style="width:40px; height:3px; accent-color:#ed922f;">
+              <div style="margin-left:auto; display:flex; gap:2px;">
+                <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">M</div>
+                <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">R</div>
+                <div style="width:18px;height:18px;background:#d48c2e;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#fff;">FX</div>
+                <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#a56767;">&#128465;</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FX chain row (48px) -->
+          <div style="height:48px; background:#e8e0d0; border-top:1px solid #d8cdb8; padding:4px 6px; display:flex; align-items:center; gap:3px;">
+            <!-- FX Slot: Filter -->
+            <div style="width:72px; height:40px; background:#f5f0e8; border:1px solid #d8cdb8; border-radius:4px; padding:3px 4px; display:flex; flex-direction:column;">
+              <div style="display:flex; align-items:center; gap:3px;">
+                <span style="font-size:0.55rem; font-weight:600; color:#5a8fb8;">F</span>
+                <span style="font-size:0.5rem; color:#5a4a3a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">filter-01</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <input type="range" min="20" max="20000" value="800" style="width:14px; height:14px; accent-color:#5a8fb8;">
+                  <span style="font-size:0.4rem; color:#8a7d6a;">Cut</span>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <input type="range" min="0" max="1" value="0.3" style="width:14px; height:14px; accent-color:#5a8fb8;">
+                  <span style="font-size:0.4rem; color:#8a7d6a;">Res</span>
+                </div>
+              </div>
+            </div>
+
+            <span style="font-size:0.5rem; color:#8a7d6a;">→</span>
+
+            <!-- FX Slot: Delay -->
+            <div style="width:72px; height:40px; background:#f5f0e8; border:1px solid #d8cdb8; border-radius:4px; padding:3px 4px; display:flex; flex-direction:column;">
+              <div style="display:flex; align-items:center; gap:3px;">
+                <span style="font-size:0.55rem; font-weight:600; color:#6a9b3d;">D</span>
+                <span style="font-size:0.5rem; color:#5a4a3a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">delay-02</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <input type="range" min="0" max="1" value="0.4" style="width:14px; height:14px; accent-color:#6a9b3d;">
+                  <span style="font-size:0.4rem; color:#8a7d6a;">Mix</span>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <input type="range" min="0" max="1" value="0.25" style="width:14px; height:14px; accent-color:#6a9b3d;">
+                  <span style="font-size:0.4rem; color:#8a7d6a;">FB</span>
+                </div>
+              </div>
+            </div>
+
+            <span style="font-size:0.5rem; color:#8a7d6a;">→</span>
+
+            <!-- FX Slot: Reverb -->
+            <div style="width:72px; height:40px; background:#f5f0e8; border:1px solid #d8cdb8; border-radius:4px; padding:3px 4px; display:flex; flex-direction:column;">
+              <div style="display:flex; align-items:center; gap:3px;">
+                <span style="font-size:0.55rem; font-weight:600; color:#c75b5b;">R</span>
+                <span style="font-size:0.5rem; color:#5a4a3a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">reverb-01</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <input type="range" min="0" max="1" value="0.2" style="width:14px; height:14px; accent-color:#c75b5b;">
+                  <span style="font-size:0.4rem; color:#8a7d6a;">Mix</span>
+                </div>
+              </div>
+            </div>
+
+            <span style="font-size:0.5rem; color:#8a7d6a;">→</span>
+
+            <!-- Empty slot (drop target) -->
+            <div style="width:72px; height:40px; background:transparent; border:1px dashed #c8c0b0; border-radius:4px; display:flex; align-items:center; justify-content:center;">
+              <span style="font-size:0.8rem; color:#c8c0b0;">+</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Header 3: Bass (collapsed) -->
+        <div style="height:40px; border-bottom:1px solid #e8dcc8; padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#6f7b5d; flex-shrink:0;"></div>
+            <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#10261d;">Bass</span>
+            <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:#8a7d6a; flex-shrink:0; margin-left:auto;">oscillator</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="range" min="0" max="1" step="0.01" value="0.7" style="width:52px; height:3px; accent-color:#ed922f;">
+            <input type="range" min="-1" max="1" step="0.01" value="0.2" style="width:40px; height:3px; accent-color:#ed922f;">
+            <div style="margin-left:auto; display:flex; gap:2px;">
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">M</div>
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">R</div>
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">FX</div>
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#a56767;">&#128465;</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Header 4: Vocal (collapsed, FX dot active) -->
+        <div style="height:40px; border-bottom:1px solid #e8dcc8; padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#d48c2e; flex-shrink:0;"></div>
+            <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#10261d;">Vocal Take 1</span>
+            <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:#8a7d6a; flex-shrink:0; margin-left:auto;">audio</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="range" min="0" max="1" step="0.01" value="0.9" style="width:52px; height:3px; accent-color:#ed922f;">
+            <input type="range" min="-1" max="1" step="0.01" value="0" style="width:40px; height:3px; accent-color:#ed922f;">
+            <div style="margin-left:auto; display:flex; gap:2px;">
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c;">M</div>
+              <div style="width:18px;height:18px;background:#f0d5d5;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#c75b5b;">R</div>
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#7a6f5c; position:relative;">
+                FX
+                <div style="position:absolute; top:2px; right:2px; width:4px; height:4px; border-radius:50%; background:#d48c2e;"></div>
+              </div>
+              <div style="width:18px;height:18px;background:#e8dcc8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#a56767;">&#128465;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clip lanes -->
+      <div style="flex:1; position:relative; background:#f8f3e3; overflow:hidden;">
+        <!-- Ruler -->
+        <div style="position:absolute; top:0; left:0; right:0; height:24px; border-bottom:1px solid #e8dcc8; display:flex; align-items:flex-end; padding:0 8px; font-size:0.58rem; color:#8a7d6a; z-index:5; background:#f8f3e3;">
+          <span style="margin-right:28px;">1</span>
+          <span style="margin-right:28px;">2</span>
+          <span style="margin-right:28px;">3</span>
+          <span style="margin-right:28px;">4</span>
+          <span style="margin-right:28px;">5</span>
+          <span style="margin-right:28px;">6</span>
+          <span style="margin-right:28px;">7</span>
+          <span>8</span>
+        </div>
+
+        <!-- Grid lines -->
+        <div style="position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:1;">
+          <div style="position:absolute; top:0; bottom:0; left:32px; width:1px; background:#e8dcc8;"></div>
+          <div style="position:absolute; top:0; bottom:0; left:60px; width:1px; background:#d8cdb8;"></div>
+          <div style="position:absolute; top:0; bottom:0; left:88px; width:1px; background:#e8dcc8;"></div>
+          <div style="position:absolute; top:0; bottom:0; left:116px; width:1px; background:#d8cdb8;"></div>
+          <div style="position:absolute; top:0; bottom:0; left:144px; width:1px; background:#e8dcc8;"></div>
+          <div style="position:absolute; top:0; bottom:0; left:172px; width:1px; background:#d8cdb8;"></div>
+        </div>
+
+        <!-- Lane 1: Kick Drum -->
+        <div style="position:absolute; top:24px; left:0; right:0; height:40px; border-bottom:1px solid #e8dcc8;">
+          <div style="position:absolute; left:30px; top:4px; width:70px; height:32px; background:#e8f0d4; border:1px solid #a8c97a; border-radius:4px; display:flex; align-items:center; padding:0 6px;">
+            <span style="font-size:0.52rem; color:#4a5a3a;">kick-120bpm</span>
+          </div>
+        </div>
+
+        <!-- Lane 2: Lead Synth (expanded to 88px) -->
+        <div style="position:absolute; top:64px; left:0; right:0; height:88px; border-bottom:1px solid #e8dcc8;">
+          <div style="position:absolute; left:18px; top:4px; width:90px; height:32px; background:#f5e0c8; border:2px solid #d48c2e; border-radius:4px; display:flex; align-items:center; padding:0 6px; box-shadow:0 0 8px rgba(212,140,46,0.35); z-index:10;">
+            <span style="font-size:0.52rem; color:#6a4a2a;">MIDI notes (12)</span>
+          </div>
+        </div>
+
+        <!-- Lane 3: Bass -->
+        <div style="position:absolute; top:152px; left:0; right:0; height:40px; border-bottom:1px solid #e8dcc8;">
+          <div style="position:absolute; left:50px; top:4px; width:60px; height:32px; background:#e0e4d8; border:1px solid #a0a890; border-radius:4px; display:flex; align-items:center; padding:0 6px;">
+            <span style="font-size:0.52rem; color:#4a5a3a;">oscillator</span>
+          </div>
+        </div>
+
+        <!-- Lane 4: Vocal -->
+        <div style="position:absolute; top:192px; left:0; right:0; height:40px; border-bottom:1px solid #e8dcc8;">
+          <div style="position:absolute; left:12px; top:4px; width:110px; height:32px; background:#f5e8d8; border:1px solid #c8a87a; border-radius:4px; display:flex; align-items:center; padding:0 6px;">
+            <span style="font-size:0.52rem; color:#6a5a3a;">vocal-main</span>
+          </div>
+        </div>
+
+        <!-- Playhead -->
+        <div style="position:absolute; top:24px; bottom:0; left:48px; pointer-events:none; z-index:20;">
+          <div style="position:absolute; top:-4px; left:-6px; width:12px; height:12px; cursor:grab; pointer-events:auto;"></div>
+          <div style="position:absolute; top:0; bottom:0; left:0; width:1px; background:#d48c2e; opacity:0.6;"></div>
+          <div style="position:absolute; top:0; left:-5px; width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:6px solid #d48c2e;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>What Changed in This Version</h3>
+  <ul>
+    <li><strong>Track 2 (Lead Synth)</strong> is expanded to show the FX chain row</li>
+    <li><strong>FX chain</strong> shows: Filter → Delay → Reverb → Empty slot (+)</li>
+    <li><strong>Each FX slot</strong>: kind letter (F/D/R), truncated name, 1-2 mini param knobs</li>
+    <li><strong>Mini knobs</strong>: 14px circular sliders with parameter label below</li>
+    <li><strong>FX button</strong> in track header: Track 2 shows amber active state, Track 4 shows dot indicator (has FX but collapsed)</li>
+    <li><strong>Clip lane height</strong> expands with the track header (88px for Track 2)</li>
+  </ul>
+</div>
+
+<p class="subtitle"><strong>Refresh http://localhost:52759</strong> — this is the final proposed design. Should I lock this and write the implementation plan?</p>

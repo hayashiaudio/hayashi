@@ -27,14 +27,17 @@ export async function loadProjectSnapshot(projectId: string, accessToken: string
   return res.json();
 }
 
-export async function listProjects(accessToken: string) {
+export async function listProjects(accessToken: string, channelId?: string | null) {
   if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
     return { projects: [] };
   }
-  const res = await fetch(`${SERVER_BASE_URL}/projects/list?accessToken=${encodeURIComponent(accessToken)}`);
+  const url = new URL(`${SERVER_BASE_URL}/projects/list`);
+  url.searchParams.set('accessToken', accessToken);
+  if (channelId) url.searchParams.set('channelId', channelId);
+  const res = await fetch(url.toString());
   if (!res.ok) throw new Error('Failed to list projects');
   return res.json() as Promise<{
-    projects: Array<{ id: string; title: string; createdAt: number; updatedAt: number }>;
+    projects: Array<{ id: string; title: string; channelId?: string | null; createdAt: number; updatedAt: number }>;
   }>;
 }
 

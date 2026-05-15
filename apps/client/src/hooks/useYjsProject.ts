@@ -90,16 +90,17 @@ export function useYjsProject(
 
       for (const p of participants) {
         const yjs = yjsMap.get(p.id);
+        if (!yjs) continue; // only show people actually in the Yjs room
         merged.push({
           id: p.id,
           name: p.global_name || p.nickname || p.username,
           avatarUrl: p.avatar
             ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png`
             : undefined,
-          color: yjs?.color || stringToColor(p.id),
-          cursor: yjs?.cursor,
-          focus: yjs?.focus,
-          status: yjs?.status,
+          color: yjs.color || stringToColor(p.id),
+          cursor: yjs.cursor,
+          focus: yjs.focus,
+          status: yjs.status,
         });
         seen.add(p.id);
       }

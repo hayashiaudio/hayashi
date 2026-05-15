@@ -115,11 +115,20 @@ export async function ensureDbSchema() {
         create table if not exists projects (
           id text primary key,
           owner_id text not null,
+          channel_id text,
           title text not null,
           snapshot_json text not null,
           created_at bigint not null,
           updated_at bigint not null
         )
+      `);
+      await database.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE projects ADD COLUMN IF NOT EXISTS channel_id text;
+        EXCEPTION WHEN OTHERS THEN
+          -- no-op on missing table or duplicate column
+        END $$;
       `);
 
       await database.execute(sql`

@@ -383,6 +383,8 @@ function App() {
       clips,
       tracks,
       createdBy: user?.id,
+      channelId,
+      guildId,
     };
 
     saveTimerRef.current = window.setTimeout(() => {

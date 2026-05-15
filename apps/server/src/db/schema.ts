@@ -60,6 +60,7 @@ export const dailyUsage = pgTable(
 export const projects = pgTable('projects', {
   id: text('id').primaryKey(),
   ownerId: text('owner_id').notNull(),
+  channelId: text('channel_id'),
   title: text('title').notNull(),
   snapshotJson: text('snapshot_json').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),

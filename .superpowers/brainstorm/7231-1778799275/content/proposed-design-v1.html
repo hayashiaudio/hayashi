@@ -1,0 +1,261 @@
+<h2>Proposed WorkstationEditor Chrome</h2>
+<p class="subtitle">Here's what the polished DAW will look like. Scroll down to see clip states, interactions, and track header detail.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Full Workstation Shell (Dark — Hayashi Theme)</div>
+  <div class="mockup-body" style="background:#0d1a12; color:#f5e6c8; font-size:0.72rem; overflow:hidden; border-radius:6px;">
+    <!-- Transport bar -->
+    <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:rgba(255,252,245,0.03); border-bottom:1px solid rgba(245,230,200,0.08);">
+      <span style="font-weight:700; font-size:0.78rem; letter-spacing:0.02em; color:#f5e6c8;">Hayashi</span>
+      <div style="display:flex; gap:4px; margin-left:8px;">
+        <div style="width:24px;height:24px;background:rgba(212,140,46,0.15);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.55rem; color:#f5e6c8; border:1px solid rgba(212,140,46,0.2);">&#9654;</div>
+        <div style="width:24px;height:24px;background:rgba(199,91,91,0.12);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.55rem; color:#c75b5b; border:1px solid rgba(199,91,91,0.25);">&#9679;</div>
+      </div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font-size:0.62rem;">
+        <span style="background:rgba(255,252,245,0.05); padding:3px 10px; border-radius:999px; border:1px solid rgba(245,230,200,0.06);">128 BPM</span>
+        <span style="background:rgba(255,252,245,0.05); padding:3px 10px; border-radius:999px; border:1px solid rgba(245,230,200,0.06);">4/4</span>
+        <span style="background:rgba(255,252,245,0.05); padding:3px 10px; border-radius:999px; border:1px solid rgba(245,230,200,0.06);">D min</span>
+        <span style="opacity:0.6; font-family:SFMono-Regular,Menlo,monospace;">00:04:15</span>
+      </div>
+      <button style="background:transparent; border:1px solid rgba(245,230,200,0.12); border-radius:5px; padding:3px 10px; font-size:0.62rem; color:#f5e6c8; cursor:pointer;">Close</button>
+    </div>
+
+    <!-- Timeline body -->
+    <div style="display:flex; height:220px;">
+      <!-- Track headers -->
+      <div style="width:160px; background:rgba(255,252,245,0.015); border-right:1px solid rgba(245,230,200,0.06); flex-shrink:0;">
+        <!-- Header 1 -->
+        <div style="height:40px; border-bottom:1px solid rgba(245,230,200,0.05); padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#8fb13a;box-shadow:0 0 6px #8fb13a; flex-shrink:0;"></div>
+            <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f5e6c8;">Kick Drum</span>
+            <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:rgba(245,230,200,0.35); flex-shrink:0; margin-left:auto;">sampler</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="range" min="0" max="1" step="0.01" value="0.85" style="width:52px; height:3px; accent-color:#d48c2e;" title="Gain: 85%">
+            <input type="range" min="-1" max="1" step="0.01" value="0" style="width:40px; height:3px; accent-color:#d48c2e;" title="Pan: 0">
+            <div style="margin-left:auto; display:flex; gap:2px;">
+              <div style="width:18px;height:18px;background:rgba(245,230,200,0.04);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:rgba(245,230,200,0.5);">M</div>
+              <div style="width:18px;height:18px;background:rgba(199,91,91,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#c75b5b;">R</div>
+            </div>
+          </div>
+        </div>
+        <!-- Header 2 -->
+        <div style="height:40px; border-bottom:1px solid rgba(245,230,200,0.05); padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#ed922f;box-shadow:0 0 6px #ed922f; flex-shrink:0;"></div>
+            <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f5e6c8;">Lead Synth</span>
+            <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:rgba(245,230,200,0.35); flex-shrink:0; margin-left:auto;">midiBridge</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="range" min="0" max="1" step="0.01" value="0.6" style="width:52px; height:3px; accent-color:#d48c2e;" title="Gain: 60%">
+            <input type="range" min="-1" max="1" step="0.01" value="-0.3" style="width:40px; height:3px; accent-color:#d48c2e;" title="Pan: -0.3">
+            <div style="margin-left:auto; display:flex; gap:2px;">
+              <div style="width:18px;height:18px;background:rgba(245,230,200,0.04);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:rgba(245,230,200,0.5);">M</div>
+              <div style="width:18px;height:18px;background:rgba(245,230,200,0.04);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:rgba(245,230,200,0.5);">R</div>
+            </div>
+          </div>
+        </div>
+        <!-- Header 3 -->
+        <div style="height:40px; border-bottom:1px solid rgba(245,230,200,0.05); padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#6f7b5d; flex-shrink:0;"></div>
+            <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f5e6c8;">Bass</span>
+            <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:rgba(245,230,200,0.35); flex-shrink:0; margin-left:auto;">oscillator</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="range" min="0" max="1" step="0.01" value="0.7" style="width:52px; height:3px; accent-color:#d48c2e;" title="Gain: 70%">
+            <input type="range" min="-1" max="1" step="0.01" value="0.2" style="width:40px; height:3px; accent-color:#d48c2e;" title="Pan: 0.2">
+            <div style="margin-left:auto; display:flex; gap:2px;">
+              <div style="width:18px;height:18px;background:rgba(245,230,200,0.04);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:rgba(245,230,200,0.5);">M</div>
+              <div style="width:18px;height:18px;background:rgba(245,230,200,0.04);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:rgba(245,230,200,0.5);">R</div>
+            </div>
+          </div>
+        </div>
+        <!-- Header 4 -->
+        <div style="height:40px; border-bottom:1px solid rgba(245,230,200,0.05); padding:0 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#d48c2e; flex-shrink:0;"></div>
+            <span style="font-size:0.68rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f5e6c8;">Vocal Take 1</span>
+            <span style="font-size:0.52rem; text-transform:uppercase; letter-spacing:0.05em; color:rgba(245,230,200,0.35); flex-shrink:0; margin-left:auto;">audio</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="range" min="0" max="1" step="0.01" value="0.9" style="width:52px; height:3px; accent-color:#d48c2e;" title="Gain: 90%">
+            <input type="range" min="-1" max="1" step="0.01" value="0" style="width:40px; height:3px; accent-color:#d48c2e;" title="Pan: 0">
+            <div style="margin-left:auto; display:flex; gap:2px;">
+              <div style="width:18px;height:18px;background:rgba(245,230,200,0.04);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:rgba(245,230,200,0.5);">M</div>
+              <div style="width:18px;height:18px;background:rgba(199,91,91,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5rem; color:#c75b5b;">R</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clip lanes area -->
+      <div style="flex:1; position:relative; background:rgba(0,0,0,0.15); overflow:hidden;">
+        <!-- Ruler -->
+        <div style="position:absolute; top:0; left:0; right:0; height:24px; border-bottom:1px solid rgba(245,230,200,0.06); display:flex; align-items:flex-end; padding:0 8px; font-size:0.58rem; color:rgba(245,230,200,0.45); z-index:5;">
+          <span style="margin-right:28px;">1</span>
+          <span style="margin-right:28px;">2</span>
+          <span style="margin-right:28px;">3</span>
+          <span style="margin-right:28px;">4</span>
+          <span style="margin-right:28px;">5</span>
+          <span style="margin-right:28px;">6</span>
+          <span style="margin-right:28px;">7</span>
+          <span>8</span>
+        </div>
+
+        <!-- Grid lines -->
+        <div style="position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:1;">
+          <div style="position:absolute; top:0; bottom:0; left:32px; width:1px; background:rgba(245,230,200,0.04);"></div>
+          <div style="position:absolute; top:0; bottom:0; left:60px; width:1px; background:rgba(245,230,200,0.08);"></div>
+          <div style="position:absolute; top:0; bottom:0; left:88px; width:1px; background:rgba(245,230,200,0.04);"></div>
+          <div style="position:absolute; top:0; bottom:0; left:116px; width:1px; background:rgba(245,230,200,0.08);"></div>
+          <div style="position:absolute; top:0; bottom:0; left:144px; width:1px; background:rgba(245,230,200,0.04);"></div>
+          <div style="position:absolute; top:0; bottom:0; left:172px; width:1px; background:rgba(245,230,200,0.08);"></div>
+        </div>
+
+        <!-- Lane 1: Kick Drum (sampler) -->
+        <div style="position:absolute; top:24px; left:0; right:0; height:40px; border-bottom:1px solid rgba(245,230,200,0.05);">
+          <!-- Clip: default state -->
+          <div style="position:absolute; left:30px; top:4px; width:70px; height:32px; background:rgba(143,177,58,0.1); border:1px solid rgba(143,177,58,0.25); border-radius:4px; display:flex; align-items:center; padding:0 6px;">
+            <svg width="48" height="12" style="opacity:0.5; position:absolute; left:4px; top:10px;">
+              <rect x="0" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+              <rect x="4" y="3" width="2" height="9" fill="rgba(245,230,200,0.5)"/>
+              <rect x="8" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="12" y="2" width="2" height="10" fill="rgba(245,230,200,0.5)"/>
+              <rect x="16" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="20" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="24" y="3" width="2" height="9" fill="rgba(245,230,200,0.5)"/>
+              <rect x="28" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+              <rect x="32" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="36" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="40" y="2" width="2" height="10" fill="rgba(245,230,200,0.5)"/>
+              <rect x="44" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+            </svg>
+            <span style="position:relative; z-index:2; font-size:0.52rem; color:rgba(245,230,200,0.6); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; mix-blend-mode:difference;">kick-120bpm</span>
+          </div>
+          <!-- Clip: hovered -->
+          <div style="position:absolute; left:110px; top:4px; width:60px; height:32px; background:rgba(143,177,58,0.18); border:1px solid rgba(143,177,58,0.45); border-radius:4px; display:flex; align-items:center; padding:0 6px; transform:translateY(-1px);">
+            <svg width="40" height="12" style="opacity:0.55; position:absolute; left:4px; top:10px;">
+              <rect x="0" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="4" y="2" width="2" height="10" fill="rgba(245,230,200,0.5)"/>
+              <rect x="8" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+              <rect x="12" y="3" width="2" height="9" fill="rgba(245,230,200,0.5)"/>
+              <rect x="16" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="20" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="24" y="2" width="2" height="10" fill="rgba(245,230,200,0.5)"/>
+              <rect x="28" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+              <rect x="32" y="3" width="2" height="9" fill="rgba(245,230,200,0.5)"/>
+              <rect x="36" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+            </svg>
+            <span style="position:relative; z-index:2; font-size:0.52rem; color:rgba(245,230,200,0.7); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; mix-blend-mode:difference;">snare-hit</span>
+          </div>
+        </div>
+
+        <!-- Lane 2: Lead Synth (midiBridge) -->
+        <div style="position:absolute; top:64px; left:0; right:0; height:40px; border-bottom:1px solid rgba(245,230,200,0.05);">
+          <!-- Clip: selected (amber ring) -->
+          <div style="position:absolute; left:18px; top:4px; width:90px; height:32px; background:rgba(212,140,46,0.25); border:2px solid rgba(212,140,46,0.7); border-radius:4px; display:flex; align-items:center; padding:0 6px; box-shadow:0 0 8px rgba(212,140,46,0.35); z-index:10;">
+            <!-- Resize handles -->
+            <div style="position:absolute; left:0; top:0; bottom:0; width:4px; border-left:2px solid #d48c2e; cursor:col-resize;"></div>
+            <div style="position:absolute; right:0; top:0; bottom:0; width:4px; border-right:2px solid #d48c2e; cursor:col-resize;"></div>
+            <span style="position:relative; z-index:2; font-size:0.52rem; color:rgba(245,230,200,0.75); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; mix-blend-mode:difference;">MIDI notes (12)</span>
+            <span style="margin-left:4px; font-size:0.48rem; opacity:0.5; text-transform:uppercase; letter-spacing:0.05em; color:rgba(245,230,200,0.6);">loop</span>
+          </div>
+          <!-- Second clip -->
+          <div style="position:absolute; left:118px; top:4px; width:50px; height:32px; background:rgba(212,140,46,0.1); border:1px solid rgba(212,140,46,0.25); border-radius:4px; display:flex; align-items:center; padding:0 6px;">
+            <span style="font-size:0.52rem; color:rgba(245,230,200,0.6); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; mix-blend-mode:difference;">notes</span>
+          </div>
+        </div>
+
+        <!-- Lane 3: Bass (oscillator) -->
+        <div style="position:absolute; top:104px; left:0; right:0; height:40px; border-bottom:1px solid rgba(245,230,200,0.05);">
+          <div style="position:absolute; left:50px; top:4px; width:60px; height:32px; background:rgba(111,123,93,0.1); border:1px solid rgba(111,123,93,0.25); border-radius:4px; display:flex; align-items:center; padding:0 6px;">
+            <span style="font-size:0.52rem; color:rgba(245,230,200,0.6); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; mix-blend-mode:difference;">oscillator</span>
+          </div>
+        </div>
+
+        <!-- Lane 4: Vocal (audio) -->
+        <div style="position:absolute; top:144px; left:0; right:0; height:40px; border-bottom:1px solid rgba(245,230,200,0.05);">
+          <div style="position:absolute; left:12px; top:4px; width:110px; height:32px; background:rgba(212,140,46,0.1); border:1px solid rgba(212,140,46,0.25); border-radius:4px; display:flex; align-items:center; padding:0 6px;">
+            <svg width="90" height="12" style="opacity:0.5; position:absolute; left:4px; top:10px;">
+              <rect x="0" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="4" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="8" y="7" width="2" height="5" fill="rgba(245,230,200,0.5)"/>
+              <rect x="12" y="3" width="2" height="9" fill="rgba(245,230,200,0.5)"/>
+              <rect x="16" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+              <rect x="20" y="8" width="2" height="4" fill="rgba(245,230,200,0.5)"/>
+              <rect x="24" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="28" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="32" y="2" width="2" height="10" fill="rgba(245,230,200,0.5)"/>
+              <rect x="36" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+              <rect x="40" y="7" width="2" height="5" fill="rgba(245,230,200,0.5)"/>
+              <rect x="44" y="3" width="2" height="9" fill="rgba(245,230,200,0.5)"/>
+              <rect x="48" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="52" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="56" y="7" width="2" height="5" fill="rgba(245,230,200,0.5)"/>
+              <rect x="60" y="2" width="2" height="10" fill="rgba(245,230,200,0.5)"/>
+              <rect x="64" y="5" width="2" height="7" fill="rgba(245,230,200,0.5)"/>
+              <rect x="68" y="8" width="2" height="4" fill="rgba(245,230,200,0.5)"/>
+              <rect x="72" y="3" width="2" height="9" fill="rgba(245,230,200,0.5)"/>
+              <rect x="76" y="6" width="2" height="6" fill="rgba(245,230,200,0.5)"/>
+              <rect x="80" y="4" width="2" height="8" fill="rgba(245,230,200,0.5)"/>
+              <rect x="84" y="7" width="2" height="5" fill="rgba(245,230,200,0.5)"/>
+              <rect x="88" y="2" width="2" height="10" fill="rgba(245,230,200,0.5)"/>
+            </svg>
+            <span style="position:relative; z-index:2; font-size:0.52rem; color:rgba(245,230,200,0.6); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; mix-blend-mode:difference;">vocal-main</span>
+          </div>
+        </div>
+
+        <!-- Playhead -->
+        <div style="position:absolute; top:24px; bottom:0; left:48px; pointer-events:none; z-index:20;">
+          <div style="position:absolute; top:-4px; left:-6px; width:12px; height:12px; cursor:grab; pointer-events:auto;"></div>
+          <div style="position:absolute; top:0; bottom:0; left:0; width:1px; background:#d48c2e; opacity:0.4;"></div>
+          <div style="position:absolute; top:0; left:-5px; width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:6px solid #d48c2e;"></div>
+        </div>
+
+        <!-- Snap line (shown during drag) -->
+        <div style="position:absolute; top:24px; bottom:0; left:88px; border-left:1px dashed #d48c2e; opacity:0.6; z-index:15; pointer-events:none;">
+          <div style="position:absolute; top:-20px; left:4px; background:#111f17; border:1px solid rgba(245,230,200,0.08); border-radius:4px; padding:2px 6px; font-size:0.55rem; color:#f5e6c8; white-space:nowrap;">Bar 3</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Clip State Detail</h3>
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <div style="background:rgba(143,177,58,0.1); border:1px solid rgba(143,177,58,0.25); border-radius:4px; padding:8px 12px; font-size:0.62rem; color:rgba(245,230,200,0.7); min-width:120px;">
+      <strong style="color:#8fb13a;">Default</strong><br/>
+      1px border @ 25%, fill @ 10%
+    </div>
+    <div style="background:rgba(143,177,58,0.18); border:1px solid rgba(143,177,58,0.45); border-radius:4px; padding:8px 12px; font-size:0.62rem; color:rgba(245,230,200,0.7); min-width:120px; transform:translateY(-1px);">
+      <strong style="color:#8fb13a;">Hovered</strong><br/>
+      1px border @ 45%, fill @ 18%, lift
+    </div>
+    <div style="background:rgba(212,140,46,0.25); border:2px solid rgba(212,140,46,0.7); border-radius:4px; padding:8px 12px; font-size:0.62rem; color:rgba(245,230,200,0.7); min-width:120px; box-shadow:0 0 8px rgba(212,140,46,0.35);">
+      <strong style="color:#d48c2e;">Selected</strong><br/>
+      2px amber border, glow shadow
+    </div>
+    <div style="background:rgba(212,140,46,0.15); border:1px solid rgba(212,140,46,0.5); border-radius:4px; padding:8px 12px; font-size:0.62rem; color:rgba(245,230,200,0.7); min-width:120px; filter:brightness(1.3);">
+      <strong style="color:#d48c2e;">Drag Ghost</strong><br/>
+      Brightened, fixed position
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Key Changes from Current</h3>
+  <ul>
+    <li><strong>Header width:</strong> 300px &#8594; <strong>160px</strong> (more timeline space)</li>
+    <li><strong>Track height:</strong> 48px &#8594; <strong>40px</strong> (fit more tracks)</li>
+    <li><strong>Clip padding:</strong> top/bottom 4px for waveform breathing room</li>
+    <li><strong>Color coding:</strong> green = sampler/drum, moss = osc/noise, amber = midi/audio</li>
+    <li><strong>Resize handles:</strong> 2px amber bars appear on hover/selection</li>
+    <li><strong>Snap feedback:</strong> dashed line + tooltip during drag/resize</li>
+    <li><strong>Playhead:</strong> triangle + line + invisible grab handle</li>
+  </ul>
+</div>
+
+<p class="subtitle"><strong>Refresh http://localhost:52759</strong> if you don't see this. Let me know which parts feel right and what needs tweaking before we move to implementation planning.</p>

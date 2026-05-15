@@ -196,7 +196,7 @@ app.post('/billing/export/authorize', async (c) => {
 
 import { getDb, ensureDbSchema, hasDatabaseUrl } from './db/index.js';
 import { projects } from './db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 function saveProjectFile(projectId: string, snapshot: unknown) {
   const dir = resolve('/tmp/hayashi/projects', projectId);
@@ -263,11 +263,13 @@ app.post('/project/save', async (c) => {
         await billing.getOrCreateUser(identity);
       }
 
+      const channelId = (snapshot as Record<string, unknown>)?.channelId as string | undefined;
       await db
         .insert(projects)
         .values({
           id: projectId,
           ownerId: (snapshot as Record<string, unknown>)?.createdBy as string ?? 'unknown',
+          channelId: channelId ?? null,
           title: (snapshot as Record<string, unknown>)?.projectTitle as string ?? 'Untitled Jam',
           snapshotJson: JSON.stringify(snapshot),
           createdAt: now,
@@ -276,6 +278,8 @@ app.post('/project/save', async (c) => {
         .onConflictDoUpdate({
           target: projects.id,
           set: {
+            ownerId: (snapshot as Record<string, unknown>)?.createdBy as string ?? 'unknown',
+            channelId: channelId ?? null,
             title: (snapshot as Record<string, unknown>)?.projectTitle as string ?? 'Untitled Jam',
             snapshotJson: JSON.stringify(snapshot),
             updatedAt: now,
@@ -331,6 +335,7 @@ app.get('/project/load/:projectId', async (c) => {
 
 app.get('/projects/list', async (c) => {
   const accessToken = c.req.query('accessToken');
+  const channelId = c.req.query('channelId');
   if (!accessToken) return c.json({ error: 'Missing accessToken' }, 400);
 
   try {
@@ -344,9 +349,14 @@ app.get('/projects/list', async (c) => {
       await ensureDbSchema();
       const db = getDb();
 
+      const conditions = [];
+      if (channelId) {
+        conditions.push(eq(projects.channelId, channelId));
+      }
       const rows = await db
-        .select({ id: projects.id, title: projects.title, createdAt: projects.createdAt, updatedAt: projects.updatedAt })
+        .select({ id: projects.id, title: projects.title, channelId: projects.channelId, createdAt: projects.createdAt, updatedAt: projects.updatedAt })
         .from(projects)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(desc(projects.updatedAt));
 
       return c.json({ projects: rows });
