@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { PluginLibrary } from './PluginLibrary';
 import { PluginPreview } from './PluginPreview';
 import { CommandPalette } from './CommandPalette';
@@ -12,27 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Terminal, Sparkles, Wand2, Code2, Lock } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
-
-function useTypewriter(text: string, speed: number, enabled: boolean) {
-  const [displayed, setDisplayed] = useState('');
-  const indexRef = useRef(0);
-
-  useEffect(() => {
-    if (!enabled) { setDisplayed(''); indexRef.current = 0; return; }
-    indexRef.current = 0;
-    const tick = () => {
-      if (indexRef.current < text.length) {
-        indexRef.current += 1;
-        setDisplayed(text.slice(0, indexRef.current));
-        setTimeout(tick, Math.max(10, speed + (Math.random() * 20 - 10)));
-      }
-    };
-    tick();
-    return () => { indexRef.current = text.length; };
-  }, [text, speed, enabled]);
-
-  return displayed;
-}
 
 const C = {
   void: '#0a0a0a',
@@ -104,9 +84,31 @@ export default function PluginGenerator() {
     }
   };
 
-  const displayedStream = useTypewriter(streamText, 12, Boolean(generatingId) || streamText.length > 0);
+  const [typedStream, setTypedStream] = useState('');
+  const streamRef = useRef('');
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (streamText === streamRef.current) return;
+    const full = streamText;
+    const already = streamRef.current;
+    let i = already.length;
+    streamRef.current = full;
+
+    function tick() {
+      if (i < full.length) {
+        i += 1;
+        setTypedStream(full.slice(0, i));
+        const variance = Math.random() * 30 - 15;
+        timerRef.current = window.setTimeout(tick, Math.max(8, 18 + variance));
+      }
+    }
+    tick();
+    return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
+  }, [streamText]);
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ background: C.void, color: C.text, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <style>{`
         @keyframes slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -232,7 +234,7 @@ export default function PluginGenerator() {
               </div>
               <div className="p-4">
                 <pre className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap" style={{ color: '#e5e5e5' }}>
-                  {displayedStream}
+                  {typedStream}
                   {generatingId && <span className="inline-block w-2 h-4 align-middle bg-[#ff8c61] ml-0.5 animate-pulse" />}
                 </pre>
               </div>
@@ -255,5 +257,6 @@ export default function PluginGenerator() {
       <BtConnectModal open={btOpen} onClose={() => setBtOpen(false)} />
       <UsbConnectModal open={usbOpen} onClose={() => setUsbOpen(false)} />
     </div>
+    </TooltipProvider>
   );
 }
