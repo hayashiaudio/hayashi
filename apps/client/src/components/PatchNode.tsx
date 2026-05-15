@@ -106,6 +106,7 @@ export const PatchNode = memo(function PatchNodeComponent(props: NodeProps) {
   const label = kindLabels[data.kind] ?? data.kind;
   const isOutput = data.kind === 'output';
   const isSourceNode = definition?.category === 'source';
+  const isProcessor = definition?.category === 'processor';
   const samplerAssetId = data.kind === 'sampler' && typeof data.params.assetId === 'string' ? data.params.assetId : null;
   const samplerAsset = useProjectStore((s) => (samplerAssetId ? s.assets[samplerAssetId] : undefined));
   const samplerTitle = samplerAsset?.name ?? (data.kind === 'sampler' ? 'Drop sample' : data.id);
@@ -135,8 +136,19 @@ export const PatchNode = memo(function PatchNodeComponent(props: NodeProps) {
 
   const isSamplerEmpty = data.kind === 'sampler' && !samplerAsset;
 
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    if (isProcessor) {
+      e.dataTransfer.setData('application/hayashi-node', data.id);
+      e.dataTransfer.effectAllowed = 'copy';
+    }
+  }, [isProcessor, data.id]);
+
   return (
-    <div className={`hayashi-patch-node hayashi-patch-node-${data.kind}`}>
+    <div
+      className={`hayashi-patch-node hayashi-patch-node-${data.kind}`}
+      draggable={isProcessor}
+      onDragStart={handleDragStart}
+    >
       <Handle type="target" position={Position.Left} className="hayashi-node-handle hayashi-node-handle-left" />
       <Handle type="source" position={Position.Right} className="hayashi-node-handle hayashi-node-handle-right" />
 
