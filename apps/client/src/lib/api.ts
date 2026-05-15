@@ -140,18 +140,20 @@ export interface ExportResult {
   format: 'vst3' | 'clap';
 }
 
-export async function exportPluginBinary(
-  accessToken: string,
-  pluginName: string,
-  pluginId: string,
-  version: string,
-  faustCode: string,
-  format: 'vst3' | 'clap'
-): Promise<ExportResult> {
-  const res = await fetch(`${SERVER_BASE_URL}/api/export/${format}`, {
+export interface ExportPluginOptions {
+  accessToken: string;
+  pluginName: string;
+  pluginId: string;
+  version: string;
+  faustCode: string;
+  format: 'vst3' | 'clap';
+}
+
+export async function exportPluginBinary(options: ExportPluginOptions): Promise<ExportResult> {
+  const res = await fetch(`${SERVER_BASE_URL}/api/export/${options.format}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken, pluginName, pluginId, version, faustCode }),
+    body: JSON.stringify(options),
   });
 
   if (!res.ok) {
