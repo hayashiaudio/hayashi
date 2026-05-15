@@ -1,0 +1,117 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Play, Download, Code2, Copy, Check } from 'lucide-react';
+import { usePluginStore } from '@/stores/pluginStore';
+import { PreviewPlayer } from './PreviewPlayer';
+
+const C = {
+  border: 'rgba(255,255,255,0.06)',
+  accent: '#ff8c61',
+  text: '#e5e5e5',
+  textMuted: '#737373',
+  textDim: '#525252',
+  void: '#0a0a0a',
+} as const;
+
+function formatParamValue(v: number, min: number, max: number) {
+  if (max <= 1 && min >= 0) return `${Math.round(v * 100)}%`;
+  if (max > 1000) return `${Math.round(v)}Hz`;
+  return v.toFixed(2);
+}
+
+export function PluginPreview() {
+  const { plugins, activePluginId } = usePluginStore();
+  const [copied, setCopied] = useState(false);
+
+  const plugin = plugins.find((p) => p.id === activePluginId);
+  if (!plugin) return null;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(plugin.prompt).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="px-8 pb-12 max-w-4xl mx-auto">
+      <div className="rounded-2xl border p-6 animate-slide-up" style={{ borderColor: C.border, background: '#111111' }}>
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h2 className="text-lg font-bold">{plugin.name}</h2>
+              <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-full capitalize">{plugin.type}</Badge>
+            </div>
+            <p className="text-xs text-[#525252] font-mono">{plugin.prompt}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="outline" size="sm" className="h-8 text-[11px] border-[#525252] text-[#737373] hover:text-[#e5e5e5] rounded-md gap-1.5" onClick={handleCopy}>
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-[11px] border-[#ff8c61]/30 text-[#ff8c61] hover:bg-[#ff8c61]/10 rounded-md gap-1.5">
+                  <Code2 className="h-3.5 w-3.5" /> FAUST
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">View Source</TooltipContent>
+            </Tooltip>
+            <Button size="sm" className="h-8 text-[11px] font-bold rounded-md gap-1.5" style={{ background: C.accent, color: C.void }}>
+              <Download className="h-3.5 w-3.5" /> EXPORT
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl p-6 mb-6 flex items-center justify-between" style={{ background: C.void, border: `1px solid ${C.border}` }}>
+          <div className="flex items-end gap-[3px] h-20">
+            {plugin.waveform.map((h, i) => (
+              <div
+                key={i}
+                className="w-[4px] rounded-full"
+                style={{
+                  height: `${h}%`,
+                  background: C.accent,
+                  opacity: 0.3 + (i % 3) * 0.15,
+                  animation: plugin.status === 'generating' ? `waveform-bounce ${0.8 + (i % 4) * 0.2}s ease-in-out infinite` : 'none',
+                  animationDelay: `${i * 0.05}s`,
+                }}
+              />
+            ))}
+          </div>
+          <PreviewPlayer />
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          {plugin.params.map((param) => {
+            const pct = ((param.value - param.min) / (param.max - param.min)) * 100;
+            return (
+              <div key={param.name} className="rounded-xl p-4 border" style={{ borderColor: C.border, background: C.void }}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-bold tracking-wider text-[#737373]">{param.name}</span>
+                  <span className="text-[10px] font-mono text-[#e5e5e5]">{formatParamValue(param.value, param.min, param.max)}</span>
+                </div>
+                <div className="relative h-1.5 rounded-full bg-[#1a1a1a] overflow-hidden">
+                  <div className="absolute top-0 left-0 bottom-0 rounded-full" style={{ width: `${pct}%`, background: C.accent, opacity: 0.6 }} />
+                </div>
+                <div className="flex justify-center mt-3">
+                  <div className="relative rounded-full" style={{ width: 36, height: 36, border: `2px solid rgba(255,140,97,0.25)` }}>
+                    <div className="absolute top-1/2 left-1/2 w-0.5 h-3" style={{ background: C.accent, transform: `translate(-50%, -100%) rotate(${pct * 2.7 - 135}deg)`, transformOrigin: 'bottom center' }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex justify-center mt-6">
+          <Button size="lg" className="rounded-full h-12 px-8 gap-2 text-sm font-bold" style={{ background: C.accent, color: C.void }}>
+            <Play className="h-5 w-5 fill-current" /> PREVIEW
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

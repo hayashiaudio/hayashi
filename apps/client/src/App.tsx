@@ -10,7 +10,7 @@ import {
 } from './lib/api';
 import { MarketingPage } from './pages/MarketingPage';
 import { BrandGuidelinesPage } from './components/BrandGuidelinesPage';
-import StudioMockup from './components/StudioMockup';
+import PluginGenerator from './components/PluginGenerator';
 import { SessionEntryScreen } from './components/SessionEntryScreen';
 import { StudioScreen } from './components/StudioScreen';
 import { BillingModal } from './components/BillingModal';
@@ -24,7 +24,7 @@ function App() {
   const brandMode = params.get('brand') === '1';
 
   if (brandMode) return <BrandGuidelinesPage />;
-  if (params.get('studio') === '1') return <StudioMockup />;
+  if (params.get('studio') === '1') return <PluginGenerator />;
   if (window.location.pathname === '/') return <MarketingPage />;
 
   const { ready, channelId, guildId, instanceId, error, user, participants, accessToken } = useDiscordSdk();
