@@ -31,11 +31,29 @@ export const dailyUsage = pgTable(
       .references(() => users.clerkUserId, { onDelete: 'cascade' }),
     usageDate: text('usage_date').notNull(),
     exportCount: integer('export_count').notNull().default(0),
+    generationCount: integer('generation_count').notNull().default(0),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },
   (table) => ({
     userDateUnique: uniqueIndex('daily_usage_user_date_unique').on(table.userId, table.usageDate),
+  })
+);
+
+export const monthlyUsage = pgTable(
+  'monthly_usage',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.clerkUserId, { onDelete: 'cascade' }),
+    usageMonth: text('usage_month').notNull(),
+    exportCount: integer('export_count').notNull().default(0),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    userMonthUnique: uniqueIndex('monthly_usage_user_month_unique').on(table.userId, table.usageMonth),
   })
 );
 

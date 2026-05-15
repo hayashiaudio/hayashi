@@ -89,6 +89,7 @@ export async function ensureDbSchema() {
           user_id text not null references users(clerk_user_id) on delete cascade,
           usage_date text not null,
           export_count integer not null default 0,
+          generation_count integer not null default 0,
           created_at bigint not null,
           updated_at bigint not null
         )
@@ -96,6 +97,30 @@ export async function ensureDbSchema() {
       await database.execute(sql`
         create unique index if not exists daily_usage_user_date_unique
         on daily_usage(user_id, usage_date)
+      `);
+
+      await database.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE daily_usage ADD COLUMN IF NOT EXISTS generation_count integer not null default 0;
+        EXCEPTION WHEN OTHERS THEN
+          -- no-op on missing table or duplicate column
+        END $$;
+      `);
+
+      await database.execute(sql`
+        create table if not exists monthly_usage (
+          id text primary key,
+          user_id text not null references users(clerk_user_id) on delete cascade,
+          usage_month text not null,
+          export_count integer not null default 0,
+          created_at bigint not null,
+          updated_at bigint not null
+        )
+      `);
+      await database.execute(sql`
+        create unique index if not exists monthly_usage_user_month_unique
+        on monthly_usage(user_id, usage_month)
       `);
 
       await database.execute(sql`

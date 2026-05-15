@@ -9,7 +9,7 @@ import { BtConnectModal } from './modals/BtConnectModal';
 import { UsbConnectModal } from './modals/UsbConnectModal';
 import { parseCommand } from '@/lib/commandParser';
 import { createPlugin, iteratePlugin } from '@/lib/faustGenerator';
-import { useDiscordSdk } from '@/hooks/useDiscordSdk';
+import { useClerkToken } from '@/hooks/useClerkToken';
 import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,7 @@ export default function PluginGenerator() {
   const { selectedStyle, setSelectedStyle, addPlugin, updatePluginStatus, activePluginId, rollbackToVersion } = usePluginStore();
   const activePlugin = usePluginStore((s) => s.plugins.find((p) => p.id === s.activePluginId));
 
-  const discord = useDiscordSdk();
+  const { getToken } = useClerkToken();
   const analysis = useAudioAnalysis(true);
 
   const handleSubmit = async () => {
@@ -56,7 +56,8 @@ export default function PluginGenerator() {
     }
 
     if (!prompt.trim()) return;
-    if (!discord.accessToken) {
+    const token = await getToken();
+    if (!token) {
       alert('Please sign in to generate plugins');
       return;
     }
@@ -85,7 +86,7 @@ export default function PluginGenerator() {
     setStreamText(`> prompt: "${prompt.trim()}"\n> compiling...\n`);
 
     try {
-      const result = await createPlugin(discord.accessToken, prompt.trim());
+      const result = await createPlugin(token, prompt.trim());
       const version = {
         id: result.versionId,
         versionNumber: 1,
@@ -130,13 +131,14 @@ export default function PluginGenerator() {
 
   const handleRefine = async (instruction: string) => {
     const plugin = usePluginStore.getState().plugins.find((p) => p.id === activePluginId);
-    if (!plugin || !discord.accessToken) return;
+    const token = await getToken();
+    if (!plugin || !token) return;
 
     setRefiningId(plugin.id);
     setStreamText((prev) => prev + `\n> refine: "${instruction}"\n> compiling...\n`);
 
     try {
-      const result = await iteratePlugin(discord.accessToken, plugin.id, instruction);
+      const result = await iteratePlugin(token, plugin.id, instruction);
 
       const version: PluginVersion = {
         id: result.versionId,

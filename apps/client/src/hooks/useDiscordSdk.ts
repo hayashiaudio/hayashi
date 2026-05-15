@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { DiscordSDK } from '@discord/embedded-app-sdk';
 import { DISCORD_CLIENT_ID } from '@/lib/constants';
-import { exchangeDiscordAuthCode } from '@/lib/api';
 
 let discordSdk: DiscordSDK | null = null;
 
@@ -248,18 +247,7 @@ export function useDiscordSdk(): DiscordContext {
       }
 
       try {
-        const authCode = await sdk.commands.authorize({
-          client_id: DISCORD_CLIENT_ID,
-          response_type: 'code',
-          state: '',
-          prompt: 'none',
-          scope: ['identify', 'email'],
-        });
-        const token = await exchangeDiscordAuthCode(authCode.code);
-        accessToken = token.access_token;
-        const auth = await sdk.commands.authenticate({ access_token: accessToken });
-        console.log('[Hayashi] authenticate() resolved', auth);
-        user = normalizeSdkUser(auth.user) ?? user;
+        console.warn('[Hayashi] Discord OAuth disabled — migrating to Clerk auth');
 
         try {
           await sdk.subscribe('CURRENT_USER_UPDATE', (eventData: {

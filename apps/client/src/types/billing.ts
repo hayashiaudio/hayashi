@@ -1,30 +1,29 @@
-export type BillingPlan = 'free' | 'unlimited';
+export type BillingPlan = 'free' | 'creator' | 'pro' | 'studio';
 export type BillingStatus = 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled';
-export type BillingBlockReason = 'node_limit' | 'export_limit' | 'billing_required';
+export type BillingBlockReason = 'generation_limit' | 'export_limit' | 'billing_required';
 
 export interface BillingSnapshot {
   user: {
-    discordUserId: string;
-    discordUsername: string;
-    discordAvatar: string | null;
+    clerkUserId: string;
+    name: string | null;
     email: string | null;
   };
   plan: BillingPlan;
   subscriptionStatus: BillingStatus;
   currentPeriodEnd: number | null;
   entitlements: {
-    activeNodeLimit: number | null;
-    exportsPerDay: number | null;
-    guildInstallations: number | null;
-    dmInstallations: number | null;
-    sampleAssetsLimit: number | null;
-    midiNodeAccess: boolean;
+    generationsPerDay: number | null;
+    exportsPerMonth: number | null;
+    featureExtraction: boolean;
+    apiAccess: boolean;
   };
   usage: {
+    dailyGenerationsUsed: number;
+    dailyGenerationsRemaining: number | null;
     dailyExportsUsed: number;
     dailyExportsRemaining: number | null;
-    guildInstallationId: string | null;
-    dmInstallationId: string | null;
+    monthlyExportsUsed: number;
+    monthlyExportsRemaining: number | null;
   };
   contextAccess: {
     allowed: boolean;

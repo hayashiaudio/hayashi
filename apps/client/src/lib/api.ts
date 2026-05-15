@@ -1,44 +1,10 @@
 import { IS_LOCAL_DEV, SERVER_BASE_URL } from './constants';
 import type { BillingSnapshot } from '@/types/billing';
 
-export async function saveProjectSnapshot(
-  projectId: string,
-  snapshot: unknown,
-  accessToken: string
-) {
-  if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
-    return { skipped: true };
-  }
-  const res = await fetch(`${SERVER_BASE_URL}/project/save`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken, projectId, snapshot }),
-  });
-  if (!res.ok) throw new Error('Failed to save project');
-  return res.json();
-}
-
-export async function loadProjectSnapshot(projectId: string, accessToken: string) {
-  if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
-    return { snapshot: undefined };
-  }
-  const res = await fetch(`${SERVER_BASE_URL}/project/load/${projectId}?accessToken=${encodeURIComponent(accessToken)}`);
-  if (!res.ok) throw new Error('Failed to load project');
-  return res.json();
-}
-
-export async function listProjects(accessToken: string, channelId?: string | null) {
-  if (IS_LOCAL_DEV && SERVER_BASE_URL.includes('trycloudflare.com')) {
-    return { projects: [] };
-  }
-  const url = new URL(`${SERVER_BASE_URL}/projects/list`);
-  url.searchParams.set('accessToken', accessToken);
-  if (channelId) url.searchParams.set('channelId', channelId);
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to list projects');
-  return res.json() as Promise<{
-    projects: Array<{ id: string; title: string; channelId?: string | null; createdAt: number; updatedAt: number }>;
-  }>;
+async function authHeaders(token: string | null) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
 }
 
 export async function uploadAsset(buffer: ArrayBuffer) {
@@ -64,33 +30,11 @@ export async function deleteAsset(assetId: string) {
   return res.json() as Promise<{ deleted: boolean }>;
 }
 
-export async function exchangeDiscordAuthCode(code: string) {
-  const res = await fetch(`${SERVER_BASE_URL}/discord/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.error_description ?? error.error ?? 'Failed to exchange Discord auth code');
-  }
-  return res.json() as Promise<{
-    access_token: string;
-    token_type: string;
-    expires_in: number | null;
-    scope: string;
-  }>;
-}
-
-export async function bootstrapBilling(input: {
-  accessToken: string;
-  guildId?: string | null;
-  channelId?: string | null;
-}) {
+export async function bootstrapBilling(token: string | null) {
   const res = await fetch(`${SERVER_BASE_URL}/billing/bootstrap`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    headers: await authHeaders(token),
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -99,15 +43,11 @@ export async function bootstrapBilling(input: {
   return res.json() as Promise<BillingSnapshot>;
 }
 
-export async function createBillingStreamToken(input: {
-  accessToken: string;
-  guildId?: string | null;
-  channelId?: string | null;
-}) {
+export async function createBillingStreamToken(token: string | null) {
   const res = await fetch(`${SERVER_BASE_URL}/billing/stream-token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    headers: await authHeaders(token),
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -116,15 +56,11 @@ export async function createBillingStreamToken(input: {
   return res.json() as Promise<{ token: string }>;
 }
 
-export async function authorizeExport(input: {
-  accessToken: string;
-  guildId?: string | null;
-  channelId?: string | null;
-}) {
+export async function authorizeExport(token: string | null) {
   const res = await fetch(`${SERVER_BASE_URL}/billing/export/authorize`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    headers: await authHeaders(token),
+    body: JSON.stringify({}),
   });
 
   const body = await res.json().catch(() => ({}));
@@ -141,21 +77,24 @@ export interface ExportResult {
 }
 
 export interface ExportPluginOptions {
-  accessToken: string;
+  token: string | null;
   pluginName: string;
   pluginId: string;
   version: string;
   faustCode: string;
   format: 'vst3' | 'clap';
-  guildId?: string | null;
-  channelId?: string | null;
 }
 
 export async function exportPluginBinary(options: ExportPluginOptions): Promise<ExportResult> {
   const res = await fetch(`${SERVER_BASE_URL}/api/export/${options.format}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(options),
+    headers: await authHeaders(options.token),
+    body: JSON.stringify({
+      pluginName: options.pluginName,
+      pluginId: options.pluginId,
+      version: options.version,
+      faustCode: options.faustCode,
+    }),
   });
 
   if (!res.ok) {

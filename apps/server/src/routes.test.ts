@@ -60,7 +60,7 @@ describe('routes', () => {
   });
 
   describe('billing', () => {
-    it('bootstraps a free user and tracks daily export limits', async () => {
+    it('bootstraps a free user and tracks generation/export limits', async () => {
       const bootstrapRes = await app.request('/billing/bootstrap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,29 +70,20 @@ describe('routes', () => {
       expect(bootstrapRes.status).toBe(200);
       const bootstrapBody = await bootstrapRes.json();
       expect(bootstrapBody.plan).toBe('free');
-      expect(bootstrapBody.entitlements.activeNodeLimit).toBe(8);
-      expect(bootstrapBody.usage.dailyExportsRemaining).toBe(3);
+      expect(bootstrapBody.entitlements.generationsPerDay).toBe(5);
+      expect(bootstrapBody.entitlements.exportsPerMonth).toBe(0);
+      expect(bootstrapBody.usage.dailyGenerationsRemaining).toBe(5);
 
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        const exportRes = await app.request('/billing/export/authorize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken: 'valid-clerk-token' }),
-        });
-        expect(exportRes.status).toBe(200);
-        const exportBody = await exportRes.json();
-        expect(exportBody.usage.dailyExportsUsed).toBe(attempt);
-      }
-
-      const blockedRes = await app.request('/billing/export/authorize', {
+      // Free users cannot export — immediately blocked
+      const blockedExportRes = await app.request('/billing/export/authorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken: 'valid-clerk-token' }),
       });
 
-      expect(blockedRes.status).toBe(403);
-      const blockedBody = await blockedRes.json();
-      expect(blockedBody.contextAccess.reason).toBe('export_limit');
+      expect(blockedExportRes.status).toBe(403);
+      const blockedExportBody = await blockedExportRes.json();
+      expect(blockedExportBody.contextAccess.reason).toBe('export_limit');
     });
   });
 

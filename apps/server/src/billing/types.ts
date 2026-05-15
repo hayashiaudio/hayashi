@@ -1,6 +1,6 @@
-export type PlanTier = 'free' | 'unlimited';
+export type PlanTier = 'free' | 'creator' | 'pro' | 'studio';
 export type SubscriptionStatus = 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled';
-export type BillingBlockReason = 'node_limit' | 'export_limit' | 'billing_required';
+export type BillingBlockReason = 'generation_limit' | 'export_limit' | 'billing_required';
 
 export interface BillingUserRecord {
   clerkUserId: string;
@@ -14,6 +14,10 @@ export interface BillingUserRecord {
   stripePriceId: string | null;
   dailyExportDate: string | null;
   dailyExportCount: number;
+  dailyGenerationDate: string | null;
+  dailyGenerationCount: number;
+  monthlyExportMonth: string | null;
+  monthlyExportCount: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -38,14 +42,18 @@ export interface BillingSnapshot {
   subscriptionStatus: SubscriptionStatus;
   currentPeriodEnd: number | null;
   entitlements: {
-    activeNodeLimit: number | null;
-    exportsPerDay: number | null;
-    sampleAssetsLimit: number | null;
-    midiNodeAccess: boolean;
+    generationsPerDay: number | null;
+    exportsPerMonth: number | null;
+    featureExtraction: boolean;
+    apiAccess: boolean;
   };
   usage: {
+    dailyGenerationsUsed: number;
+    dailyGenerationsRemaining: number | null;
     dailyExportsUsed: number;
     dailyExportsRemaining: number | null;
+    monthlyExportsUsed: number;
+    monthlyExportsRemaining: number | null;
   };
   contextAccess: BillingAccessResult;
 }

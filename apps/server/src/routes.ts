@@ -213,6 +213,19 @@ app.post('/api/plugins', async (c) => {
 
   if (!body.prompt || !body.prompt.trim()) return c.json({ error: 'Missing prompt' }, 400);
 
+  // Generation gating
+  try {
+    const user = await billing.getOrCreateUser(identity);
+    const snapshot = await billing.authorizeGeneration(user);
+    if (!snapshot.contextAccess.allowed) {
+      return c.json({ error: snapshot.contextAccess.message, reason: snapshot.contextAccess.reason }, 403);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Billing check failed';
+    console.error('[Hayashi] Generation billing check failed:', message);
+    return c.json({ error: 'Billing check failed' }, 500);
+  }
+
   const pluginId = `plugin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const type = inferPluginType(body.prompt);
   const name = body.prompt.slice(0, 40);
@@ -360,7 +373,7 @@ app.post('/api/export/:format', async (c) => {
     const user = await billing.getOrCreateUser(identity);
     const snapshot = await billing.authorizeExport(user);
     if (!snapshot.contextAccess.allowed) {
-      return c.json({ error: 'Export not allowed for this context' }, 403);
+      return c.json({ error: snapshot.contextAccess.message, reason: snapshot.contextAccess.reason }, 403);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Billing check failed';

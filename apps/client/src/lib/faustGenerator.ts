@@ -43,14 +43,20 @@ export interface CreatePluginResult {
   name: string;
 }
 
+async function authHeaders(token: string | null) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 export async function createPlugin(
-  accessToken: string,
+  token: string | null,
   prompt: string
 ): Promise<CreatePluginResult> {
   const res = await fetch(`${SERVER_BASE_URL}/api/plugins`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken, prompt }),
+    headers: await authHeaders(token),
+    body: JSON.stringify({ prompt }),
   });
 
   if (!res.ok) {
@@ -70,14 +76,14 @@ export interface IteratePluginResult {
 }
 
 export async function iteratePlugin(
-  accessToken: string,
+  token: string | null,
   pluginId: string,
   instruction: string
 ): Promise<IteratePluginResult> {
   const res = await fetch(`${SERVER_BASE_URL}/api/plugins/${pluginId}/iterate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken, instruction }),
+    headers: await authHeaders(token),
+    body: JSON.stringify({ instruction }),
   });
 
   if (!res.ok) {
@@ -89,12 +95,12 @@ export async function iteratePlugin(
 }
 
 export async function loadPluginThread(
-  accessToken: string,
+  token: string | null,
   pluginId: string
 ): Promise<PluginThread> {
-  const res = await fetch(
-    `${SERVER_BASE_URL}/api/plugins/${pluginId}?accessToken=${encodeURIComponent(accessToken)}`
-  );
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${SERVER_BASE_URL}/api/plugins/${pluginId}`, { headers });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

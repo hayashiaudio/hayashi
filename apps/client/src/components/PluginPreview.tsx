@@ -10,7 +10,7 @@ import { PreviewPlayer } from './PreviewPlayer';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 import { FeatureReadouts } from './FeatureReadouts';
 import { exportPluginBinary } from '@/lib/api';
-import { useDiscordSdk } from '@/hooks/useDiscordSdk';
+import { useClerkToken } from '@/hooks/useClerkToken';
 
 const C = {
   border: 'rgba(255,255,255,0.06)',
@@ -50,7 +50,7 @@ export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [activeComparison] = useState<{ centroid: number; rms: number; zcr: number; peakDb: number } | null>(null);
-  const discord = useDiscordSdk();
+  const { getToken } = useClerkToken();
   const analysis = useAudioAnalysis(previewPlaying);
 
   const plugin = plugins.find((p) => p.id === activePluginId);
@@ -65,22 +65,20 @@ export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
 
   const handleExport = async () => {
     if (!plugin.faustCode || exporting) return;
-    const accessToken = discord.accessToken;
-    if (!accessToken) {
+    const token = await getToken();
+    if (!token) {
       setExportError('Please sign in to export plugins');
       return;
     }
     setExporting(true);
     try {
       const result = await exportPluginBinary({
-        accessToken,
+        token,
         pluginName: plugin.name,
         pluginId: plugin.id,
         version: 'v1',
         faustCode: plugin.faustCode,
         format: exportFormat,
-        guildId: discord.guildId,
-        channelId: discord.channelId,
       });
       const blobRes = await fetch(result.downloadUrl);
       if (!blobRes.ok) throw new Error('Download failed');

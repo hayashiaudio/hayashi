@@ -4,6 +4,7 @@ import { eq, desc, and } from 'drizzle-orm';
 import {
   billingCustomers,
   dailyUsage,
+  monthlyUsage,
   users,
 } from '../db/schema.js';
 import { ensureDbSchema, getDb, hasDatabaseUrl } from '../db/index.js';
@@ -65,7 +66,8 @@ export class DrizzleBillingRepository implements BillingRepository {
     const now = Date.now();
     const userRow = toUserRow(user);
     const customerRow = toCustomerRow(user, now);
-    const usageRow = toUsageRow(user, now);
+    const dailyUsageRow = toDailyUsageRow(user, now);
+    const monthlyUsageRow = toMonthlyUsageRow(user, now);
 
     await database.transaction(async (tx) => {
       await tx
@@ -84,15 +86,29 @@ export class DrizzleBillingRepository implements BillingRepository {
           set: customerRow,
         });
 
-      if (usageRow) {
+      if (dailyUsageRow) {
         await tx
           .insert(dailyUsage)
-          .values(usageRow)
+          .values(dailyUsageRow)
           .onConflictDoUpdate({
             target: [dailyUsage.userId, dailyUsage.usageDate],
             set: {
-              exportCount: usageRow.exportCount,
-              updatedAt: usageRow.updatedAt,
+              exportCount: dailyUsageRow.exportCount,
+              generationCount: dailyUsageRow.generationCount,
+              updatedAt: dailyUsageRow.updatedAt,
+            },
+          });
+      }
+
+      if (monthlyUsageRow) {
+        await tx
+          .insert(monthlyUsage)
+          .values(monthlyUsageRow)
+          .onConflictDoUpdate({
+            target: [monthlyUsage.userId, monthlyUsage.usageMonth],
+            set: {
+              exportCount: monthlyUsageRow.exportCount,
+              updatedAt: monthlyUsageRow.updatedAt,
             },
           });
       }
@@ -113,11 +129,18 @@ async function getUserRecord(clerkUserId: string): Promise<BillingUserRecord | n
     .where(eq(billingCustomers.userId, clerkUserId))
     .limit(1);
 
-  const [usageRow] = await database
+  const [dailyRow] = await database
     .select()
     .from(dailyUsage)
     .where(eq(dailyUsage.userId, clerkUserId))
     .orderBy(desc(dailyUsage.usageDate))
+    .limit(1);
+
+  const [monthlyRow] = await database
+    .select()
+    .from(monthlyUsage)
+    .where(eq(monthlyUsage.userId, clerkUserId))
+    .orderBy(desc(monthlyUsage.usageMonth))
     .limit(1);
 
   return {
@@ -130,10 +153,14 @@ async function getUserRecord(clerkUserId: string): Promise<BillingUserRecord | n
     plan: (customerRow?.plan ?? 'free') as BillingUserRecord['plan'],
     subscriptionStatus: (customerRow?.subscriptionStatus ?? 'inactive') as BillingUserRecord['subscriptionStatus'],
     currentPeriodEnd: customerRow?.currentPeriodEnd ?? null,
-    dailyExportDate: usageRow?.usageDate ?? null,
-    dailyExportCount: usageRow?.exportCount ?? 0,
+    dailyExportDate: dailyRow?.usageDate ?? null,
+    dailyExportCount: dailyRow?.exportCount ?? 0,
+    dailyGenerationDate: dailyRow?.usageDate ?? null,
+    dailyGenerationCount: dailyRow?.generationCount ?? 0,
+    monthlyExportMonth: monthlyRow?.usageMonth ?? null,
+    monthlyExportCount: monthlyRow?.exportCount ?? 0,
     createdAt: userRow.createdAt,
-    updatedAt: Math.max(userRow.updatedAt, customerRow?.updatedAt ?? 0, usageRow?.updatedAt ?? 0),
+    updatedAt: Math.max(userRow.updatedAt, customerRow?.updatedAt ?? 0, dailyRow?.updatedAt ?? 0, monthlyRow?.updatedAt ?? 0),
   };
 }
 
@@ -161,13 +188,27 @@ function toCustomerRow(user: BillingUserRecord, now: number) {
   };
 }
 
-function toUsageRow(user: BillingUserRecord, now: number) {
-  if (!user.dailyExportDate) return null;
+function toDailyUsageRow(user: BillingUserRecord, now: number) {
+  if (!user.dailyExportDate && !user.dailyGenerationDate) return null;
+  const date = user.dailyExportDate || user.dailyGenerationDate || new Date().toISOString().slice(0, 10);
   return {
-    id: `${user.clerkUserId}:${user.dailyExportDate}`,
+    id: `${user.clerkUserId}:${date}`,
     userId: user.clerkUserId,
-    usageDate: user.dailyExportDate,
+    usageDate: date,
     exportCount: user.dailyExportCount,
+    generationCount: user.dailyGenerationCount,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt || now,
+  };
+}
+
+function toMonthlyUsageRow(user: BillingUserRecord, now: number) {
+  if (!user.monthlyExportMonth) return null;
+  return {
+    id: `${user.clerkUserId}:${user.monthlyExportMonth}`,
+    userId: user.clerkUserId,
+    usageMonth: user.monthlyExportMonth,
+    exportCount: user.monthlyExportCount,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt || now,
   };
