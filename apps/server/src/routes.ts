@@ -14,6 +14,7 @@ import {
 } from './billing/events.js';
 import { getBillingRepository } from './billing/repository.js';
 import { BillingService, buildBillingContext } from './billing/service.js';
+import { generateFaustFromPrompt } from './faust/generate.js';
 
 const app = new Hono();
 const billingRepository = getBillingRepository();
@@ -422,6 +423,21 @@ app.get('/assets/:assetId', (c) => {
   }
 
   return c.redirect(publicUrl, 302);
+});
+
+app.post('/api/generate-faust', async (c) => {
+  const body = await c.req.json<{ prompt?: string }>();
+  const prompt = body.prompt;
+  if (!prompt || typeof prompt !== 'string') {
+    return c.json({ error: 'prompt required' }, 400);
+  }
+  try {
+    const faustCode = await generateFaustFromPrompt(prompt);
+    return c.json({ faustCode, prompt });
+  } catch (err) {
+    console.error('[FaustGen]', err);
+    return c.json({ error: 'generation failed' }, 500);
+  }
 });
 
 app.get('*', (c) => {

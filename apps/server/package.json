@@ -11,9 +11,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.77",
     "@aws-sdk/client-s3": "^3.1047.0",
     "@aws-sdk/s3-request-presigner": "^3.1047.0",
     "@hono/node-server": "^2.0.2",
+    "ai": "^6.0.182",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.44.4",
     "hono": "^4.4.0",
