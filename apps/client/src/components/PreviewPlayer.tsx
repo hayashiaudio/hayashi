@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Play, Square } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
-import { startPreview, stopPreview, isPreviewPlaying, initPreview } from '@/audio/previewEngine';
+import { startPreview, stopPreview, initPreview } from '@/audio/previewEngine';
 import { useEffect, useState } from 'react';
 
 export function PreviewPlayer() {

@@ -32,7 +32,7 @@ interface ArrangementGridProps {
 const BEAT_WIDTH = 28;
 const TRACK_HEIGHT = 40;
 const RULER_HEIGHT = 24;
-const HEADER_WIDTH = 160;
+const HEADER_WIDTH = 180;
 
 export function ArrangementGrid({
   clips,

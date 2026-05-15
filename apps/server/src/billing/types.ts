@@ -1,6 +1,6 @@
 export type PlanTier = 'free' | 'unlimited';
 export type SubscriptionStatus = 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled';
-export type BillingBlockReason = 'installation_limit' | 'node_limit' | 'export_limit' | 'billing_required';
+export type BillingBlockReason = 'node_limit' | 'export_limit' | 'billing_required';
 export type ContextType = 'guild' | 'dm';
 
 export interface BillingContext {

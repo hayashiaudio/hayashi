@@ -10,7 +10,6 @@ import { generateFaust } from '@/lib/faustGenerator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { Terminal, Sparkles, Wand2, Code2 } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
 

@@ -247,6 +247,7 @@ export function PatchCanvas() {
   const addNode = useProjectStore((s) => s.addNode);
   const billingSnapshot = useProjectStore((s) => s.billing.snapshot);
   const openPaywall = useProjectStore((s) => s.openPaywall);
+  const showToast = useProjectStore((s) => s.showToast);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const ensureOutputNode = useCallback(
@@ -402,6 +403,12 @@ export function PatchCanvas() {
             params: def ? { ...def.defaultParams } : {},
           };
           addNode(node);
+          if (node.kind === 'midiBridge') {
+            showToast(
+              'MIDI Bridge is alpha functionality. It relies on assumptions about WebAudio behavior inside the Discord iframe — experiences may vary.',
+              'warning'
+            );
+          }
           if (AUDIBLE_SOURCE_KINDS.has(node.kind)) {
             const outputNode = ensureOutputNode(x, y);
             connectIfMissing(node.id, outputNode.id);
@@ -443,7 +450,7 @@ export function PatchCanvas() {
         }
       }
     },
-    [addNode, billingSnapshot, connectIfMissing, ensureOutputNode, openPaywall]
+    [addNode, billingSnapshot, connectIfMissing, ensureOutputNode, openPaywall, showToast]
   );
 
   const onDragOver = useCallback((e: React.DragEvent) => {

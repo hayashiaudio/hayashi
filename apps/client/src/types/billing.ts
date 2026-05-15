@@ -1,6 +1,6 @@
 export type BillingPlan = 'free' | 'unlimited';
 export type BillingStatus = 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled';
-export type BillingBlockReason = 'installation_limit' | 'node_limit' | 'export_limit' | 'billing_required';
+export type BillingBlockReason = 'node_limit' | 'export_limit' | 'billing_required';
 
 export interface BillingSnapshot {
   user: {

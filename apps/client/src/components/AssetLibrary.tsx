@@ -138,6 +138,7 @@ export function AssetLibrary() {
   const addNode = useProjectStore((s) => s.addNode);
   const billingSnapshot = useProjectStore((s) => s.billing.snapshot);
   const openPaywall = useProjectStore((s) => s.openPaywall);
+  const showToast = useProjectStore((s) => s.showToast);
   const addEdgeToStore = useProjectStore((s) => s.addEdge);
 
   /* ---- Sample hydration from IndexedDB ---- */
@@ -323,6 +324,12 @@ export function AssetLibrary() {
         params: { ...def?.defaultParams, ...params },
       };
       addNode(node);
+      if (node.kind === 'midiBridge') {
+        showToast(
+          'MIDI Bridge is alpha functionality. It relies on assumptions about WebAudio behavior inside the Discord iframe — experiences may vary.',
+          'warning'
+        );
+      }
 
       if (AUDIBLE_SOURCE_KINDS.has(node.kind)) {
         let outputNode = Object.values(state.nodes).find((existing) => existing.kind === 'output');
@@ -354,7 +361,7 @@ export function AssetLibrary() {
 
       audioEngine.resume().catch(() => {});
     },
-    [addEdgeToStore, addNode, billingSnapshot, openPaywall]
+    [addEdgeToStore, addNode, billingSnapshot, openPaywall, showToast]
   );
 
   /* ---- Render helpers ---- */

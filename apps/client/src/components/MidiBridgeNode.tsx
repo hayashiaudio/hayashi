@@ -4,7 +4,7 @@ import type { NodeProps } from '@xyflow/react';
 import type { PatchNode as PatchNodeType } from '@/types/project';
 import { AudioLines, Copy, CheckCircle2 } from 'lucide-react';
 import { midiEngine } from '@/audio/midiEngine';
-import { pairSession, unpairSession, subscribeMidiBridgeStatus, type ConnectionStatus } from '@/audio/midiBridgeClient';
+// import { pairSession, unpairSession, subscribeMidiBridgeStatus, type ConnectionStatus } from '@/audio/midiBridgeClient';
 import { useProjectStore } from '@/stores/projectStore';
 import { generatePairingCode } from '@/lib/pairingCode';
 
@@ -14,7 +14,7 @@ export const MidiBridgeNode = memo(function MidiBridgeNodeComponent(props: NodeP
 
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
   const [lastNote, setLastNote] = useState<number | null>(null);
-  const [connStatus, setConnStatus] = useState<ConnectionStatus>('disconnected');
+  const [connStatus] = useState<string>('disconnected');
   const [copied, setCopied] = useState(false);
   const rafRef = useRef<number>(0);
   const activeRef = useRef<Set<number>>(new Set());
@@ -31,12 +31,12 @@ export const MidiBridgeNode = memo(function MidiBridgeNodeComponent(props: NodeP
   }, [data.id, data.params.pairingId, updateNodeParams]);
 
   // Subscribe to WebSocket connection status
-  useEffect(() => {
-    const unsubscribe = subscribeMidiBridgeStatus((status) => {
-      setConnStatus(status);
-    });
-    return unsubscribe;
-  }, []);
+  // useEffect(() => {
+  //   const unsubscribe = subscribeMidiBridgeStatus((status) => {
+  //     setConnStatus(status);
+  //   });
+  //   return unsubscribe;
+  // }, []);
 
   // Arm/disarm midiEngine based on pairing status
   useEffect(() => {
@@ -44,15 +44,15 @@ export const MidiBridgeNode = memo(function MidiBridgeNodeComponent(props: NodeP
   }, [connStatus, data.id]);
 
   // Pair / unpair on mount/unmount and pairingId changes
-  useEffect(() => {
-    const code = (data.params.pairingId as string) ?? '';
-    if (code) {
-      pairSession(code);
-    }
-    return () => {
-      unpairSession(code);
-    };
-  }, [data.id, data.params.pairingId]);
+  // useEffect(() => {
+  //   const code = (data.params.pairingId as string) ?? '';
+  //   if (code) {
+  //     pairSession(code);
+  //   }
+  //   return () => {
+  //     unpairSession(code);
+  //   };
+  // }, [data.id, data.params.pairingId]);
 
   // Listen for MIDI packets via BroadcastChannel (fallback + local events)
   useEffect(() => {

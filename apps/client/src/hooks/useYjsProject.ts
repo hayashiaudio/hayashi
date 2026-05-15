@@ -91,12 +91,13 @@ export function useYjsProject(
       for (const p of participants) {
         const yjs = yjsMap.get(p.id);
         if (!yjs) continue; // only show people actually in the Yjs room
+        const yjsAvatar = (yjs as unknown as Record<string, unknown>)?.avatarUrl as string | undefined;
         merged.push({
           id: p.id,
           name: p.global_name || p.nickname || p.username,
           avatarUrl: p.avatar
             ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png`
-            : undefined,
+            : yjsAvatar,
           color: yjs.color || stringToColor(p.id),
           cursor: yjs.cursor,
           focus: yjs.focus,
@@ -581,10 +582,14 @@ export function useYjsProject(
     const provider = providerRef.current;
     if (!provider || !user) return;
 
+    const avatarUrl = user.avatar
+      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+      : undefined;
+
     provider.awareness.setLocalStateField('user', {
       id: user.id,
       name: user.username,
-      avatarUrl: user.avatar,
+      avatarUrl,
       color: stringToColor(user.id),
     });
 

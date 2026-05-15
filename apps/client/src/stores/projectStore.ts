@@ -3,6 +3,12 @@ import type { TransportState, UserPresence, Asset, PatchNode, PatchEdge, Clip, T
 import type { BillingBlockReason, BillingSnapshot, BillingState } from '@/types/billing';
 import type { ExportProgress } from '@/export/types';
 
+export interface ToastState {
+  open: boolean;
+  message: string;
+  severity: 'info' | 'warning' | 'error';
+}
+
 interface ProjectState {
   channelId: string | null;
   guildId: string | null;
@@ -30,6 +36,7 @@ interface ProjectState {
   clips: Record<string, Clip>;
   tracks: Record<string, Track>;
   billing: BillingState;
+  toast: ToastState;
 
   setChannelId: (id: string | null) => void;
   setGuildId: (id: string | null) => void;
@@ -60,6 +67,8 @@ interface ProjectState {
   setBillingError: (error: string | null) => void;
   openPaywall: (reason: BillingBlockReason, message: string) => void;
   closePaywall: () => void;
+  showToast: (message: string, severity?: ToastState['severity']) => void;
+  closeToast: () => void;
 
   setAssets: (assets: Record<string, Asset>) => void;
   addAsset: (asset: Asset) => void;
@@ -132,6 +141,11 @@ export const useProjectStore = create<ProjectState>((set) => ({
     paywallReason: null,
     paywallMessage: null,
   },
+  toast: {
+    open: false,
+    message: '',
+    severity: 'info',
+  },
 
   setChannelId: (id) => set({ channelId: id }),
   setGuildId: (id) => set({ guildId: id }),
@@ -193,6 +207,10 @@ export const useProjectStore = create<ProjectState>((set) => ({
         paywallMessage: null,
       },
     })),
+  showToast: (message, severity = 'info') =>
+    set({ toast: { open: true, message, severity } }),
+  closeToast: () =>
+    set((s) => ({ toast: { ...s.toast, open: false } })),
 
   setAssets: (assets) => set({ assets }),
   addAsset: (asset) => set((s) => ({ assets: { ...s.assets, [asset.id]: asset } })),

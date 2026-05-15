@@ -83,7 +83,7 @@ export function BillingModal({ accessToken }: BillingModalProps) {
               {isUnlimited ? <Crown size={18} /> : <Lock size={18} />}
             </div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#1a1a1a' }}>$49.99/mo</p>
+              <p className="text-sm font-semibold" style={{ color: '#1a1a1a' }}>$9.99/mo</p>
               <p className="text-sm" style={{ color: '#555' }}>
                 {billing.paywallMessage ?? 'Upgrade for unlimited servers, nodes, and exports.'}
               </p>

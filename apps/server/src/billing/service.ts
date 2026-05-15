@@ -147,26 +147,18 @@ export class BillingService {
     context: BillingContext | null,
     persist: boolean
   ): BillingAccessResult {
-    if (!context || user.plan === 'unlimited') {
+    if (!context) {
       return { allowed: true, reason: null, message: null };
     }
 
-    const current = context.type === 'guild' ? user.guildInstallationId : user.dmInstallationId;
-    if (!current || current === context.id) {
-      if (persist) {
-        if (context.type === 'guild') user.guildInstallationId = context.id;
-        else user.dmInstallationId = context.id;
-        user.updatedAt = Date.now();
-      }
-      return { allowed: true, reason: null, message: null };
+    // Free users can join unlimited guilds/DMs; track for analytics only
+    if (persist) {
+      if (context.type === 'guild') user.guildInstallationId = context.id;
+      else user.dmInstallationId = context.id;
+      user.updatedAt = Date.now();
     }
 
-    const label = context.type === 'guild' ? 'server' : 'DM conversation';
-    return {
-      allowed: false,
-      reason: 'installation_limit',
-      message: `Free members can keep 1 active ${label} installation. Upgrade to Hayashi Unlimited to use Hayashi everywhere.`,
-    };
+    return { allowed: true, reason: null, message: null };
   }
 }
 
