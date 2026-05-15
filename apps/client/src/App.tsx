@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { ClerkProvider } from '@clerk/clerk-react';
 import { useDiscordSdk } from './hooks/useDiscordSdk';
 import { useProjectStore } from './stores/projectStore';
 import { useYjsProject } from './hooks/useYjsProject';
@@ -19,12 +20,22 @@ import { SERVER_BASE_URL } from './lib/constants';
 import type { BillingSnapshot } from './types/billing';
 import { getHasRemoteRealtimeState, hydrateYjsFromSnapshot, createRealtimeSnapshot } from './lib/projectSync';
 
+const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
+
 function App() {
   const params = new URLSearchParams(window.location.search);
   const brandMode = params.get('brand') === '1';
 
   if (brandMode) return <BrandGuidelinesPage />;
-  if (params.get('studio') === '1') return <PluginGenerator />;
+
+  if (params.get('studio') === '1') {
+    return (
+      <ClerkProvider publishableKey={CLERK_KEY} afterSignOutUrl="/?studio=1">
+        <PluginGenerator />
+      </ClerkProvider>
+    );
+  }
+
   if (window.location.pathname === '/') return <MarketingPage />;
 
   const { ready, channelId, guildId, instanceId, error, user, participants, accessToken } = useDiscordSdk();

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { PluginLibrary } from './PluginLibrary';
 import { PluginPreview } from './PluginPreview';
 import { CommandPalette } from './CommandPalette';
@@ -9,8 +10,7 @@ import { parseCommand } from '@/lib/commandParser';
 import { generateFaust } from '@/lib/faustGenerator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Terminal, Sparkles, Wand2, Code2 } from 'lucide-react';
+import { Terminal, Sparkles, Wand2, Code2, Lock } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
 
 const C = {
@@ -102,17 +102,16 @@ export default function PluginGenerator() {
         <Button variant="outline" size="sm" className="h-8 text-[11px] border-[#ff8c61]/30 text-[#ff8c61] hover:bg-[#ff8c61]/10 rounded-md gap-1.5" onClick={() => setPaletteOpen(true)}>
           <Sparkles className="h-3.5 w-3.5" /> Commands
         </Button>
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border" style={{ borderColor: C.border, background: C.panel }}>
-          <Avatar className="h-6 w-6 ring-1 ring-white/20">
-            <AvatarFallback className="text-[10px] font-bold bg-[#ff8c61] text-white">DB</AvatarFallback>
-          </Avatar>
-          <div className="hidden sm:flex flex-col leading-none">
-            <span className="text-[11px] font-semibold text-[#e5e5e5]">djbohrman</span>
-            <span className="text-[9px] text-[#737373] flex items-center gap-1 mt-0.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#34c759]" /> Pro Plan
-            </span>
-          </div>
-        </div>
+        <SignedIn>
+          <UserButton appearance={{ elements: { userButtonAvatarBox: 'h-7 w-7' } }} />
+        </SignedIn>
+        <SignedOut>
+          <SignInButton>
+            <Button size="sm" className="h-8 text-xs font-bold rounded-md gap-1.5" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
+              <Lock className="h-3.5 w-3.5" /> Sign In
+            </Button>
+          </SignInButton>
+        </SignedOut>
       </header>
 
       {/* Body */}
@@ -127,28 +126,44 @@ export default function PluginGenerator() {
             </div>
 
             <div className="w-full max-w-2xl animate-slide-up rounded-2xl border p-1 transition-all duration-300 focus-within:border-[rgba(255,140,97,0.25)] focus-within:shadow-lg" style={{ borderColor: C.border, background: C.panel, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
-              <div className="flex items-start gap-3 p-4">
-                <Terminal className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: C.cyan }} />
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
-                  placeholder='e.g. "warm analog pad with slow attack and chorus"'
-                  spellCheck={false}
-                  className="flex-1 bg-transparent text-sm font-mono resize-none outline-none placeholder:text-[#525252]"
-                  style={{ color: C.text, caretColor: C.accent, minHeight: 24, maxHeight: 120 }}
-                  rows={1}
-                />
-              </div>
-              <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: C.border }}>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Wand2 className="h-3 w-3" /> GPT-4o</Badge>
-                  <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Code2 className="h-3 w-3" /> Faust</Badge>
+              <SignedIn>
+                <div className="flex items-start gap-3 p-4">
+                  <Terminal className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: C.cyan }} />
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+                    placeholder='e.g. "warm analog pad with slow attack and chorus"'
+                    spellCheck={false}
+                    className="flex-1 bg-transparent text-sm font-mono resize-none outline-none placeholder:text-[#525252]"
+                    style={{ color: C.text, caretColor: C.accent, minHeight: 24, maxHeight: 120 }}
+                    rows={1}
+                  />
                 </div>
-                <Button onClick={handleSubmit} disabled={!prompt.trim()} size="sm" className="h-8 text-xs font-bold tracking-wider rounded-lg gap-1.5 disabled:opacity-30" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
-                  <Sparkles className="h-3.5 w-3.5" /> GENERATE
-                </Button>
-              </div>
+                <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: C.border }}>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Wand2 className="h-3 w-3" /> GPT-4o</Badge>
+                    <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Code2 className="h-3 w-3" /> Faust</Badge>
+                  </div>
+                  <Button onClick={handleSubmit} disabled={!prompt.trim()} size="sm" className="h-8 text-xs font-bold tracking-wider rounded-lg gap-1.5 disabled:opacity-30" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
+                    <Sparkles className="h-3.5 w-3.5" /> GENERATE
+                  </Button>
+                </div>
+              </SignedIn>
+              <SignedOut>
+                <div className="flex flex-col items-center justify-center p-8 gap-4">
+                  <Lock className="h-8 w-8 text-[#525252]" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-[#e5e5e5]">Sign in to generate plugins</p>
+                    <p className="text-xs text-[#737373] mt-1">Create an account to start building custom instruments.</p>
+                  </div>
+                  <SignInButton>
+                    <Button size="sm" className="h-8 text-xs font-bold rounded-lg gap-1.5" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
+                      <Sparkles className="h-3.5 w-3.5" /> Sign In to Generate
+                    </Button>
+                  </SignInButton>
+                </div>
+              </SignedOut>
             </div>
 
             {/* Style selector */}
