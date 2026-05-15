@@ -1,6 +1,8 @@
 import { audioEngine } from './engine';
 import { getDemoPattern } from './demoPatterns';
 import type { DemoPattern } from './demoPatterns';
+import type { CompiledFaustNode } from './faustCompiler';
+import { isPolyNode } from './faustCompiler';
 
 let previewCtx: AudioContext | null = null;
 let isPlaying = false;
@@ -12,11 +14,12 @@ let currentPattern: DemoPattern | null = null;
 let currentStep = 0;
 let stepsPerBar = 16;
 let stepDuration = 0;
+let faustNode: CompiledFaustNode | null = null;
+let scheduledTimeouts: number[] = [];
 
 export interface PreviewOptions {
   style: string;
-  pluginWASM?: ArrayBuffer | null;
-  pluginParams?: Record<string, number>;
+  pluginNode?: CompiledFaustNode | null;
 }
 
 export async function initPreview() {
@@ -24,9 +27,19 @@ export async function initPreview() {
   previewCtx = audioEngine.ctx;
 }
 
-export function startPreview(options: PreviewOptions) {
+export async function startPreview(options: PreviewOptions) {
   if (!previewCtx) return;
   if (isPlaying) stopPreview();
+
+  await audioEngine.resume();
+
+  if (options.pluginNode) {
+    faustNode = options.pluginNode;
+    faustNode.connect(audioEngine.destination!);
+    if (!isPolyNode(faustNode)) {
+      try { (faustNode as any).start?.(); } catch {}
+    }
+  }
 
   currentPattern = getDemoPattern(options.style);
   stepDuration = (60 / currentPattern.bpm) / 4;
@@ -41,6 +54,29 @@ export function stopPreview() {
   if (timerID !== null) {
     window.clearTimeout(timerID);
     timerID = null;
+  }
+  for (const id of scheduledTimeouts) {
+    window.clearTimeout(id);
+  }
+  scheduledTimeouts = [];
+
+  if (faustNode) {
+    try {
+      if (isPolyNode(faustNode)) {
+        faustNode.allNotesOff(true);
+      } else {
+        try { (faustNode as any).stop?.(); } catch {}
+      }
+      faustNode.disconnect();
+    } catch {
+      // may already be disconnected
+    }
+    try {
+      (faustNode as any).destroy?.();
+    } catch {
+      // ignore
+    }
+    faustNode = null;
   }
 }
 
@@ -62,10 +98,53 @@ function scheduleStep(step: number, when: number) {
   if (drums.snare.includes(step)) triggerNoise(when, 0.1, 800);
   if (drums.hat.includes(step)) triggerNoise(when, 0.05, 3000);
 
-  for (const note of bassline) {
-    if (note.start === step) {
-      const midiNote = scale[note.note];
-      triggerBass(previewCtx, when, midiNote, note.duration * stepDuration);
+  if (faustNode) {
+    if (isPolyNode(faustNode)) {
+      for (const note of bassline) {
+        if (note.start === step) {
+          const midiNote = scale[note.note];
+          faustNode.keyOn(0, midiNote, 100);
+          const offTime = when + note.duration * stepDuration;
+          const delayMs = Math.max(0, (offTime - previewCtx.currentTime) * 1000);
+          const offId = window.setTimeout(() => {
+            if (faustNode && isPolyNode(faustNode)) {
+              faustNode.keyOff(0, midiNote, 0);
+            }
+          }, delayMs);
+          scheduledTimeouts.push(offId);
+        }
+      }
+    } else {
+      for (const note of bassline) {
+        if (note.start === step) {
+          const midiNote = scale[note.note];
+          const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+          try {
+            const n = faustNode as any;
+            n.setParamValue?.('/freq', freq);
+            n.setParamValue?.('/gate', 1);
+            n.setParamValue?.('freq', freq);
+            n.setParamValue?.('gate', 1);
+          } catch {}
+          const offTime = when + note.duration * stepDuration;
+          const delayMs = Math.max(0, (offTime - previewCtx.currentTime) * 1000);
+          const offId = window.setTimeout(() => {
+            try {
+              const n = faustNode as any;
+              n.setParamValue?.('/gate', 0);
+              n.setParamValue?.('gate', 0);
+            } catch {}
+          }, delayMs);
+          scheduledTimeouts.push(offId);
+        }
+      }
+    }
+  } else {
+    for (const note of bassline) {
+      if (note.start === step) {
+        const midiNote = scale[note.note];
+        triggerBass(previewCtx, when, midiNote, note.duration * stepDuration);
+      }
     }
   }
 }

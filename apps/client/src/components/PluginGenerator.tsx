@@ -35,6 +35,8 @@ export default function PluginGenerator() {
   const { selectedStyle, setSelectedStyle, addPlugin, updatePluginStatus } = usePluginStore();
 
   const handleSubmit = async () => {
+    if (generatingId) return;
+
     const parsed = parseCommand(prompt);
     if (parsed.command === 'connect' && parsed.target) {
       if (parsed.target === 'midi') setMidiOpen(true);
@@ -178,7 +180,7 @@ export default function PluginGenerator() {
                     <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Wand2 className="h-3 w-3" /> GPT-4o</Badge>
                     <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Code2 className="h-3 w-3" /> Faust</Badge>
                   </div>
-                  <Button onClick={handleSubmit} disabled={!prompt.trim()} size="sm" className="h-8 text-xs font-bold tracking-wider rounded-lg gap-1.5 disabled:opacity-30" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
+                  <Button onClick={handleSubmit} disabled={!prompt.trim() || generatingId !== null} size="sm" className="h-8 text-xs font-bold tracking-wider rounded-lg gap-1.5 disabled:opacity-30" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
                     <Sparkles className="h-3.5 w-3.5" /> GENERATE
                   </Button>
                 </div>

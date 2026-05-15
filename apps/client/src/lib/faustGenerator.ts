@@ -17,5 +17,7 @@ export async function generateFaust(prompt: string): Promise<GenerationResult> {
     throw new Error(err.error ?? 'Generation failed');
   }
 
-  return res.json();
+  const result = (await res.json()) as GenerationResult;
+  console.log('[Hayashi] Faust generation response length:', result.faustCode?.length ?? 0);
+  return result;
 }

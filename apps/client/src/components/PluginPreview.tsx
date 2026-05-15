@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Play, Download, Code2, Copy, Check } from 'lucide-react';
+import { Play, Download, Code2, Copy, Check, Square, Loader2 } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
+import { usePluginPreview } from '@/hooks/usePluginPreview';
 import { PreviewPlayer } from './PreviewPlayer';
 
 const C = {
@@ -23,7 +24,9 @@ function formatParamValue(v: number, min: number, max: number) {
 
 export function PluginPreview() {
   const { plugins, activePluginId } = usePluginStore();
+  const { previewPlaying, compiling, toggle } = usePluginPreview();
   const [copied, setCopied] = useState(false);
+  const [showSource, setShowSource] = useState(false);
 
   const plugin = plugins.find((p) => p.id === activePluginId);
   if (!plugin) return null;
@@ -33,6 +36,19 @@ export function PluginPreview() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleExport = () => {
+    if (!plugin.faustCode) return;
+    const blob = new Blob([plugin.faustCode], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${plugin.name.replace(/\s+/g, '_')}.dsp`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -53,13 +69,13 @@ export function PluginPreview() {
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-[11px] border-[#ff8c61]/30 text-[#ff8c61] hover:bg-[#ff8c61]/10 rounded-md gap-1.5">
+                <Button variant="outline" size="sm" className="h-8 text-[11px] border-[#ff8c61]/30 text-[#ff8c61] hover:bg-[#ff8c61]/10 rounded-md gap-1.5" onClick={() => setShowSource((s) => !s)}>
                   <Code2 className="h-3.5 w-3.5" /> FAUST
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">View Source</TooltipContent>
+              <TooltipContent side="bottom">{showSource ? 'Hide Source' : 'View Source'}</TooltipContent>
             </Tooltip>
-            <Button size="sm" className="h-8 text-[11px] font-bold rounded-md gap-1.5" style={{ background: C.accent, color: C.void }}>
+            <Button size="sm" className="h-8 text-[11px] font-bold rounded-md gap-1.5" style={{ background: C.accent, color: C.void }} onClick={handleExport}>
               <Download className="h-3.5 w-3.5" /> EXPORT
             </Button>
           </div>
@@ -106,9 +122,36 @@ export function PluginPreview() {
           })}
         </div>
 
+        {showSource && plugin.faustCode && (
+          <div className="mt-6 rounded-xl border overflow-hidden" style={{ borderColor: C.border, background: C.void }}>
+            <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: C.border }}>
+              <span className="text-[10px] font-bold tracking-wider text-[#525252]">FAUST SOURCE</span>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] text-[#737373] hover:text-[#e5e5e5]" onClick={() => {
+                navigator.clipboard.writeText(plugin.faustCode).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}>
+                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copied ? ' Copied' : ' Copy'}
+              </Button>
+            </div>
+            <pre className="p-4 text-[11px] font-mono leading-relaxed overflow-auto max-h-[400px] hayashi-scroll" style={{ color: '#e5e5e5' }}>
+              {plugin.faustCode || '// No Faust code generated yet'}
+            </pre>
+          </div>
+        )}
+
         <div className="flex justify-center mt-6">
-          <Button size="lg" className="rounded-full h-12 px-8 gap-2 text-sm font-bold" style={{ background: C.accent, color: C.void }}>
-            <Play className="h-5 w-5 fill-current" /> PREVIEW
+          <Button
+            size="lg"
+            className="rounded-full h-12 px-8 gap-2 text-sm font-bold"
+            style={{ background: C.accent, color: C.void }}
+            onClick={toggle}
+            disabled={compiling}
+          >
+            {compiling ? <Loader2 className="h-5 w-5 animate-spin" /> : previewPlaying ? <Square className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
+            {compiling ? 'COMPILING...' : previewPlaying ? 'STOP' : 'PREVIEW'}
           </Button>
         </div>
       </div>

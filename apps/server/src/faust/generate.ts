@@ -1,5 +1,5 @@
 const SYSTEM_PROMPT = `
-You are a Faust DSP compiler. The user describes a sound. You output ONLY valid Faust code that produces that sound as a synthesizer or effect.
+YOU ARE A FAUST DSP COMPILER. The user describes a sound. You output ONLY valid Faust code that produces that sound as a synthesizer or effect.
 
 Rules:
 - Output ONLY the Faust code. No markdown, no explanation, no backticks.
@@ -16,9 +16,10 @@ const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID ?? '';
 const CF_API_TOKEN = process.env.CF_API_TOKEN ?? '';
 
 interface WorkersAIResponse {
-  result?: { response?: string };
+  result?: { response?: string } | string;
   success?: boolean;
   errors?: Array<{ code: number; message: string }>;
+  response?: string;
 }
 
 export async function generateFaustFromPrompt(prompt: string): Promise<string> {
@@ -49,12 +50,22 @@ export async function generateFaustFromPrompt(prompt: string): Promise<string> {
   }
 
   const data = (await res.json()) as WorkersAIResponse;
+  console.log('[Hayashi] Workers AI raw response keys:', Object.keys(data ?? {}));
 
   if (!data.success && data.errors && data.errors.length > 0) {
     throw new Error(`Workers AI error: ${data.errors[0].message}`);
   }
 
-  const raw = data.result?.response ?? '';
+  let raw = '';
+  if (data.result && typeof data.result === 'object' && 'response' in data.result) {
+    raw = data.result.response ?? '';
+  } else if (typeof data.result === 'string') {
+    raw = data.result;
+  } else if (data.response) {
+    raw = data.response;
+  }
+
+  console.log('[Hayashi] Workers AI raw text length:', raw.length);
 
   return raw
     .replace(/```faust\n?/g, '')
