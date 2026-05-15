@@ -1,18 +1,16 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
-import { randomUUID } from 'crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import {
   billingCustomers,
   dailyUsage,
-  installations,
   users,
 } from '../db/schema.js';
 import { ensureDbSchema, getDb, hasDatabaseUrl } from '../db/index.js';
 import type { BillingStoreData, BillingUserRecord } from './types.js';
 
 export interface BillingRepository {
-  getUser(discordUserId: string): Promise<BillingUserRecord | null>;
+  getUser(clerkUserId: string): Promise<BillingUserRecord | null>;
   saveUser(user: BillingUserRecord): Promise<BillingUserRecord>;
 }
 
@@ -21,14 +19,14 @@ const DEFAULT_DATA: BillingStoreData = { users: {} };
 export class FileBillingRepository implements BillingRepository {
   constructor(private readonly filePath = resolve(process.env.BILLING_STORE_PATH ?? '/tmp/hayashi/billing/store.json')) {}
 
-  async getUser(discordUserId: string): Promise<BillingUserRecord | null> {
+  async getUser(clerkUserId: string): Promise<BillingUserRecord | null> {
     const data = this.read();
-    return data.users[discordUserId] ?? null;
+    return data.users[clerkUserId] ?? null;
   }
 
   async saveUser(user: BillingUserRecord): Promise<BillingUserRecord> {
     const data = this.read();
-    data.users[user.discordUserId] = user;
+    data.users[user.clerkUserId] = user;
     this.write(data);
     return user;
   }
@@ -56,9 +54,9 @@ export class FileBillingRepository implements BillingRepository {
 }
 
 export class DrizzleBillingRepository implements BillingRepository {
-  async getUser(discordUserId: string): Promise<BillingUserRecord | null> {
+  async getUser(clerkUserId: string): Promise<BillingUserRecord | null> {
     await ensureDbSchema();
-    return getUserRecord(discordUserId);
+    return getUserRecord(clerkUserId);
   }
 
   async saveUser(user: BillingUserRecord): Promise<BillingUserRecord> {
@@ -74,7 +72,7 @@ export class DrizzleBillingRepository implements BillingRepository {
         .insert(users)
         .values(userRow)
         .onConflictDoUpdate({
-          target: users.discordUserId,
+          target: users.clerkUserId,
           set: userRow,
         });
 
@@ -98,50 +96,40 @@ export class DrizzleBillingRepository implements BillingRepository {
             },
           });
       }
-
-      await syncInstallations(tx, user);
     });
 
-    return (await getUserRecord(user.discordUserId)) ?? user;
+    return (await getUserRecord(user.clerkUserId)) ?? user;
   }
-
 }
 
-async function getUserRecord(discordUserId: string): Promise<BillingUserRecord | null> {
+async function getUserRecord(clerkUserId: string): Promise<BillingUserRecord | null> {
   const database = getDb();
-  const [userRow] = await database.select().from(users).where(eq(users.discordUserId, discordUserId)).limit(1);
+  const [userRow] = await database.select().from(users).where(eq(users.clerkUserId, clerkUserId)).limit(1);
   if (!userRow) return null;
 
   const [customerRow] = await database
     .select()
     .from(billingCustomers)
-    .where(eq(billingCustomers.userId, discordUserId))
+    .where(eq(billingCustomers.userId, clerkUserId))
     .limit(1);
-
-  const installationRows = await database
-    .select()
-    .from(installations)
-    .where(and(eq(installations.userId, discordUserId), eq(installations.active, true)));
 
   const [usageRow] = await database
     .select()
     .from(dailyUsage)
-    .where(eq(dailyUsage.userId, discordUserId))
+    .where(eq(dailyUsage.userId, clerkUserId))
     .orderBy(desc(dailyUsage.usageDate))
     .limit(1);
 
   return {
-    discordUserId: userRow.discordUserId,
-    discordUsername: userRow.discordUsername,
-    discordGlobalName: userRow.discordGlobalName,
-    discordAvatar: userRow.discordAvatar,
-    email: userRow.discordEmail,
-    discordEntitlementSkuId: customerRow?.discordEntitlementSkuId ?? null,
+    clerkUserId: userRow.clerkUserId,
+    name: userRow.name ?? null,
+    email: userRow.email ?? null,
+    stripeCustomerId: customerRow?.stripeCustomerId ?? null,
+    stripeSubscriptionId: customerRow?.stripeSubscriptionId ?? null,
+    stripePriceId: customerRow?.stripePriceId ?? null,
     plan: (customerRow?.plan ?? 'free') as BillingUserRecord['plan'],
     subscriptionStatus: (customerRow?.subscriptionStatus ?? 'inactive') as BillingUserRecord['subscriptionStatus'],
     currentPeriodEnd: customerRow?.currentPeriodEnd ?? null,
-    guildInstallationId: installationRows.find((row) => row.contextType === 'guild')?.contextId ?? null,
-    dmInstallationId: installationRows.find((row) => row.contextType === 'dm')?.contextId ?? null,
     dailyExportDate: usageRow?.usageDate ?? null,
     dailyExportCount: usageRow?.exportCount ?? 0,
     createdAt: userRow.createdAt,
@@ -151,11 +139,9 @@ async function getUserRecord(discordUserId: string): Promise<BillingUserRecord |
 
 function toUserRow(user: BillingUserRecord) {
   return {
-    discordUserId: user.discordUserId,
-    discordUsername: user.discordUsername,
-    discordGlobalName: user.discordGlobalName,
-    discordAvatar: user.discordAvatar,
-    discordEmail: user.email,
+    clerkUserId: user.clerkUserId,
+    name: user.name,
+    email: user.email,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -163,11 +149,13 @@ function toUserRow(user: BillingUserRecord) {
 
 function toCustomerRow(user: BillingUserRecord, now: number) {
   return {
-    userId: user.discordUserId,
-    discordEntitlementSkuId: user.discordEntitlementSkuId,
+    userId: user.clerkUserId,
     plan: user.plan,
     subscriptionStatus: user.subscriptionStatus,
     currentPeriodEnd: user.currentPeriodEnd,
+    stripeCustomerId: user.stripeCustomerId,
+    stripeSubscriptionId: user.stripeSubscriptionId,
+    stripePriceId: user.stripePriceId,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt || now,
   };
@@ -176,67 +164,13 @@ function toCustomerRow(user: BillingUserRecord, now: number) {
 function toUsageRow(user: BillingUserRecord, now: number) {
   if (!user.dailyExportDate) return null;
   return {
-    id: `${user.discordUserId}:${user.dailyExportDate}`,
-    userId: user.discordUserId,
+    id: `${user.clerkUserId}:${user.dailyExportDate}`,
+    userId: user.clerkUserId,
     usageDate: user.dailyExportDate,
     exportCount: user.dailyExportCount,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt || now,
   };
-}
-
-async function syncInstallations(tx: any, user: BillingUserRecord) {
-  const desired = [
-    user.guildInstallationId ? { type: 'guild', id: user.guildInstallationId } : null,
-    user.dmInstallationId ? { type: 'dm', id: user.dmInstallationId } : null,
-  ].filter((value): value is { type: 'guild' | 'dm'; id: string } => Boolean(value));
-
-  const desiredKeys = new Set(desired.map((value) => `${value.type}:${value.id}`));
-  const existing = await tx.select().from(installations).where(eq(installations.userId, user.discordUserId));
-
-  const desiredIds = desired.map((value) => value.id);
-  if (desiredIds.length > 0) {
-    await tx
-      .update(installations)
-      .set({ active: false })
-      .where(
-        and(
-          eq(installations.userId, user.discordUserId),
-          inArray(installations.contextType, desired.map((value) => value.type))
-        )
-      );
-  }
-
-  for (const value of desired) {
-    const current = existing.find((row: typeof installations.$inferSelect) => row.contextType === value.type && row.contextId === value.id);
-    const now = user.updatedAt || Date.now();
-    await tx
-      .insert(installations)
-      .values({
-        id: current?.id ?? randomUUID(),
-        userId: user.discordUserId,
-        contextType: value.type,
-        contextId: value.id,
-        active: true,
-        firstInstalledAt: current?.firstInstalledAt ?? now,
-        lastSeenAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [installations.userId, installations.contextType, installations.contextId],
-        set: {
-          active: true,
-          lastSeenAt: now,
-        },
-      });
-  }
-
-  const stale = existing.filter((row: typeof installations.$inferSelect) => !desiredKeys.has(`${row.contextType}:${row.contextId}`));
-  if (stale.length > 0) {
-    await tx
-      .update(installations)
-      .set({ active: false })
-      .where(inArray(installations.id, stale.map((row: typeof installations.$inferSelect) => row.id)));
-  }
 }
 
 let repository: BillingRepository | null = null;

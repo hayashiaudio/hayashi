@@ -1,47 +1,39 @@
 import type {
   BillingAccessResult,
-  BillingContext,
   BillingSnapshot,
   BillingUserRecord,
-  DiscordIdentity,
   PlanTier,
   SubscriptionStatus,
 } from './types.js';
 import type { BillingRepository } from './repository.js';
-import { fetchDiscordEntitlements, findUnlimitedEntitlement } from './discordEntitlements.js';
 
 export const FREE_ACTIVE_NODE_LIMIT = 8;
 export const FREE_EXPORTS_PER_DAY = 3;
 export const FREE_SAMPLE_ASSETS_LIMIT = 5;
-export const DISCORD_UNLIMITED_SKU_ID = process.env.DISCORD_UNLIMITED_SKU_ID ?? '';
 
 export class BillingService {
   constructor(private readonly repository: BillingRepository) {}
 
-  async getOrCreateUser(identity: DiscordIdentity): Promise<BillingUserRecord> {
+  async getOrCreateUser(identity: { userId: string; name?: string | null; email?: string | null }): Promise<BillingUserRecord> {
     const now = Date.now();
-    const existing = await this.repository.getUser(identity.id);
+    const existing = await this.repository.getUser(identity.userId);
     const next: BillingUserRecord = existing
       ? {
           ...existing,
-          discordUsername: identity.global_name ?? identity.username,
-          discordGlobalName: identity.global_name ?? existing.discordGlobalName,
-          discordAvatar: identity.avatar ?? existing.discordAvatar,
+          name: identity.name ?? existing.name,
           email: identity.email ?? existing.email,
           updatedAt: now,
         }
       : {
-          discordUserId: identity.id,
-          discordUsername: identity.global_name ?? identity.username,
-          discordGlobalName: identity.global_name ?? null,
-          discordAvatar: identity.avatar ?? null,
+          clerkUserId: identity.userId,
+          name: identity.name ?? null,
           email: identity.email ?? null,
-          discordEntitlementSkuId: null,
           plan: 'free',
           subscriptionStatus: 'inactive',
           currentPeriodEnd: null,
-          guildInstallationId: null,
-          dmInstallationId: null,
+          stripeCustomerId: null,
+          stripeSubscriptionId: null,
+          stripePriceId: null,
           dailyExportDate: todayKey(),
           dailyExportCount: 0,
           createdAt: now,
@@ -50,18 +42,16 @@ export class BillingService {
     return this.repository.saveUser(this.resetDailyExportsIfNeeded(next));
   }
 
-  async buildSnapshot(user: BillingUserRecord, context: BillingContext | null): Promise<BillingSnapshot> {
+  async buildSnapshot(user: BillingUserRecord): Promise<BillingSnapshot> {
     const normalized = this.resetDailyExportsIfNeeded(user);
     await this.repository.saveUser(normalized);
-    const access = this.ensureContextAccess(normalized, context, false);
     const dailyExportsRemaining =
       normalized.plan === 'unlimited' ? null : Math.max(0, FREE_EXPORTS_PER_DAY - normalized.dailyExportCount);
 
     return {
       user: {
-        discordUserId: normalized.discordUserId,
-        discordUsername: normalized.discordUsername,
-        discordAvatar: normalized.discordAvatar,
+        clerkUserId: normalized.clerkUserId,
+        name: normalized.name,
         email: normalized.email,
       },
       plan: normalized.plan,
@@ -70,37 +60,22 @@ export class BillingService {
       entitlements: {
         activeNodeLimit: normalized.plan === 'unlimited' ? null : FREE_ACTIVE_NODE_LIMIT,
         exportsPerDay: normalized.plan === 'unlimited' ? null : FREE_EXPORTS_PER_DAY,
-        guildInstallations: normalized.plan === 'unlimited' ? null : 1,
-        dmInstallations: normalized.plan === 'unlimited' ? null : 1,
         sampleAssetsLimit: normalized.plan === 'unlimited' ? null : FREE_SAMPLE_ASSETS_LIMIT,
         midiNodeAccess: normalized.plan === 'unlimited',
       },
       usage: {
         dailyExportsUsed: normalized.dailyExportCount,
         dailyExportsRemaining,
-        guildInstallationId: normalized.guildInstallationId,
-        dmInstallationId: normalized.dmInstallationId,
       },
-      contextAccess: access,
+      contextAccess: { allowed: true, reason: null, message: null },
     };
   }
 
-  async registerContext(user: BillingUserRecord, context: BillingContext | null): Promise<BillingSnapshot> {
+  async authorizeExport(user: BillingUserRecord): Promise<BillingSnapshot> {
     const normalized = this.resetDailyExportsIfNeeded(user);
-    this.ensureContextAccess(normalized, context, true);
-    return this.buildSnapshot(await this.repository.saveUser(normalized), context);
-  }
-
-  async authorizeExport(user: BillingUserRecord, context: BillingContext | null): Promise<BillingSnapshot> {
-    const normalized = this.resetDailyExportsIfNeeded(user);
-    const access = this.ensureContextAccess(normalized, context, true);
-    if (!access.allowed) {
-      await this.repository.saveUser(normalized);
-      return this.buildSnapshot(normalized, context);
-    }
 
     if (normalized.plan !== 'unlimited' && normalized.dailyExportCount >= FREE_EXPORTS_PER_DAY) {
-      const snapshot = await this.buildSnapshot(await this.repository.saveUser(normalized), context);
+      const snapshot = await this.buildSnapshot(await this.repository.saveUser(normalized));
       return {
         ...snapshot,
         contextAccess: {
@@ -114,22 +89,23 @@ export class BillingService {
     if (normalized.plan !== 'unlimited') normalized.dailyExportCount += 1;
     normalized.updatedAt = Date.now();
     const saved = await this.repository.saveUser(normalized);
-    return this.buildSnapshot(saved, context);
+    return this.buildSnapshot(saved);
   }
 
-  async syncEntitlements(user: BillingUserRecord): Promise<BillingUserRecord> {
-    try {
-      const entitlements = await fetchDiscordEntitlements(user.discordUserId);
-      const unlimited = findUnlimitedEntitlement(entitlements, DISCORD_UNLIMITED_SKU_ID);
-
-      user.plan = unlimited ? 'unlimited' : 'free';
-      user.subscriptionStatus = unlimited ? 'active' : 'inactive';
-      user.currentPeriodEnd = unlimited?.ends_at ? new Date(unlimited.ends_at).getTime() : null;
-      user.discordEntitlementSkuId = unlimited?.sku_id ?? null;
-      user.updatedAt = Date.now();
-    } catch {
-      // If Discord API fails, preserve existing plan state
+  async syncStripeSubscription(user: BillingUserRecord, subscription: { status: SubscriptionStatus; currentPeriodEnd: number; plan: PlanTier; stripeCustomerId: string; stripeSubscriptionId: string; stripePriceId: string } | null): Promise<BillingUserRecord> {
+    if (subscription) {
+      user.plan = subscription.plan;
+      user.subscriptionStatus = subscription.status;
+      user.currentPeriodEnd = subscription.currentPeriodEnd;
+      user.stripeCustomerId = subscription.stripeCustomerId;
+      user.stripeSubscriptionId = subscription.stripeSubscriptionId;
+      user.stripePriceId = subscription.stripePriceId;
+    } else {
+      user.plan = 'free';
+      user.subscriptionStatus = 'inactive';
+      user.currentPeriodEnd = null;
     }
+    user.updatedAt = Date.now();
     return this.repository.saveUser(user);
   }
 
@@ -141,25 +117,6 @@ export class BillingService {
     }
     return user;
   }
-
-  private ensureContextAccess(
-    user: BillingUserRecord,
-    context: BillingContext | null,
-    persist: boolean
-  ): BillingAccessResult {
-    if (!context) {
-      return { allowed: true, reason: null, message: null };
-    }
-
-    // Free users can join unlimited guilds/DMs; track for analytics only
-    if (persist) {
-      if (context.type === 'guild') user.guildInstallationId = context.id;
-      else user.dmInstallationId = context.id;
-      user.updatedAt = Date.now();
-    }
-
-    return { allowed: true, reason: null, message: null };
-  }
 }
 
 function shouldBeUnlimited(status: SubscriptionStatus): boolean {
@@ -168,10 +125,4 @@ function shouldBeUnlimited(status: SubscriptionStatus): boolean {
 
 export function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-export function buildBillingContext(guildId?: string | null, channelId?: string | null): BillingContext | null {
-  if (guildId) return { type: 'guild', id: guildId };
-  if (channelId) return { type: 'dm', id: channelId };
-  return null;
 }

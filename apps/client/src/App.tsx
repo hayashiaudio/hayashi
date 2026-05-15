@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ClerkProvider } from '@clerk/clerk-react';
+import { ClerkProvider, useAuth } from '@clerk/clerk-react';
 import { useDiscordSdk } from './hooks/useDiscordSdk';
 import { useProjectStore } from './stores/projectStore';
 import { useYjsProject } from './hooks/useYjsProject';
@@ -22,21 +22,41 @@ import { getHasRemoteRealtimeState, hydrateYjsFromSnapshot, createRealtimeSnapsh
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
 
+function StandaloneRouter() {
+  const { isSignedIn, userId } = useAuth();
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('studio')) {
+        window.history.replaceState({}, '', '/');
+      }
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('studio') !== userId) {
+      window.history.replaceState({}, '', `/?studio=${userId}`);
+    }
+  }, [isSignedIn, userId]);
+
+  if (!isSignedIn) return <MarketingPage />;
+  return <PluginGenerator />;
+}
+
 function App() {
   const params = new URLSearchParams(window.location.search);
   const brandMode = params.get('brand') === '1';
 
   if (brandMode) return <BrandGuidelinesPage />;
 
-  if (params.get('studio') === '1') {
+  if (window.location.pathname === '/') {
     return (
-      <ClerkProvider publishableKey={CLERK_KEY} afterSignOutUrl="/?studio=1">
-        <PluginGenerator />
+      <ClerkProvider publishableKey={CLERK_KEY} afterSignOutUrl="/">
+        <StandaloneRouter />
       </ClerkProvider>
     );
   }
-
-  if (window.location.pathname === '/') return <MarketingPage />;
 
   const { ready, channelId, guildId, instanceId, error, user, participants, accessToken } = useDiscordSdk();
   const setChannelId = useProjectStore((s) => s.setChannelId);

@@ -1,17 +1,15 @@
 import { randomUUID } from 'crypto';
-import type { BillingContext, BillingSnapshot, BillingUserRecord } from './types.js';
+import type { BillingSnapshot, BillingUserRecord } from './types.js';
 import type { BillingService } from './service.js';
 
 interface StreamTokenRecord {
-  discordUserId: string;
-  context: BillingContext | null;
+  clerkUserId: string;
   expiresAt: number;
 }
 
 interface BillingSubscriber {
   id: string;
-  discordUserId: string;
-  context: BillingContext | null;
+  clerkUserId: string;
   send: (event: string, snapshot: BillingSnapshot) => void;
   close: () => void;
 }
@@ -21,11 +19,10 @@ const subscribers = new Map<string, BillingSubscriber>();
 
 const STREAM_TOKEN_TTL_MS = 10 * 60 * 1000;
 
-export function mintBillingStreamToken(discordUserId: string, context: BillingContext | null): string {
+export function mintBillingStreamToken(clerkUserId: string): string {
   const token = randomUUID();
   streamTokens.set(token, {
-    discordUserId,
-    context,
+    clerkUserId,
     expiresAt: Date.now() + STREAM_TOKEN_TTL_MS,
   });
   return token;
@@ -54,8 +51,8 @@ export function removeBillingSubscriber(id: string) {
 
 export async function publishBillingUpdate(service: BillingService, user: BillingUserRecord) {
   for (const subscriber of subscribers.values()) {
-    if (subscriber.discordUserId !== user.discordUserId) continue;
-    const snapshot = await service.buildSnapshot(user, subscriber.context);
+    if (subscriber.clerkUserId !== user.clerkUserId) continue;
+    const snapshot = await service.buildSnapshot(user);
     subscriber.send('billing.updated', snapshot);
   }
 }
