@@ -129,7 +129,7 @@ export function PluginPreview() {
                 aria-label={exporting ? 'Exporting plugin' : 'Export plugin'}
                 aria-busy={exporting}
               >
-                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /&gt; : <Download className="h-3.5 w-3.5" /&gt;}
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                 {exporting ? 'BUILDING...' : 'EXPORT'}
               </Button>
               {exportError && (

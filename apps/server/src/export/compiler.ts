@@ -3,11 +3,21 @@ import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync, readFileSync, rmSync, mkdtempSync } from 'fs';
 import { resolve } from 'path';
 import { tmpdir } from 'os';
-import { uploadAsset, getAssetUrl } from '../storage.js';
+import { HeadObjectCommand } from '@aws-sdk/client-s3';
+import { uploadAsset, getAssetUrl, s3 } from '../storage.js';
 
 export interface CompileResult {
   downloadUrl: string;
   fromCache: boolean;
+}
+
+async function objectExists(key: string): Promise<boolean> {
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: process.env.BUCKET_NAME ?? 'hayashi-assets', Key: key }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function sha256(input: string): string {
@@ -51,13 +61,10 @@ export async function compileDspToNative(
   const dspKey = `plugins/${pluginId}/${version}/source.dsp`;
 
   // Check Tigris cache — if the compiled binary exists, return a signed URL
-  try {
-    const cachedUrl = await getAssetUrl(tigrisKey, 3600);
-    if (cachedUrl) {
-      return { downloadUrl: cachedUrl, fromCache: true };
-    }
-  } catch {
-    // not cached
+  const exists = await objectExists(tigrisKey);
+  if (exists) {
+    const downloadUrl = await getAssetUrl(tigrisKey, 3600);
+    return { downloadUrl, fromCache: true };
   }
 
   const safePluginName = pluginName.replace(/[^a-zA-Z0-9_-]/g, '_');
