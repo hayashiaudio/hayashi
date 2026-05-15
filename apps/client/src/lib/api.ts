@@ -133,3 +133,31 @@ export async function authorizeExport(input: {
   }
   return body as BillingSnapshot;
 }
+
+export interface ExportResult {
+  downloadUrl: string;
+  fromCache: boolean;
+  format: 'vst3' | 'clap';
+}
+
+export async function exportPluginBinary(
+  accessToken: string,
+  pluginName: string,
+  pluginId: string,
+  version: string,
+  faustCode: string,
+  format: 'vst3' | 'clap'
+): Promise<ExportResult> {
+  const res = await fetch(`${SERVER_BASE_URL}/api/export/${format}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessToken, pluginName, pluginId, version, faustCode }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Export failed (${res.status})`);
+  }
+
+  return res.json();
+}
