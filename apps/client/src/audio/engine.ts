@@ -39,6 +39,10 @@ export class AudioEngine {
     return this.masterGain;
   }
 
+  get analyserNode() {
+    return this.analyser;
+  }
+
   get sampleRate() {
     return this.ctx?.sampleRate ?? 48000;
   }
