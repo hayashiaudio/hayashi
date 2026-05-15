@@ -68,15 +68,20 @@ export function PluginPreview() {
         version: 'v1',
         faustCode: plugin.faustCode,
         format: exportFormat,
+        guildId: discord.guildId,
+        channelId: discord.channelId,
       });
+      const blobRes = await fetch(result.downloadUrl);
+      if (!blobRes.ok) throw new Error('Download failed');
+      const blob = await blobRes.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = result.downloadUrl;
+      a.href = url;
       a.download = `${sanitizeFilename(plugin.name)}.${exportFormat}`;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       setExportError(null);
     } catch (err) {
       console.error('[Hayashi] Export failed:', err);

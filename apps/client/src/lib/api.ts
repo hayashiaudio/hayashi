@@ -147,6 +147,8 @@ export interface ExportPluginOptions {
   version: string;
   faustCode: string;
   format: 'vst3' | 'clap';
+  guildId?: string | null;
+  channelId?: string | null;
 }
 
 export async function exportPluginBinary(options: ExportPluginOptions): Promise<ExportResult> {

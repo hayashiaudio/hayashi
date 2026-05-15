@@ -457,6 +457,10 @@ app.post('/api/export/:format', async (c) => {
   const body = await c.req.json<{ accessToken?: string; pluginName?: string; pluginId?: string; version?: string; faustCode?: string; guildId?: string | null; channelId?: string | null }>();
   if (!body.accessToken) return c.json({ error: 'Missing access token' }, 400);
   if (!body.faustCode || !body.faustCode.trim()) return c.json({ error: 'Missing faustCode' }, 400);
+  const MAX_DSP_SIZE = 1024 * 1024; // 1MB
+  if (body.faustCode.length > MAX_DSP_SIZE) {
+    return c.json({ error: 'Faust code exceeds maximum size of 1MB' }, 413);
+  }
   if (!body.pluginId) return c.json({ error: 'Missing pluginId' }, 400);
 
   let identity;

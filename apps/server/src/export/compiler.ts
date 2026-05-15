@@ -30,8 +30,13 @@ function exec(command: string, args: string[], cwd?: string, timeoutMs = 30000):
       const proc = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
       let stdout = '';
       let stderr = '';
-      proc.stdout.on('data', (d) => { stdout += d; });
-      proc.stderr.on('data', (d) => { stderr += d; });
+      const MAX_OUTPUT = 1024 * 1024; // 1MB
+      proc.stdout.on('data', (d) => {
+        if (stdout.length < MAX_OUTPUT) stdout += d;
+      });
+      proc.stderr.on('data', (d) => {
+        if (stderr.length < MAX_OUTPUT) stderr += d;
+      });
       proc.on('close', (code) => {
         if (code !== 0) {
           rej(new Error(`Command failed: ${command} ${args.join(' ')}\n${stderr}\n${stdout}`));
