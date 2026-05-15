@@ -45,7 +45,64 @@ async function verifyAuth(c: any, bodyToken?: string | null) {
   return verifyClerkToken(token);
 }
 
+import { handleStripeWebhook } from './billing/stripeWebhook.js';
+
 app.get('/health', (c) => c.json({ status: 'ok', mode: 'plugin-studio' }));
+
+app.post('/billing/webhook', async (c) => {
+  const body = await c.req.text();
+  const signature = c.req.header('stripe-signature') ?? '';
+  const result = await handleStripeWebhook(body, signature);
+  if (result.received) {
+    return c.json({ received: true });
+  }
+  return c.json({ error: result.message }, 400);
+});
+
+app.post('/billing/checkout', async (c) => {
+  const identity = await verifyAuth(c);
+  if (!identity) return c.json({ error: 'Unauthorized' }, 401);
+
+  const body = await c.req.json().catch(() => ({} as any));
+  const plan = body.plan as 'creator' | 'pro' | 'studio';
+  if (!plan || !['creator', 'pro', 'studio'].includes(plan)) {
+    return c.json({ error: 'Invalid plan' }, 400);
+  }
+
+  const stripe = (await import('stripe')).default;
+  const stripeClient = new stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2026-04-22.dahlia' });
+
+  const priceId = plan === 'creator' ? 'price_1TXTu5CmEpq5jdTPiQehqZvr'
+    : plan === 'pro' ? 'price_1TXUAYCmEpq5jdTP6C6Rv9rr'
+    : 'prod_UWXJLmrcYuXhQb';
+
+  try {
+    const user = await billing.getOrCreateUser(identity);
+    let customerId = user.stripeCustomerId;
+
+    if (!customerId) {
+      const customer = await stripeClient.customers.create({
+        metadata: { clerkUserId: identity.userId },
+      });
+      customerId = customer.id;
+    }
+
+    const session = await stripeClient.checkout.sessions.create({
+      customer: customerId,
+      client_reference_id: identity.userId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: 'subscription',
+      success_url: `${process.env.CLIENT_URL ?? 'http://localhost:5173'}/?studio=${identity.userId}&checkout=success`,
+      cancel_url: `${process.env.CLIENT_URL ?? 'http://localhost:5173'}/?studio=${identity.userId}&checkout=canceled`,
+    });
+
+    return c.json({ checkoutUrl: session.url });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Checkout failed';
+    console.error('[Hayashi] Stripe checkout error:', message);
+    return c.json({ error: message }, 500);
+  }
+});
 
 app.post('/billing/bootstrap', async (c) => {
   const body = await c.req.json().catch(() => ({} as any));
