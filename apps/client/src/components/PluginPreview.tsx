@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Play, Download, Code2, Copy, Check, Square, Loader2 } from 'lucide-react';
+import { Play, Download, Code2, Copy, Check, Square, Loader2, Sparkles } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
 import { usePluginPreview } from '@/hooks/usePluginPreview';
 import { PreviewPlayer } from './PreviewPlayer';
@@ -32,7 +32,12 @@ function sanitizeFilename(name: string): string {
     .replace(/\s+/g, '_') || 'plugin';
 }
 
-export function PluginPreview() {
+interface PluginPreviewProps {
+  onRefine: (instruction: string) => void;
+  refining: boolean;
+}
+
+export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
   const { plugins, activePluginId } = usePluginStore();
   const { previewPlaying, compiling, toggle } = usePluginPreview();
   const [copied, setCopied] = useState(false);
@@ -40,6 +45,7 @@ export function PluginPreview() {
   const [exportFormat, setExportFormat] = useState<'vst3' | 'clap'>('vst3');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [refinePrompt, setRefinePrompt] = useState('');
   const discord = useDiscordSdk();
 
   const plugin = plugins.find((p) => p.id === activePluginId);
@@ -183,6 +189,35 @@ export function PluginPreview() {
               </div>
             );
           })}
+        </div>
+
+        {/* Refine input */}
+        <div className="mt-6 rounded-xl border p-4" style={{ borderColor: C.border, background: C.void }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold tracking-wider text-[#525252]">REFINE</span>
+            <span className="text-[10px] text-[#737373]">Describe a change to apply</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={refinePrompt}
+              onChange={(e) => setRefinePrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onRefine(refinePrompt); setRefinePrompt(''); } }}
+              placeholder="e.g. make the decay longer"
+              className="flex-1 bg-transparent text-sm font-mono outline-none placeholder:text-[#525252]"
+              style={{ color: C.text, caretColor: C.accent }}
+            />
+            <Button
+              size="sm"
+              className="h-8 text-[11px] font-bold rounded-md gap-1.5"
+              style={{ background: C.accent, color: C.void }}
+              onClick={() => { onRefine(refinePrompt); setRefinePrompt(''); }}
+              disabled={!refinePrompt.trim() || refining}
+            >
+              {refining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {refining ? 'Applying...' : 'Apply'}
+            </Button>
+          </div>
         </div>
 
         {showSource && plugin.faustCode && (

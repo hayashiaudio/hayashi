@@ -8,12 +8,14 @@ import { MidiConnectModal } from './modals/MidiConnectModal';
 import { BtConnectModal } from './modals/BtConnectModal';
 import { UsbConnectModal } from './modals/UsbConnectModal';
 import { parseCommand } from '@/lib/commandParser';
-import { createPlugin } from '@/lib/faustGenerator';
+import { createPlugin, iteratePlugin } from '@/lib/faustGenerator';
 import { useDiscordSdk } from '@/hooks/useDiscordSdk';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Terminal, Sparkles, Wand2, Code2, Lock } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
+import { PluginThread } from './PluginThread';
+import type { PluginVersion } from '@/stores/pluginStore';
 
 const C = {
   void: '#0a0a0a',
@@ -32,8 +34,10 @@ export default function PluginGenerator() {
   const [btOpen, setBtOpen] = useState(false);
   const [usbOpen, setUsbOpen] = useState(false);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [refiningId, setRefiningId] = useState<string | null>(null);
   const [streamText, setStreamText] = useState('');
-  const { selectedStyle, setSelectedStyle, addPlugin, updatePluginStatus } = usePluginStore();
+  const { selectedStyle, setSelectedStyle, addPlugin, updatePluginStatus, activePluginId, rollbackToVersion } = usePluginStore();
+  const activePlugin = usePluginStore((s) => s.plugins.find((p) => p.id === s.activePluginId));
 
   const discord = useDiscordSdk();
 
@@ -114,6 +118,54 @@ export default function PluginGenerator() {
       console.error('[Hayashi] Generation failed:', err);
     } finally {
       setGeneratingId(null);
+    }
+  };
+
+  const handleRefine = async (instruction: string) => {
+    const plugin = usePluginStore.getState().plugins.find((p) => p.id === activePluginId);
+    if (!plugin || !discord.accessToken) return;
+
+    setRefiningId(plugin.id);
+    setStreamText((prev) => prev + `\n> refine: "${instruction}"\n> compiling...\n`);
+
+    try {
+      const result = await iteratePlugin(discord.accessToken, plugin.id, instruction);
+
+      const version: PluginVersion = {
+        id: result.versionId,
+        versionNumber: result.versionNumber,
+        prompt: instruction,
+        faustCode: result.faustCode,
+        params: result.params,
+        createdAt: Date.now(),
+      };
+
+      usePluginStore.setState((s) => ({
+        plugins: s.plugins.map((p) =>
+          p.id === plugin.id
+            ? {
+                ...p,
+                faustCode: result.faustCode,
+                params: result.params,
+                status: 'ready' as const,
+                versions: [version, ...p.versions],
+                currentVersionId: version.id,
+                messages: [
+                  ...p.messages,
+                  { id: `msg-${Date.now()}-user`, role: 'user' as const, content: instruction, createdAt: Date.now() },
+                  { id: `msg-${Date.now()}-assistant`, role: 'assistant' as const, content: result.faustCode, versionId: version.id, createdAt: Date.now() },
+                ],
+              }
+            : p
+        ),
+      }));
+
+      setStreamText((prev) => prev + `> done. v${result.versionNumber}\n`);
+    } catch (err) {
+      setStreamText((prev) => prev + `> error: iteration failed\n`);
+      console.error('[Hayashi] Iteration failed:', err);
+    } finally {
+      setRefiningId(null);
     }
   };
 
@@ -274,8 +326,26 @@ export default function PluginGenerator() {
             </div>
           )}
 
+          {/* Plugin thread */}
+          {activePlugin && activePlugin.versions.length > 0 && (
+            <div className="w-full max-w-2xl mx-auto mb-8 px-4">
+              <div className="rounded-2xl border p-4" style={{ borderColor: C.border, background: C.panel }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold tracking-wider text-[#525252]">ITERATION HISTORY</span>
+                  <Badge variant="outline" className="h-4 text-[9px] border-[#525252] text-[#737373] rounded-sm">{activePlugin.versions.length} versions</Badge>
+                </div>
+                <PluginThread
+                  plugin={activePlugin}
+                  onRollback={(versionId) => {
+                    rollbackToVersion(activePlugin.id, versionId);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Active plugin detail */}
-          <PluginPreview />
+          <PluginPreview onRefine={handleRefine} refining={refiningId === activePluginId} />
         </main>
       </div>
 
