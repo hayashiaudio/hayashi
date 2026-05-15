@@ -766,6 +766,18 @@ async function compileGraphInternal(
         audioNode = mixer;
         break;
       }
+      case 'faustInstrument': {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 440;
+        const output = ctx.createGain();
+        output.gain.value = node.muted ? 0 : ((node.params.gain as number) ?? 0.8);
+        osc.connect(output);
+        audioNode = output;
+        sourceNode = osc;
+        osc.start();
+        break;
+      }
       default:
         audioNode = null;
     }
