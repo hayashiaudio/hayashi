@@ -169,8 +169,9 @@ export function useClipDrag({
           if (container) {
             const rect = container.getBoundingClientRect();
             const scrollLeft = container.scrollLeft;
+            const scrollTop = container.scrollTop;
             const x = upEvent.clientX - rect.left + scrollLeft;
-            const y = upEvent.clientY - rect.top + scrollLeft;
+            const y = upEvent.clientY - rect.top + scrollTop;
             const startBeat = snapBeat(x / BEAT_WIDTH, upEvent.shiftKey);
             const trackIndex = Math.floor((y - 24) / TRACK_HEIGHT); // 24 = ruler height
             const track = tracks[trackIndex];

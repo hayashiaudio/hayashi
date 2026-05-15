@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Volume2, VolumeX, CircleDot, Disc3, Plus, Trash2, SlidersHorizontal } from 'lucide-react';
 import type { Track } from '@/types/project';
 import type { PatchNode } from '@/types/project';
@@ -8,6 +8,8 @@ interface TrackHeaderProps {
   track: Track;
   sourceNode: PatchNode | null;
   assetName?: string;
+  fxOpen?: boolean;
+  onFxToggle?: () => void;
   onGainChange: (value: number) => void;
   onPanChange: (value: number) => void;
   onMuteToggle: () => void;
@@ -36,6 +38,8 @@ export function TrackHeader({
   track,
   sourceNode,
   assetName,
+  fxOpen = false,
+  onFxToggle,
   onGainChange,
   onPanChange,
   onMuteToggle,
@@ -44,15 +48,13 @@ export function TrackHeader({
   onBounceTrack,
   onRemoveTrack,
 }: TrackHeaderProps) {
-  const [fxOpen, setFxOpen] = useState(false);
-
   const color = sourceNode ? getNodeColor(sourceNode.kind) : 'rgba(245,230,200,0.4)';
   const isContinuous = sourceNode ? SKIP_AUTO_TRACK_KINDS.has(sourceNode.kind) : false;
   const hasFx = (track.fxChain?.length ?? 0) > 0;
 
   const handleFxToggle = useCallback(() => {
-    setFxOpen((prev) => !prev);
-  }, []);
+    onFxToggle?.();
+  }, [onFxToggle]);
 
   return (
     <div
@@ -268,7 +270,7 @@ export function TrackHeader({
         <TrackFxChain
           trackId={track.id}
           fxChain={track.fxChain ?? []}
-          onClose={() => setFxOpen(false)}
+          onClose={() => onFxToggle?.()}
         />
       )}
     </div>

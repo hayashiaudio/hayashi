@@ -67,10 +67,22 @@ export function ArrangementGrid({
   const totalBeats = Math.max(...clips.map((c) => c.startBeat + c.lengthBeats), 64);
   const timelineWidth = totalBeats * BEAT_WIDTH;
 
+  const [expandedFxTrackIds, setExpandedFxTrackIds] = useState<Set<string>>(new Set());
+
+  const isFxOpen = useCallback((trackId: string) => expandedFxTrackIds.has(trackId), [expandedFxTrackIds]);
+  const toggleFx = useCallback((trackId: string) => {
+    setExpandedFxTrackIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(trackId)) next.delete(trackId);
+      else next.add(trackId);
+      return next;
+    });
+  }, []);
+
   const virtualizer = useVirtualizer({
     count: tracks.length,
     getScrollElement: () => lanesParentRef.current,
-    estimateSize: () => TRACK_HEIGHT,
+    estimateSize: (index) => (isFxOpen(tracks[index].id) ? 88 : TRACK_HEIGHT),
     overscan: 6,
   });
 
@@ -189,7 +201,7 @@ export function ArrangementGrid({
               <div
                 key={track.id}
                 style={{
-                  height: track.fxChain && track.fxChain.length > 0 ? 88 : 40,
+                  height: isFxOpen(track.id) ? 88 : 40,
                   transition: 'height 0.2s ease',
                 }}
               >
@@ -197,6 +209,8 @@ export function ArrangementGrid({
                   track={track}
                   sourceNode={source}
                   assetName={asset?.name}
+                  fxOpen={isFxOpen(track.id)}
+                  onFxToggle={() => toggleFx(track.id)}
                   onGainChange={(v) => onTrackGainChange?.(track.id, v)}
                   onPanChange={(v) => onTrackPanChange?.(track.id, v)}
                   onMuteToggle={() => onTrackMuteToggle?.(track)}
@@ -242,7 +256,7 @@ export function ArrangementGrid({
               const sourceKind = getTrackSourceKind?.(track.id);
               const trackClips = clips.filter((c) => c.trackId === track.id);
               const isDragOver = dragOverTrackId === track.id;
-              const trackHeight = track.fxChain && track.fxChain.length > 0 ? 88 : 40;
+              const trackHeight = isFxOpen(track.id) ? 88 : 40;
 
               return (
                 <div
