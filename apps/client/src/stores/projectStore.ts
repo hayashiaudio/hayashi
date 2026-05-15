@@ -85,6 +85,7 @@ interface ProjectState {
   addTrack: (track: Track) => void;
   removeTrack: (id: string) => void;
   updateTrack: (id: string, patch: Partial<Track>) => void;
+  updateTrackFxChain: (id: string, fxChain: string[]) => void;
 
   updateClipTiming: (id: string, startBeat: number, lengthBeats: number) => void;
   updateClipLoop: (id: string, loop: boolean) => void;
@@ -292,6 +293,12 @@ export const useProjectStore = create<ProjectState>((set) => ({
       const track = s.tracks[id];
       if (!track) return s;
       return { tracks: { ...s.tracks, [id]: { ...track, ...patch } } };
+    }),
+  updateTrackFxChain: (id, fxChain) =>
+    set((s) => {
+      const track = s.tracks[id];
+      if (!track) return s;
+      return { tracks: { ...s.tracks, [id]: { ...track, fxChain } } };
     }),
   updateNodePosition: (id, position) =>
     set((s) => {

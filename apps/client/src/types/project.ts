@@ -125,6 +125,7 @@ export interface Track {
   gain?: number;
   pan?: number;
   muted?: boolean;
+  fxChain?: string[];
 }
 
 export interface WorkstationState {
