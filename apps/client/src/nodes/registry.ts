@@ -220,6 +220,18 @@ export const BUILTIN_NODES: NodeDefinition[] = [
     inputs: 2,
     outputs: 1,
   },
+
+  // Faust Instrument
+  {
+    kind: 'faustInstrument',
+    label: 'Faust Instrument',
+    description: 'User-generated instrument from a prompt, compiled from Faust DSP',
+    category: 'source',
+    icon: 'Wand2',
+    defaultParams: { gain: 0.8, faustCode: '', wasmUrl: '', polyphony: 8 },
+    inputs: 1,
+    outputs: 1,
+  },
 ];
 
 const PROCESSOR_KINDS = new Set<NodeKind>(

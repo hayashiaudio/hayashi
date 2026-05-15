@@ -18,7 +18,8 @@ export type NodeKind =
   | 'chorus'
   | 'pingPongDelay'
   | 'output'
-  | 'workstation';
+  | 'workstation'
+  | 'faustInstrument';
 
 export interface PatchNode {
   id: string;
