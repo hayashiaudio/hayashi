@@ -6,6 +6,8 @@ import { Play, Download, Code2, Copy, Check, Square, Loader2 } from 'lucide-reac
 import { usePluginStore } from '@/stores/pluginStore';
 import { usePluginPreview } from '@/hooks/usePluginPreview';
 import { PreviewPlayer } from './PreviewPlayer';
+import { exportPluginBinary } from '@/lib/api';
+import { useDiscordSdk } from '@/hooks/useDiscordSdk';
 
 const C = {
   border: 'rgba(255,255,255,0.06)',
@@ -27,6 +29,9 @@ export function PluginPreview() {
   const { previewPlaying, compiling, toggle } = usePluginPreview();
   const [copied, setCopied] = useState(false);
   const [showSource, setShowSource] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'vst3' | 'clap'>('vst3');
+  const [exporting, setExporting] = useState(false);
+  const discord = useDiscordSdk();
 
   const plugin = plugins.find((p) => p.id === activePluginId);
   if (!plugin) return null;
@@ -38,17 +43,35 @@ export function PluginPreview() {
     });
   };
 
-  const handleExport = () => {
-    if (!plugin.faustCode) return;
-    const blob = new Blob([plugin.faustCode], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${plugin.name.replace(/\s+/g, '_')}.dsp`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    if (!plugin.faustCode || exporting) return;
+    const accessToken = discord.accessToken;
+    if (!accessToken) {
+      alert('Please sign in to export plugins');
+      return;
+    }
+    setExporting(true);
+    try {
+      const result = await exportPluginBinary({
+        accessToken,
+        pluginName: plugin.name,
+        pluginId: plugin.id,
+        version: 'v1',
+        faustCode: plugin.faustCode,
+        format: exportFormat,
+      });
+      const a = document.createElement('a');
+      a.href = result.downloadUrl;
+      a.download = `${plugin.name.replace(/\s+/g, '_')}.${exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('[Hayashi] Export failed:', err);
+      alert(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -75,9 +98,26 @@ export function PluginPreview() {
               </TooltipTrigger>
               <TooltipContent side="bottom">{showSource ? 'Hide Source' : 'View Source'}</TooltipContent>
             </Tooltip>
-            <Button size="sm" className="h-8 text-[11px] font-bold rounded-md gap-1.5" style={{ background: C.accent, color: C.void }} onClick={handleExport}>
-              <Download className="h-3.5 w-3.5" /> EXPORT
-            </Button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'vst3' | 'clap')}
+                className="h-8 text-[11px] bg-transparent border border-[#525252] text-[#737373] rounded-md px-2 outline-none"
+              >
+                <option value="vst3">VST3</option>
+                <option value="clap">CLAP</option>
+              </select>
+              <Button
+                size="sm"
+                className="h-8 text-[11px] font-bold rounded-md gap-1.5"
+                style={{ background: C.accent, color: C.void }}
+                onClick={handleExport}
+                disabled={exporting || !plugin.faustCode}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /&gt; : <Download className="h-3.5 w-3.5" /&gt;}
+                {exporting ? 'BUILDING...' : 'EXPORT'}
+              </Button>
+            </div>
           </div>
         </div>
 
