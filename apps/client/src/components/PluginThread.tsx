@@ -73,6 +73,13 @@ export function PluginThread({ plugin, onRollback }: PluginThreadProps) {
                       <pre className="text-[10px] font-mono leading-relaxed whitespace-pre-wrap overflow-auto max-h-[200px] hayashi-scroll p-2 rounded" style={{ background: C.void, color: '#e5e5e5' }}>
                         {version.faustCode}
                       </pre>
+                      {version.features && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[9px] font-mono text-[#525252]">
+                            Centroid: {version.features.centroid.toFixed(0)}Hz · RMS: {(version.features.rms * 100).toFixed(1)}% · Peak: {version.features.peakDb.toFixed(1)}dB
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex gap-1 flex-wrap">
                           {version.params.map((p) => (

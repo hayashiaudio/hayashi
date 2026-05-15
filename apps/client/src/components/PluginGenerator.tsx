@@ -10,6 +10,7 @@ import { UsbConnectModal } from './modals/UsbConnectModal';
 import { parseCommand } from '@/lib/commandParser';
 import { createPlugin, iteratePlugin } from '@/lib/faustGenerator';
 import { useDiscordSdk } from '@/hooks/useDiscordSdk';
+import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Terminal, Sparkles, Wand2, Code2, Lock } from 'lucide-react';
@@ -40,6 +41,7 @@ export default function PluginGenerator() {
   const activePlugin = usePluginStore((s) => s.plugins.find((p) => p.id === s.activePluginId));
 
   const discord = useDiscordSdk();
+  const analysis = useAudioAnalysis(true);
 
   const handleSubmit = async () => {
     if (generatingId) return;
@@ -71,7 +73,6 @@ export default function PluginGenerator() {
         { name: 'DRIVE', value: 0.6, min: 0, max: 1 },
         { name: 'DETUNE', value: 0.12, min: 0, max: 1 },
       ],
-      waveform: Array.from({ length: 18 }, () => 20 + Math.random() * 60),
       faustCode: '',
       wasmUrl: null,
       createdAt: Date.now(),
@@ -92,6 +93,12 @@ export default function PluginGenerator() {
         faustCode: result.faustCode,
         params: result.params,
         createdAt: Date.now(),
+        features: {
+          centroid: analysis.centroid,
+          rms: analysis.rms,
+          zcr: analysis.zcr,
+          peakDb: analysis.peakDb,
+        },
       };
       setStreamText((prev) => prev + `> generating Faust code...\n\n${result.faustCode}\n\n> done.`);
       usePluginStore.setState((s) => ({
@@ -138,6 +145,12 @@ export default function PluginGenerator() {
         faustCode: result.faustCode,
         params: result.params,
         createdAt: Date.now(),
+        features: {
+          centroid: analysis.centroid,
+          rms: analysis.rms,
+          zcr: analysis.zcr,
+          peakDb: analysis.peakDb,
+        },
       };
 
       usePluginStore.setState((s) => ({

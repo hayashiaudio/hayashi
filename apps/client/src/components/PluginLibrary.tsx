@@ -67,18 +67,11 @@ export function PluginLibrary() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-end gap-[2px] h-6">
-                  {plugin.waveform.slice(0, 24).map((h, idx) => (
-                    <div
-                      key={idx}
-                      className="w-[3px] rounded-full"
-                      style={{
-                        height: `${h}%`,
-                        background: activePluginId === plugin.id ? C.accent : '#525252',
-                        opacity: 0.4 + (idx % 3) * 0.2,
-                        transition: 'background 0.2s',
-                      }}
-                    />
+                <div className="flex items-center gap-2 mt-1">
+                  {plugin.params.slice(0, 3).map((p) => (
+                    <span key={p.name} className="text-[9px] font-mono text-[#525252]">
+                      {p.name} {p.value.toFixed(1)}
+                    </span>
                   ))}
                 </div>
               </CardContent>

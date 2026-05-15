@@ -14,6 +14,12 @@ export interface PluginVersion {
   faustCode: string;
   params: PluginParam[];
   createdAt: number;
+  features?: {
+    centroid: number;
+    rms: number;
+    zcr: number;
+    peakDb: number;
+  };
 }
 
 export interface PluginMessage {
@@ -31,7 +37,6 @@ export interface GeneratedPlugin {
   status: 'generating' | 'ready' | 'error';
   type: 'synth' | 'percussion' | 'effect';
   params: PluginParam[];
-  waveform: number[];
   faustCode: string;
   wasmUrl: string | null;
   createdAt: number;
