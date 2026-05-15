@@ -8,7 +8,8 @@ import { MidiConnectModal } from './modals/MidiConnectModal';
 import { BtConnectModal } from './modals/BtConnectModal';
 import { UsbConnectModal } from './modals/UsbConnectModal';
 import { parseCommand } from '@/lib/commandParser';
-import { generateFaust } from '@/lib/faustGenerator';
+import { createPlugin } from '@/lib/faustGenerator';
+import { useDiscordSdk } from '@/hooks/useDiscordSdk';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Terminal, Sparkles, Wand2, Code2, Lock } from 'lucide-react';
@@ -34,6 +35,8 @@ export default function PluginGenerator() {
   const [streamText, setStreamText] = useState('');
   const { selectedStyle, setSelectedStyle, addPlugin, updatePluginStatus } = usePluginStore();
 
+  const discord = useDiscordSdk();
+
   const handleSubmit = async () => {
     if (generatingId) return;
 
@@ -47,6 +50,10 @@ export default function PluginGenerator() {
     }
 
     if (!prompt.trim()) return;
+    if (!discord.accessToken) {
+      alert('Please sign in to generate plugins');
+      return;
+    }
 
     const id = `plugin-${Date.now()}`;
     addPlugin({
@@ -73,11 +80,32 @@ export default function PluginGenerator() {
     setStreamText(`> prompt: "${prompt.trim()}"\n> compiling...\n`);
 
     try {
-      const result = await generateFaust(prompt.trim());
+      const result = await createPlugin(discord.accessToken, prompt.trim());
+      const version = {
+        id: result.versionId,
+        versionNumber: 1,
+        prompt: prompt.trim(),
+        faustCode: result.faustCode,
+        params: result.params,
+        createdAt: Date.now(),
+      };
       setStreamText((prev) => prev + `> generating Faust code...\n\n${result.faustCode}\n\n> done.`);
       usePluginStore.setState((s) => ({
         plugins: s.plugins.map((p) =>
-          p.id === id ? { ...p, faustCode: result.faustCode, name: result.prompt.slice(0, 24), status: 'ready' as const } : p
+          p.id === id ? {
+            ...p,
+            faustCode: result.faustCode,
+            name: result.name.slice(0, 24),
+            type: result.type as 'synth' | 'effect' | 'percussion',
+            params: result.params,
+            status: 'ready' as const,
+            versions: [version],
+            currentVersionId: version.id,
+            messages: [
+              { id: `msg-${Date.now()}-user`, role: 'user' as const, content: prompt.trim(), createdAt: Date.now() },
+              { id: `msg-${Date.now()}-assistant`, role: 'assistant' as const, content: result.faustCode, versionId: version.id, createdAt: Date.now() },
+            ],
+          } : p
         ),
       }));
     } catch (err) {
