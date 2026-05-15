@@ -1,7 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import { getSuggestedProcessorIds } from '../fxChainSuggestions';
+import type { NodeKind } from '@/types/project';
 
-const makeNode = (id: string, kind: string) => ({
+const makeNode = (id: string, kind: NodeKind) => ({
   id,
   kind,
   position: { x: 0, y: 0 },
