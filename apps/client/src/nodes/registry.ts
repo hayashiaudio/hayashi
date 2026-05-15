@@ -222,6 +222,14 @@ export const BUILTIN_NODES: NodeDefinition[] = [
   },
 ];
 
+const PROCESSOR_KINDS = new Set<NodeKind>(
+  BUILTIN_NODES.filter((n) => n.category === 'processor').map((n) => n.kind)
+);
+
+export function isProcessorNode(kind: NodeKind): boolean {
+  return PROCESSOR_KINDS.has(kind);
+}
+
 export function getNodeDefinition(kind: NodeKind): NodeDefinition | undefined {
   return BUILTIN_NODES.find((n) => n.kind === kind);
 }
