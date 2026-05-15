@@ -48,7 +48,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     build-essential \
     libc6-dev \
+    tini \
     && rm -rf /var/lib/apt/lists/*
+
+# Sanity check: fail build if faust is missing
+RUN faust --version
 
 # Only runtime deps
 COPY package*.json ./
@@ -61,11 +65,5 @@ COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
 EXPOSE 8080
 
-# Use tini for proper signal handling (Fly sends SIGINT on shutdown)
-RUN apt-get update && apt-get install -y --no-install-recommends tini && rm -rf /var/lib/apt/lists/*
-
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "apps/server/dist/server.js"]
-
-# Sanity check: fail build if faust is missing
-RUN faust --version
