@@ -64,6 +64,9 @@ export default function PluginGenerator() {
       faustCode: '',
       wasmUrl: null,
       createdAt: Date.now(),
+      versions: [],
+      messages: [],
+      currentVersionId: null,
     });
     setPrompt('');
     setGeneratingId(id);
