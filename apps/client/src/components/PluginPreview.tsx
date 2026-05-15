@@ -24,6 +24,14 @@ function formatParamValue(v: number, min: number, max: number) {
   return v.toFixed(2);
 }
 
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    .replace(/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/i, '_$1')
+    .replace(/^[.\s]+|[.\s]+$/g, '')
+    .replace(/\s+/g, '_') || 'plugin';
+}
+
 export function PluginPreview() {
   const { plugins, activePluginId } = usePluginStore();
   const { previewPlaying, compiling, toggle } = usePluginPreview();
@@ -31,6 +39,7 @@ export function PluginPreview() {
   const [showSource, setShowSource] = useState(false);
   const [exportFormat, setExportFormat] = useState<'vst3' | 'clap'>('vst3');
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const discord = useDiscordSdk();
 
   const plugin = plugins.find((p) => p.id === activePluginId);
@@ -47,7 +56,7 @@ export function PluginPreview() {
     if (!plugin.faustCode || exporting) return;
     const accessToken = discord.accessToken;
     if (!accessToken) {
-      alert('Please sign in to export plugins');
+      setExportError('Please sign in to export plugins');
       return;
     }
     setExporting(true);
@@ -62,13 +71,16 @@ export function PluginPreview() {
       });
       const a = document.createElement('a');
       a.href = result.downloadUrl;
-      a.download = `${plugin.name.replace(/\s+/g, '_')}.${exportFormat}`;
+      a.download = `${sanitizeFilename(plugin.name)}.${exportFormat}`;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      setExportError(null);
     } catch (err) {
       console.error('[Hayashi] Export failed:', err);
-      alert(err instanceof Error ? err.message : 'Export failed');
+      setExportError(err instanceof Error ? err.message : 'Export failed');
     } finally {
       setExporting(false);
     }
@@ -100,6 +112,7 @@ export function PluginPreview() {
             </Tooltip>
             <div className="flex items-center gap-2 flex-shrink-0">
               <select
+                aria-label="Export format"
                 value={exportFormat}
                 onChange={(e) => setExportFormat(e.target.value as 'vst3' | 'clap')}
                 className="h-8 text-[11px] bg-transparent border border-[#525252] text-[#737373] rounded-md px-2 outline-none"
@@ -113,10 +126,15 @@ export function PluginPreview() {
                 style={{ background: C.accent, color: C.void }}
                 onClick={handleExport}
                 disabled={exporting || !plugin.faustCode}
+                aria-label={exporting ? 'Exporting plugin' : 'Export plugin'}
+                aria-busy={exporting}
               >
                 {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /&gt; : <Download className="h-3.5 w-3.5" /&gt;}
                 {exporting ? 'BUILDING...' : 'EXPORT'}
               </Button>
+              {exportError && (
+                <span className="text-[10px] text-[#ff3b30] ml-2">{exportError}</span>
+              )}
             </div>
           </div>
         </div>
