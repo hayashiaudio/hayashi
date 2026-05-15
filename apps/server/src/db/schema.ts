@@ -73,3 +73,35 @@ export const yjsUpdates = pgTable('yjs_updates', {
   updateData: text('update_data').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 });
+
+export const plugins = pgTable('plugins', {
+  id: text('id').primaryKey(),
+  ownerId: text('owner_id').notNull(),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('synth'),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+});
+
+export const pluginVersions = pgTable('plugin_versions', {
+  id: text('id').primaryKey(),
+  pluginId: text('plugin_id')
+    .notNull()
+    .references(() => plugins.id, { onDelete: 'cascade' }),
+  versionNumber: integer('version_number').notNull(),
+  prompt: text('prompt').notNull(),
+  faustCode: text('faust_code').notNull(),
+  paramsJson: text('params_json').notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const pluginMessages = pgTable('plugin_messages', {
+  id: text('id').primaryKey(),
+  pluginId: text('plugin_id')
+    .notNull()
+    .references(() => plugins.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),
+  content: text('content').notNull(),
+  versionId: text('version_id').references(() => pluginVersions.id, { onDelete: 'cascade' }),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+});

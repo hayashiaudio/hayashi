@@ -132,6 +132,48 @@ export async function ensureDbSchema() {
       `);
 
       await database.execute(sql`
+        create table if not exists plugins (
+          id text primary key,
+          owner_id text not null,
+          name text not null,
+          type text not null default 'synth',
+          created_at bigint not null,
+          updated_at bigint not null
+        )
+      `);
+
+      await database.execute(sql`
+        create table if not exists plugin_versions (
+          id text primary key,
+          plugin_id text not null references plugins(id) on delete cascade,
+          version_number integer not null,
+          prompt text not null,
+          faust_code text not null,
+          params_json text not null,
+          created_at bigint not null
+        )
+      `);
+      await database.execute(sql`
+        create unique index if not exists plugin_versions_plugin_number_unique
+        on plugin_versions(plugin_id, version_number)
+      `);
+
+      await database.execute(sql`
+        create table if not exists plugin_messages (
+          id text primary key,
+          plugin_id text not null references plugins(id) on delete cascade,
+          role text not null,
+          content text not null,
+          version_id text references plugin_versions(id) on delete cascade,
+          created_at bigint not null
+        )
+      `);
+      await database.execute(sql`
+        create index if not exists plugin_messages_plugin_id_idx
+        on plugin_messages(plugin_id)
+      `);
+
+      await database.execute(sql`
         create table if not exists yjs_updates (
           id bigserial primary key,
           doc_name text not null,
