@@ -20,6 +20,7 @@ let scheduledTimeouts: number[] = [];
 export interface PreviewOptions {
   style: string;
   pluginNode?: CompiledFaustNode | null;
+  noSequencer?: boolean;
 }
 
 export async function initPreview() {
@@ -35,18 +36,22 @@ export async function startPreview(options: PreviewOptions) {
 
   if (options.pluginNode) {
     faustNode = options.pluginNode;
-    faustNode.connect(audioEngine.destination!);
-    if (!isPolyNode(faustNode)) {
-      try { (faustNode as any).start?.(); } catch {}
+    if (!options.noSequencer) {
+      faustNode.connect(audioEngine.destination!);
+      if (!isPolyNode(faustNode)) {
+        try { (faustNode as any).start?.(); } catch {}
+      }
     }
   }
 
-  currentPattern = getDemoPattern(options.style);
-  stepDuration = (60 / currentPattern.bpm) / 4;
-  currentStep = 0;
-  nextNoteTime = previewCtx.currentTime + 0.05;
-  isPlaying = true;
-  scheduler();
+  if (!options.noSequencer) {
+    currentPattern = getDemoPattern(options.style);
+    stepDuration = (60 / currentPattern.bpm) / 4;
+    currentStep = 0;
+    nextNoteTime = previewCtx.currentTime + 0.05;
+    isPlaying = true;
+    scheduler();
+  }
 }
 
 export function stopPreview() {
@@ -196,4 +201,8 @@ function triggerBass(ctx: AudioContext, when: number, midiNote: number, duration
 
 export function isPreviewPlaying() {
   return isPlaying;
+}
+
+export function getCurrentFaustNode() {
+  return faustNode;
 }

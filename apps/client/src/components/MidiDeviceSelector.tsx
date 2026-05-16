@@ -28,13 +28,15 @@ export function MidiDeviceSelector({ enabled, onParamChange, paramMap }: MidiDev
         <span className="text-[11px] text-[#525252]">No MIDI devices detected</span>
       ) : (
         <select
+          disabled
+          title="All connected MIDI devices are active simultaneously"
           aria-label="MIDI input device"
           className="bg-transparent text-[11px] text-[#e5e5e5] border rounded px-2 py-1"
           style={{ borderColor: 'rgba(255,255,255,0.08)' }}
           value={midi.activeInputId ?? ''}
           onChange={(e) => {
             void e.target.value;
-            // All MIDI inputs are listened to simultaneously; this selector shows the active device
+            // All MIDI inputs are listened to simultaneously; this selector is display-only
           }}
         >
           {midi.inputs.map((input) => (

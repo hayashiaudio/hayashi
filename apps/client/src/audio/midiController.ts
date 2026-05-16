@@ -40,16 +40,23 @@ export async function requestMidiAccess(): Promise<MIDIAccess> {
         `Failed to request MIDI access: ${err instanceof Error ? err.message : String(err)}`
       );
     }
-    midiAccess.inputs.forEach((input) => {
-      input.onmidimessage = (e) => {
-        const data = e.data;
-        if (data) handlers.forEach((h) => h(data));
-      };
-    });
+    midiAccess.inputs.forEach(attachHandler);
+    midiAccess.onstatechange = (e) => {
+      if (e.port && e.port.type === 'input' && e.port.state === 'connected') {
+        attachHandler(e.port as MIDIInput);
+      }
+    };
     return midiAccess;
   })();
 
   return midiAccessPromise;
+}
+
+function attachHandler(input: MIDIInput) {
+  input.onmidimessage = (e) => {
+    const data = e.data;
+    if (data) handlers.forEach((h) => h(data));
+  };
 }
 
 export function getMidiInputs(): MIDIInput[] {

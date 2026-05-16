@@ -57,8 +57,15 @@ export function useMidiController(
         if (cancelled) return;
         setState((s) => ({ ...s, available: false }));
       });
+
+    // Poll for device changes every 2s
+    const interval = setInterval(() => {
+      setState((s) => ({ ...s, inputs: getMidiInputs() }));
+    }, 2000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
       setState({ available: false, inputs: [], activeInputId: null, lastCC: null });
     };
   }, [enabled]);

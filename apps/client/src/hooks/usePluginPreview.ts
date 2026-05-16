@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { usePluginStore } from '@/stores/pluginStore';
 import { startPreview, stopPreview } from '@/audio/previewEngine';
 import { compileFaustPlugin } from '@/audio/faustCompiler';
@@ -7,6 +7,15 @@ import { audioEngine } from '@/audio/engine';
 export function usePluginPreview() {
   const { selectedStyle, previewPlaying, setPreviewPlaying, activePluginId, plugins } = usePluginStore();
   const [compiling, setCompiling] = useState(false);
+
+  const prevIdRef = useRef(activePluginId);
+  useEffect(() => {
+    if (prevIdRef.current !== activePluginId && previewPlaying) {
+      stopPreview();
+      setPreviewPlaying(false);
+    }
+    prevIdRef.current = activePluginId;
+  }, [activePluginId, previewPlaying, setPreviewPlaying]);
 
   const toggle = useCallback(async () => {
     if (previewPlaying) {
@@ -32,7 +41,8 @@ export function usePluginPreview() {
       }
     }
 
-    startPreview({ style: selectedStyle, pluginNode: node });
+    const isMicMode = plugin?.previewMode === 'mic';
+    startPreview({ style: selectedStyle, pluginNode: node, noSequencer: isMicMode });
     setPreviewPlaying(true);
   }, [previewPlaying, selectedStyle, activePluginId, plugins, setPreviewPlaying]);
 

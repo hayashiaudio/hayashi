@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Play, Download, Code2, Copy, Check, Square, Loader2, Sparkles } from 'lucide-react';
+import { Play, Download, Code2, Copy, Check, Square, Loader2, Sparkles, Mic, Speaker, Music } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
 import { usePluginPreview } from '@/hooks/usePluginPreview';
 import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
@@ -11,6 +11,9 @@ import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 import { FeatureReadouts } from './FeatureReadouts';
 import { exportPluginBinary } from '@/lib/api';
 import { useClerkToken } from '@/hooks/useClerkToken';
+import { MidiDeviceSelector } from './MidiDeviceSelector';
+import { getCurrentFaustNode } from '@/audio/previewEngine';
+import { audioEngine } from '@/audio/engine';
 
 const C = {
   border: 'rgba(255,255,255,0.06)',
@@ -41,7 +44,7 @@ interface PluginPreviewProps {
 }
 
 export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
-  const { plugins, activePluginId } = usePluginStore();
+  const { plugins, activePluginId, setPreviewMode, updatePluginParams } = usePluginStore();
   const { previewPlaying, compiling, toggle } = usePluginPreview();
   const [copied, setCopied] = useState(false);
   const [showSource, setShowSource] = useState(false);
@@ -50,10 +53,52 @@ export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [activeComparison] = useState<{ centroid: number; rms: number; zcr: number; peakDb: number } | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
   const { getToken } = useClerkToken();
   const analysis = useAudioAnalysis(previewPlaying);
 
   const plugin = plugins.find((p) => p.id === activePluginId);
+
+  // MIDI param mapping: CC 20+ maps to plugin params
+  const paramMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    plugin?.params?.forEach((p, i) => {
+      map[20 + i] = p.name;
+    });
+    return map;
+  }, [plugin?.params]);
+
+  const handleParamChange = useCallback((name: string, value: number) => {
+    if (!plugin) return;
+    const param = plugin.params.find((p) => p.name === name);
+    if (param) {
+      const newValue = param.min + value * (param.max - param.min);
+      const newParams = plugin.params.map((p) =>
+        p.name === name ? { ...p, value: newValue } : p
+      );
+      updatePluginParams(plugin.id, newParams);
+    }
+  }, [plugin?.id, plugin?.params, updatePluginParams]);
+
+  // Mic preview lifecycle
+  useEffect(() => {
+    if (plugin?.previewMode === 'mic' && previewPlaying) {
+      const node = getCurrentFaustNode();
+      if (node) {
+        audioEngine.startMicPreview(node).catch((err) => {
+          console.warn('[Hayashi] Mic preview failed:', err);
+          setMicError(err instanceof Error ? err.message : 'Mic preview failed');
+        });
+      }
+    } else {
+      audioEngine.stopMicPreview();
+      setMicError(null);
+    }
+    return () => {
+      audioEngine.stopMicPreview();
+    };
+  }, [plugin?.previewMode, previewPlaying, plugin?.id]);
+
   if (!plugin) return null;
 
   const handleCopy = () => {
@@ -154,6 +199,44 @@ export function PluginPreview({ onRefine, refining }: PluginPreviewProps) {
         </div>
 
         <div className="rounded-xl p-4 mb-6 space-y-3" style={{ background: C.void, border: `1px solid ${C.border}` }}>
+          <div className="flex items-center gap-2 mb-3">
+            {(['loop', 'midi', 'mic'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => {
+                  if (!plugin) return;
+                  if (previewPlaying) {
+                    toggle();
+                  }
+                  setPreviewMode(plugin.id, mode);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all"
+                style={{
+                  background: (plugin.previewMode ?? 'loop') === mode ? 'rgba(255,140,97,0.12)' : 'transparent',
+                  color: (plugin.previewMode ?? 'loop') === mode ? '#ff8c61' : '#737373',
+                  border: `1px solid ${(plugin.previewMode ?? 'loop') === mode ? 'rgba(255,140,97,0.30)' : 'rgba(255,255,255,0.06)'}`
+                }}
+              >
+                {mode === 'loop' && <Music size={12} />}
+                {mode === 'midi' && <Speaker size={12} />}
+                {mode === 'mic' && <Mic size={12} />}
+                {mode.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          {micError && (
+            <div className="text-[10px] text-[#ff3b30] mt-1">{micError}</div>
+          )}
+
+          {plugin.previewMode === 'midi' && (
+            <MidiDeviceSelector
+              enabled={true}
+              onParamChange={handleParamChange}
+              paramMap={paramMap}
+            />
+          )}
+
           <SpectrumAnalyzer spectrum={analysis.spectrum} height={80} />
           <FeatureReadouts
             centroid={analysis.centroid}

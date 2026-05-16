@@ -10,7 +10,7 @@ export class AudioEngine {
   private worklets = new Map<string, AudioWorkletNode>();
   private initPromise: Promise<void> | null = null;
   private onRecorderBuffer: ((buffer: AudioBuffer) => void) | null = null;
-  private micPreviewNode: AudioWorkletNode | null = null;
+  private micPreviewNode: AudioNode | null = null;
   private micPreviewConnected = false;
 
   async init() {
@@ -117,7 +117,7 @@ export class AudioEngine {
     }
   }
 
-  async startMicPreview(faustNode: AudioWorkletNode | null) {
+  async startMicPreview(faustNode: AudioNode | null) {
     await this.startMic();
     if (!this.micSource || !this.masterGain) return;
 
