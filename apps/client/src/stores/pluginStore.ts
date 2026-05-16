@@ -45,6 +45,8 @@ export interface GeneratedPlugin {
   versions: PluginVersion[];
   messages: PluginMessage[];
   currentVersionId: string | null;
+
+  previewMode?: 'loop' | 'midi' | 'mic';
 }
 
 interface PluginState {
@@ -65,6 +67,7 @@ interface PluginState {
   addMessage: (pluginId: string, message: PluginMessage) => void;
   rollbackToVersion: (pluginId: string, versionId: string) => void;
   updatePluginFromVersion: (pluginId: string, versionId: string) => void;
+  setPreviewMode: (pluginId: string, mode: 'loop' | 'midi' | 'mic') => void;
 }
 
 export const usePluginStore = create<PluginState>((set) => ({
@@ -133,5 +136,12 @@ export const usePluginStore = create<PluginState>((set) => ({
           name: version.prompt.slice(0, 24),
         };
       }),
+    })),
+
+  setPreviewMode: (pluginId, mode) =>
+    set((state) => ({
+      plugins: state.plugins.map((p) =>
+        p.id === pluginId ? { ...p, previewMode: mode } : p
+      ),
     })),
 }));
