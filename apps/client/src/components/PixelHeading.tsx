@@ -9,6 +9,7 @@ interface PixelHeadingProps {
   cycleInterval?: number;
   staggerDelay?: number;
   className?: string;
+  style?: React.CSSProperties;
   children: string;
 }
 
@@ -18,13 +19,6 @@ function getRandomChar() {
   return CHARS[Math.floor(Math.random() * CHARS.length)];
 }
 
-function getGlitchChars(original: string, count: number): string[] {
-  const chars: string[] = [];
-  for (let i = 0; i < count; i++) {
-    chars.push(getRandomChar());
-  }
-  return chars;
-}
 
 export function PixelHeading({
   as: Component = 'h1',
@@ -33,6 +27,7 @@ export function PixelHeading({
   cycleInterval = 60,
   staggerDelay = 40,
   className = '',
+  style,
   children,
 }: PixelHeadingProps) {
   const text = children;
@@ -96,7 +91,7 @@ export function PixelHeading({
     // Cycle effect after initial reveal
     intervalRef.current = setInterval(() => {
       setDisplayChars(prev => {
-        return prev.map((c, i) => {
+        return prev.map((_c, i) => {
           if (chars[i] === ' ') return ' ';
           if (Math.random() > 0.85) {
             return getRandomChar();
@@ -123,6 +118,7 @@ export function PixelHeading({
         fontFamily: "'VT323', 'Courier New', monospace",
         letterSpacing: '0.08em',
         lineHeight: 1.1,
+        ...style,
       }}
     >
       {displayChars.map((char, i) => (
