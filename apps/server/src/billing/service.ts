@@ -12,9 +12,9 @@ export const CREATOR_EXPORTS_PER_MONTH = 10;
 export const PRO_EXPORTS_PER_MONTH = 20;
 export const STUDIO_EXPORTS_PER_MONTH = null; // unlimited
 
-export const STRIPE_PRICE_CREATOR = 'price_1TXTu5CmEpq5jdTPiQehqZvr';
-export const STRIPE_PRICE_PRO = 'price_1TXUAYCmEpq5jdTP6C6Rv9rr';
-export const STRIPE_PRICE_STUDIO = 'prod_UWXJLmrcYuXhQb';
+export const STRIPE_PRICE_CREATOR = process.env.STRIPE_PRICE_CREATOR ?? 'price_1TXTu5CmEpq5jdTPiQehqZvr';
+export const STRIPE_PRICE_PRO = process.env.STRIPE_PRICE_PRO ?? 'price_1TXUAYCmEpq5jdTP6C6Rv9rr';
+export const STRIPE_PRICE_STUDIO = process.env.STRIPE_PRICE_STUDIO ?? 'prod_UWXJLmrcYuXhQb';
 
 export class BillingService {
   constructor(private readonly repository: BillingRepository) {}

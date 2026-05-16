@@ -12,7 +12,7 @@ import {
   removeBillingSubscriber,
 } from './billing/events.js';
 import { getBillingRepository } from './billing/repository.js';
-import { BillingService } from './billing/service.js';
+import { BillingService, STRIPE_PRICE_CREATOR, STRIPE_PRICE_PRO, STRIPE_PRICE_STUDIO } from './billing/service.js';
 import { generateFaustFromPrompt, iterateFaustFromPrompt, inferPluginType } from './faust/generate.js';
 import { parseFaustParams, paramsToJson } from './faust/params.js';
 import { compileDspToNative } from './export/compiler.js';
@@ -72,9 +72,9 @@ app.post('/billing/checkout', async (c) => {
   const stripe = (await import('stripe')).default;
   const stripeClient = new stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2026-04-22.dahlia' });
 
-  const priceId = plan === 'creator' ? 'price_1TXTu5CmEpq5jdTPiQehqZvr'
-    : plan === 'pro' ? 'price_1TXUAYCmEpq5jdTP6C6Rv9rr'
-    : 'prod_UWXJLmrcYuXhQb';
+  const priceId = plan === 'creator' ? STRIPE_PRICE_CREATOR
+    : plan === 'pro' ? STRIPE_PRICE_PRO
+    : STRIPE_PRICE_STUDIO;
 
   try {
     const user = await billing.getOrCreateUser(identity);
