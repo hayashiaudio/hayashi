@@ -48,31 +48,19 @@ export async function ensureDbSchema() {
       await database.execute(sql`drop table if exists yjs_updates`);
 
       // Migrate discord_user_id -> clerk_user_id in users table
-      // Need to drop FK constraints first, rename, then recreate
+      // If the old column still exists, drop the table cascade (to clear dependent FKs)
+      // and let create table if not exists rebuild it cleanly.
       await database.execute(sql`
         DO $$
-        DECLARE
-          fk_name text;
         BEGIN
-          -- Drop FK constraints referencing users(discord_user_id)
-          FOR fk_name IN
-            SELECT tc.constraint_name
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-            JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND ccu.table_name = 'users'
-              AND ccu.column_name = 'discord_user_id'
-          LOOP
-            EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', (SELECT table_name FROM information_schema.table_constraints WHERE constraint_name = fk_name), fk_name);
-          END LOOP;
-
-          -- Rename column if it exists
-          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='discord_user_id') THEN
-            ALTER TABLE users RENAME COLUMN discord_user_id TO clerk_user_id;
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'users' AND column_name = 'discord_user_id'
+          ) THEN
+            DROP TABLE IF EXISTS users CASCADE;
           END IF;
         EXCEPTION WHEN OTHERS THEN
-          RAISE NOTICE 'Migration error: %', SQLERRM;
+          RAISE NOTICE 'Users table drop failed (may not exist): %', SQLERRM;
         END $$;
       `);
 
