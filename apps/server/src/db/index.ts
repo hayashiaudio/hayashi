@@ -48,6 +48,17 @@ export async function ensureDbSchema() {
       await database.execute(sql`drop table if exists yjs_updates`);
 
       await database.execute(sql`
+        DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='discord_user_id') THEN
+            ALTER TABLE users RENAME COLUMN discord_user_id TO clerk_user_id;
+          END IF;
+        EXCEPTION WHEN OTHERS THEN
+          -- no-op
+        END $$;
+      `);
+
+      await database.execute(sql`
         create table if not exists users (
           clerk_user_id text primary key,
           name text,
