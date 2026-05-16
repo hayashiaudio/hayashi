@@ -16,6 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Terminal, Sparkles, Wand2, Code2, Lock } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
 import { PluginThread } from './PluginThread';
+import { HeroDithering } from './HeroDithering';
+import { PixelHeading } from './PixelHeading';
+import { PixelParagraph } from './PixelParagraph';
 import type { PluginVersion } from '@/stores/pluginStore';
 
 const C = {
@@ -251,76 +254,85 @@ export default function PluginGenerator() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <PluginLibrary />
         <main className="flex-1 overflow-auto hayashi-scroll relative">
-          {/* Centered prompt */}
-          <div className="flex flex-col items-center justify-center min-h-[50vh] px-8 pt-12 pb-8">
-            <div className="text-center mb-8 animate-slide-up">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">What do you want to create?</h1>
-              <p className="text-sm text-[#737373]">Describe a sound. Get a plugin. Use it anywhere.</p>
-            </div>
+          {/* Hero with dithering */}
+          <div className="relative w-full overflow-hidden" style={{ minHeight: '45vh' }}>
+            <HeroDithering className="absolute inset-0" />
+            <div className="relative z-10 flex flex-col items-center justify-center px-8 pt-16 pb-8">
+              <div className="text-center mb-8 animate-slide-up">
+                <PixelHeading as="h1" mode="wave" autoPlay className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4" style={{ color: '#e5e5e5' }}>
+                  HAYASHI ENGINE
+                </PixelHeading>
+                <PixelParagraph
+                  text="Describe a sound. Get a Faust DSP plugin. Preview in browser. Export VST3 + CLAP."
+                  pixelWords={['Faust', 'VST3', 'CLAP']}
+                  className="text-sm sm:text-base text-[#a0a0a0] max-w-xl mx-auto"
+                />
+              </div>
 
-            <div className="w-full max-w-2xl animate-slide-up rounded-2xl border p-1 transition-all duration-300 focus-within:border-[rgba(255,140,97,0.25)] focus-within:shadow-lg" style={{ borderColor: C.border, background: C.panel, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
-              <SignedIn>
-                <div className="flex items-start gap-3 p-4">
-                  <Terminal className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: C.cyan }} />
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
-                    placeholder='e.g. "warm analog pad with slow attack and chorus"'
-                    spellCheck={false}
-                    className="flex-1 bg-transparent text-sm font-mono resize-none outline-none placeholder:text-[#525252]"
-                    style={{ color: C.text, caretColor: C.accent, minHeight: 24, maxHeight: 120 }}
-                    rows={1}
-                  />
-                </div>
-                <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: C.border }}>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Wand2 className="h-3 w-3" /> GPT-4o</Badge>
-                    <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Code2 className="h-3 w-3" /> Faust</Badge>
+              <div className="w-full max-w-2xl animate-slide-up rounded-2xl border p-1 transition-all duration-300 focus-within:border-[rgba(255,140,97,0.25)] focus-within:shadow-lg" style={{ borderColor: C.border, background: C.panel, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
+                <SignedIn>
+                  <div className="flex items-start gap-3 p-4">
+                    <Terminal className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: C.cyan }} />
+                    <textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+                      placeholder='e.g. "warm analog pad with slow attack and chorus"'
+                      spellCheck={false}
+                      className="flex-1 bg-transparent text-sm font-mono resize-none outline-none placeholder:text-[#525252]"
+                      style={{ color: C.text, caretColor: C.accent, minHeight: 24, maxHeight: 120 }}
+                      rows={1}
+                    />
                   </div>
-                  <Button onClick={handleSubmit} disabled={!prompt.trim() || generatingId !== null} size="sm" className="h-8 text-xs font-bold tracking-wider rounded-lg gap-1.5 disabled:opacity-30" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
-                    <Sparkles className="h-3.5 w-3.5" /> GENERATE
-                  </Button>
-                </div>
-              </SignedIn>
-              <SignedOut>
-                <div className="flex flex-col items-center justify-center p-8 gap-4">
-                  <Lock className="h-8 w-8 text-[#525252]" />
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-[#e5e5e5]">Sign in to generate plugins</p>
-                    <p className="text-xs text-[#737373] mt-1">Create an account to start building custom instruments.</p>
-                  </div>
-                  <SignInButton>
-                    <Button size="sm" className="h-8 text-xs font-bold rounded-lg gap-1.5" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
-                      <Sparkles className="h-3.5 w-3.5" /> Sign In to Generate
+                  <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: C.border }}>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Wand2 className="h-3 w-3" /> GPT-4o</Badge>
+                      <Badge variant="outline" className="h-5 text-[10px] border-[#525252] text-[#737373] rounded-md gap-1"><Code2 className="h-3 w-3" /> Faust</Badge>
+                    </div>
+                    <Button onClick={handleSubmit} disabled={!prompt.trim() || generatingId !== null} size="sm" className="h-8 text-xs font-bold tracking-wider rounded-lg gap-1.5 disabled:opacity-30" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
+                      <Sparkles className="h-3.5 w-3.5" /> GENERATE
                     </Button>
-                  </SignInButton>
-                </div>
-              </SignedOut>
-            </div>
+                  </div>
+                </SignedIn>
+                <SignedOut>
+                  <div className="flex flex-col items-center justify-center p-8 gap-4">
+                    <Lock className="h-8 w-8 text-[#525252]" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-[#e5e5e5]">Sign in to generate plugins</p>
+                      <p className="text-xs text-[#737373] mt-1">Create an account to start building custom instruments.</p>
+                    </div>
+                    <SignInButton>
+                      <Button size="sm" className="h-8 text-xs font-bold rounded-lg gap-1.5" style={{ background: C.accent, color: '#0a0a0a', border: 'none' }}>
+                        <Sparkles className="h-3.5 w-3.5" /> Sign In to Generate
+                      </Button>
+                    </SignInButton>
+                  </div>
+                </SignedOut>
+              </div>
 
-            {/* Style selector */}
-            <div className="flex items-center justify-center gap-2 mt-4 animate-slide-up">
-              <span className="text-[10px] font-bold tracking-wider text-[#525252] uppercase mr-1">Preview Style</span>
-              {[
-                { id: 'disco', label: 'Disco', bpm: 123 },
-                { id: 'trap', label: 'Trap', bpm: 140 },
-                { id: 'house', label: 'House', bpm: 128 },
-                { id: 'ambient', label: 'Ambient', bpm: 90 },
-              ].map((style) => (
-                <button
-                  key={style.id}
-                  onClick={() => setSelectedStyle(style.id)}
-                  className="px-3 py-1 rounded-full text-[11px] font-medium transition-all border hover:border-[rgba(255,140,97,0.25)]"
-                  style={{
-                    color: selectedStyle === style.id ? C.accent : C.textMuted,
-                    borderColor: selectedStyle === style.id ? 'rgba(255,140,97,0.30)' : C.border,
-                    background: selectedStyle === style.id ? 'rgba(255,140,97,0.08)' : C.panel,
-                  }}
-                >
-                  {style.label} <span className="ml-1 opacity-50">{style.bpm}</span>
-                </button>
-              ))}
+              {/* Style selector */}
+              <div className="flex items-center justify-center gap-2 mt-4 animate-slide-up">
+                <span className="text-[10px] font-bold tracking-wider text-[#525252] uppercase mr-1">Preview Style</span>
+                {[
+                  { id: 'disco', label: 'Disco', bpm: 123 },
+                  { id: 'trap', label: 'Trap', bpm: 140 },
+                  { id: 'house', label: 'House', bpm: 128 },
+                  { id: 'ambient', label: 'Ambient', bpm: 90 },
+                ].map((style) => (
+                  <button
+                    key={style.id}
+                    onClick={() => setSelectedStyle(style.id)}
+                    className="px-3 py-1 rounded-full text-[11px] font-medium transition-all border hover:border-[rgba(255,140,97,0.25)]"
+                    style={{
+                      color: selectedStyle === style.id ? C.accent : C.textMuted,
+                      borderColor: selectedStyle === style.id ? 'rgba(255,140,97,0.30)' : C.border,
+                      background: selectedStyle === style.id ? 'rgba(255,140,97,0.08)' : C.panel,
+                    }}
+                  >
+                    {style.label} <span className="ml-1 opacity-50">{style.bpm}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -329,7 +341,7 @@ export default function PluginGenerator() {
             <div className="w-full max-w-2xl mx-auto mb-8 animate-slide-up rounded-2xl border overflow-hidden" style={{ borderColor: C.border, background: C.void }}>
               <div className="flex items-center gap-2 px-4 py-2 border-b" style={{ borderColor: C.border, background: C.panel }}>
                 <Terminal className="h-3.5 w-3.5 text-[#525252]" />
-                <span className="text-[10px] font-bold tracking-wider text-[#525252]">HAYASHI ENGINE</span>
+                <span className="text-[10px] font-bold tracking-wider text-[#525252]" style={{ fontFamily: "'VT323', monospace" }}>HAYASHI ENGINE</span>
                 {generatingId && <span className="ml-auto inline-block w-1.5 h-1.5 rounded-full bg-[#34c759] animate-pulse" />}
               </div>
               <div className="p-4">
@@ -346,7 +358,7 @@ export default function PluginGenerator() {
             <div className="w-full max-w-2xl mx-auto mb-8 px-4">
               <div className="rounded-2xl border p-4" style={{ borderColor: C.border, background: C.panel }}>
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-[10px] font-bold tracking-wider text-[#525252]">ITERATION HISTORY</span>
+                  <span className="text-[10px] font-bold tracking-wider text-[#525252]" style={{ fontFamily: "'VT323', monospace" }}>ITERATION HISTORY</span>
                   <Badge variant="outline" className="h-4 text-[9px] border-[#525252] text-[#737373] rounded-sm">{activePlugin.versions.length} versions</Badge>
                 </div>
                 <PluginThread
