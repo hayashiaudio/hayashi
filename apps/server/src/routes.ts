@@ -92,8 +92,8 @@ app.post('/billing/checkout', async (c) => {
       client_reference_id: identity.userId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
-      success_url: `${process.env.CLIENT_URL ?? 'http://localhost:5173'}/?studio=${identity.userId}&checkout=success`,
-      cancel_url: `${process.env.CLIENT_URL ?? 'http://localhost:5173'}/?studio=${identity.userId}&checkout=canceled`,
+      success_url: `${c.req.header('origin') ?? process.env.CLIENT_URL ?? 'http://localhost:5173'}/?studio=${identity.userId}&checkout=success`,
+      cancel_url: `${c.req.header('origin') ?? process.env.CLIENT_URL ?? 'http://localhost:5173'}/?studio=${identity.userId}&checkout=canceled`,
     });
 
     return c.json({ checkoutUrl: session.url });

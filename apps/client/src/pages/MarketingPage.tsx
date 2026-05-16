@@ -3,12 +3,10 @@ import {
   Users,
   AudioWaveform,
   ArrowRight,
-  MessageCircle,
+  Zap,
   Download,
   Music,
   FileMusic,
-  Zap,
-  Headphones,
   Radio,
 } from 'lucide-react';
 
@@ -123,9 +121,13 @@ export function MarketingPage() {
     setMounted(true);
   }, []);
 
-  const handleAddToDiscord = () => {
-    const discordOAuth = `https://discord.com/oauth2/authorize?client_id=${import.meta.env.VITE_DISCORD_CLIENT_ID ?? '1502419256946724966'}&scope=applications.commands`;
-    window.open(discordOAuth, '_blank');
+  const handleGetStarted = () => {
+    const clerkSignIn = document.querySelector('.cl-signIn-root button, .cl-signIn-root a');
+    if (clerkSignIn) {
+      (clerkSignIn as HTMLElement).click();
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const features = [
@@ -133,7 +135,7 @@ export function MarketingPage() {
       icon: <Users size={22} />,
       title: 'Collaborate in real time',
       description:
-        'Jam together in a Discord voice channel. Every loop, pattern, and arrangement change syncs instantly.',
+        'Jam together in real time. Every loop, pattern, and arrangement change syncs instantly.',
       color: THEME.violet,
     },
     {
@@ -279,7 +281,7 @@ export function MarketingPage() {
               color: THEME.void,
             }}
           >
-            Sketch in Discord.
+            Sketch in the browser.
             <br />
             <em
               style={{
@@ -301,15 +303,15 @@ export function MarketingPage() {
               lineHeight: 1.7,
             }}
           >
-            Hayashi is the collaborative sketchpad for music makers. Start ideas
-            together in a Discord voice channel, then export stems and MIDI to
-            Ableton, Logic, or any DAW.
+            Hayashi is a prompt-to-plugin engine. Describe a sound, get a Faust
+            DSP plugin, preview it instantly in the browser, and export VST3 or
+            CLAP to your DAW.
           </p>
 
           {/* CTA */}
           <div className={`hayashi-reveal hayashi-reveal-d4 ${mounted ? '' : 'opacity-0'}`}>
             <button
-              onClick={handleAddToDiscord}
+              onClick={handleGetStarted}
               className="group inline-flex items-center gap-3 px-8 py-4 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
               style={{
                 background: THEME.coral,
@@ -317,8 +319,8 @@ export function MarketingPage() {
                 boxShadow: '0 8px 32px rgba(255,140,97,0.35)',
               }}
             >
-              <MessageCircle size={18} />
-              Add Hayashi to your server
+              <Zap size={18} />
+              Start creating
               <ArrowRight
                 size={16}
                 className="transition-transform duration-300 group-hover:translate-x-1"
@@ -332,7 +334,7 @@ export function MarketingPage() {
             style={{ color: THEME.stone, opacity: 0.6, fontSize: '0.8rem', fontWeight: 500 }}
           >
             <span className="flex items-center gap-1.5">
-              <Headphones size={14} /> Discord Native
+              <Zap size={14} /> AI-Powered
             </span>
             <span className="flex items-center gap-1.5">
               <Radio size={14} /> Real-time Sync
@@ -474,8 +476,8 @@ export function MarketingPage() {
                 style={{ color: THEME.stone, fontSize: '1.05rem', lineHeight: 1.7 }}
               >
                 No screen shares, no export-and-send, no "wait, which version?"
-                Hayashi lives inside your Discord voice channel. Everyone sees the
-                same canvas, hears the same loop, and builds the same idea — in
+                Hayashi turns text into DSP. Everyone works from the same
+                prompt, hears the same plugin, and builds the same sound — in
                 real time, with zero latency.
               </p>
             </div>
@@ -805,8 +807,9 @@ export function MarketingPage() {
               lineHeight: 1.7,
             }}
           >
-            No downloads, no setup. Launch inside Discord, sketch with your
-            crew, then hand off to your DAW when you are ready to finish.
+            No downloads, no setup. Describe a sound, generate a plugin,
+            preview it instantly in the browser, then export to your DAW when
+            you are ready to finish.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-14 text-left">
@@ -814,12 +817,12 @@ export function MarketingPage() {
               {
                 step: '01',
                 title: 'Join a voice channel',
-                desc: 'Hop into any voice channel in your Discord server. Everyone hears the same audio.',
+                desc: 'Describe a sound in plain English. Hayashi generates a Faust DSP plugin in seconds.',
               },
               {
                 step: '02',
                 title: 'Sketch together',
-                desc: 'Build loops, arrange clips, and tweak sounds in real time. Every cursor, every change, synced instantly.',
+                desc: 'Generate plugins, tweak parameters, and hear changes instantly. Every prompt, every parameter, synced in real time.',
               },
               {
                 step: '03',
@@ -864,7 +867,7 @@ export function MarketingPage() {
           </div>
 
           <button
-            onClick={handleAddToDiscord}
+            onClick={handleGetStarted}
             className="group inline-flex items-center gap-3 px-8 py-4 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
             style={{
               background: THEME.coral,
@@ -872,8 +875,8 @@ export function MarketingPage() {
               boxShadow: '0 8px 32px rgba(255,140,97,0.35)',
             }}
           >
-            <MessageCircle size={18} />
-            Add Hayashi to Discord
+            <Zap size={18} />
+            Start creating
             <ArrowRight
               size={16}
               className="transition-transform duration-300 group-hover:translate-x-1"
@@ -911,7 +914,8 @@ export function MarketingPage() {
             className="text-xs text-center md:text-left"
             style={{ color: 'rgba(250,248,245,0.25)' }}
           >
-            The collaborative sketchpad for music makers. Sketch in Discord,
+            The prompt-to-plugin engine for music makers. Sketch in the
+            browser, finish in your DAW.
             finish in your DAW.
           </p>
         </div>

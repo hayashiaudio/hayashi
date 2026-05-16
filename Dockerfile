@@ -24,11 +24,9 @@ COPY apps/client ./apps/client
 COPY apps/server ./apps/server
 
 # Vite env vars must be present at build time to bake into the client bundle.
-# Pass these with: fly deploy --build-arg VITE_DISCORD_CLIENT_ID=xxx ...
-ARG VITE_DISCORD_CLIENT_ID
-ARG VITE_DISCORD_UNLIMITED_SKU_ID
-ENV VITE_DISCORD_CLIENT_ID=$VITE_DISCORD_CLIENT_ID
-ENV VITE_DISCORD_UNLIMITED_SKU_ID=$VITE_DISCORD_UNLIMITED_SKU_ID
+# Pass these with: fly deploy --build-arg VITE_CLERK_PUBLISHABLE_KEY=xxx ...
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 
 # Build both workspaces
 RUN npm run build -w apps/client && npm run build -w apps/server
