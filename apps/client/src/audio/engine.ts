@@ -10,6 +10,8 @@ export class AudioEngine {
   private worklets = new Map<string, AudioWorkletNode>();
   private initPromise: Promise<void> | null = null;
   private onRecorderBuffer: ((buffer: AudioBuffer) => void) | null = null;
+  private micPreviewNode: AudioWorkletNode | null = null;
+  private micPreviewConnected = false;
 
   async init() {
     if (this.ctx) return;
@@ -112,6 +114,48 @@ export class AudioEngine {
     if (this.micStream) {
       this.micStream.getTracks().forEach((t) => t.stop());
       this.micStream = null;
+    }
+  }
+
+  async startMicPreview(faustNode: AudioWorkletNode | null) {
+    await this.startMic();
+    if (!this.micSource || !this.masterGain) return;
+
+    // Disconnect previous preview connections (targeted, not blanket)
+    if (this.micPreviewConnected) {
+      if (this.micPreviewNode) {
+        try { this.micSource.disconnect(this.micPreviewNode); } catch {}
+        try { this.micPreviewNode.disconnect(this.masterGain); } catch {}
+      } else {
+        try { this.micSource.disconnect(this.masterGain); } catch {}
+      }
+    }
+
+    this.micPreviewNode = faustNode;
+    this.micPreviewConnected = true;
+
+    if (faustNode) {
+      this.micSource.connect(faustNode);
+      faustNode.connect(this.masterGain);
+    } else {
+      this.micSource.connect(this.masterGain);
+    }
+  }
+
+  stopMicPreview() {
+    if (this.micPreviewConnected) {
+      if (this.micPreviewNode && this.micSource && this.masterGain) {
+        try { this.micSource.disconnect(this.micPreviewNode); } catch {}
+        try { this.micPreviewNode.disconnect(this.masterGain); } catch {}
+      } else if (this.micSource && this.masterGain) {
+        try { this.micSource.disconnect(this.masterGain); } catch {}
+      }
+    }
+    this.micPreviewConnected = false;
+    this.micPreviewNode = null;
+    // Only stop mic if no recording is active
+    if (!this.recorderWorklet) {
+      this.stopMic();
     }
   }
 
