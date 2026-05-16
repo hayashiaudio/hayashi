@@ -50,7 +50,8 @@ export function useMidiController(
     requestMidiAccess()
       .then(() => {
         if (cancelled) return;
-        setState((s) => ({ ...s, available: true, inputs: getMidiInputs() }));
+        const inputs = getMidiInputs();
+        setState((s) => ({ ...s, available: true, inputs, activeInputId: inputs[0]?.id ?? null }));
       })
       .catch(() => {
         if (cancelled) return;
