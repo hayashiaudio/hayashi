@@ -177,10 +177,60 @@ jobs:
         run: npm ci
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
-      - name: Build Elements
+      - name: Clone Elements
         shell: msys2 {0}
         run: |
           git clone --depth 1 https://github.com/cycfi/elements.git "$(cygpath "$GITHUB_WORKSPACE")/.elements"
+      - name: Patch Elements for Windows
+        shell: msys2 {0}
+        run: |
+          python3 -c "
+import re
+path = '$(cygpath \"$GITHUB_WORKSPACE\")/.elements/lib/host/gtk3/base_view.cpp'
+with open(path, 'r') as f:
+    content = f.read()
+
+# Add windows.h include (with guards to avoid macro clashes) before first #include
+if '#include <windows.h>' not in content:
+    content = '#if defined(_WIN32)\n#define WIN32_LEAN_AND_MEAN\n#define NOMINMAX\n#include <windows.h>\n#endif\n' + content
+
+old_func = '''   std::filesystem::path get_app_path()
+   {
+      char result[PATH_MAX + 1];
+      // get the full path to the executable file of the current process.
+      if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)
+      {
+         result[count] = '\\0'; // null terminate the string because readlink doesn't
+         return std::filesystem::path(result);
+      }
+      throw std::runtime_error(\"Fatal Error: Failed to get application path\");
+   }'''
+
+new_func = '''   std::filesystem::path get_app_path()
+   {
+#if defined(_WIN32)
+      wchar_t wpath[MAX_PATH + 1];
+      if (GetModuleFileNameW(nullptr, wpath, MAX_PATH) != 0)
+         return std::filesystem::path(wpath);
+#else
+      char result[PATH_MAX + 1];
+      // get the full path to the executable file of the current process.
+      if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)
+      {
+         result[count] = '\\0'; // null terminate the string because readlink doesn't
+         return std::filesystem::path(result);
+      }
+#endif
+      throw std::runtime_error(\"Fatal Error: Failed to get application path\");
+   }'''
+
+content = content.replace(old_func, new_func)
+with open(path, 'w') as f:
+    f.write(content)
+"
+      - name: Build Elements
+        shell: msys2 {0}
+        run: |
           cmake -S "$(cygpath "$GITHUB_WORKSPACE")/.elements" -B "$(cygpath "$GITHUB_WORKSPACE")/.elements/build" \
             -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
