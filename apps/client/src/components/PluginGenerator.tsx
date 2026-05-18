@@ -719,38 +719,50 @@ export default function PluginGenerator() {
                           {[
                             {
                               name: 'FL Studio',
-                              src: 'https://upload.wikimedia.org/wikipedia/en/6/69/FL_Studio_11_just_logo.png',
+                              initials: 'FL',
+                              color: '#E85D3F',
+                              bg: '#FFF0EB',
                             },
                             {
                               name: 'Ableton Live',
-                              src: 'https://i.redd.it/3ru0ufljlc021.png',
+                              initials: 'Ab',
+                              color: '#3B7EA5',
+                              bg: '#EEF5FA',
                             },
                             {
                               name: 'Reason',
-                              src: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Reason_Software_Logo.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original',
+                              initials: 'Re',
+                              color: '#C9A84C',
+                              bg: '#FAF5E6',
                             },
                             {
                               name: 'Bitwig',
-                              src: 'https://dl.flathub.org/media/com/bitwig/BitwigStudio/eda5ca313649147ffa0a36ffb0e6bf9f/icons/128x128@2/com.bitwig.BitwigStudio.png',
+                              initials: 'Bw',
+                              color: '#4E8C4A',
+                              bg: '#EEF5ED',
                             },
                           ].map((daw) => (
                             <div
                               key={daw.name}
-                              className="flex min-w-0 items-center gap-4 rounded-[24px] border border-[#183324]/10 bg-[rgba(255,255,255,0.74)] px-4 py-4 shadow-[0_14px_28px_rgba(16,38,29,0.06)] transition-transform duration-200 hover:-translate-y-0.5"
+                              className="group relative flex min-w-0 items-center gap-3.5 rounded-[22px] border border-[#183324]/8 bg-white/60 px-4 py-3.5 shadow-[0_8px_20px_rgba(16,38,29,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_14px_32px_rgba(16,38,29,0.08)]"
                             >
-                              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[#183324]/10 bg-[#f8f3e7] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                                <img src={daw.src} alt={daw.name} className="h-9 w-9 object-contain" loading="lazy" referrerPolicy="no-referrer" />
+                              <div
+                                className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-transform duration-300 group-hover:scale-[1.04]"
+                                style={{ backgroundColor: daw.bg, borderColor: `${daw.color}20` }}
+                              >
+                                <span className="text-sm font-black tracking-[-0.04em]" style={{ color: daw.color }}>
+                                  {daw.initials}
+                                </span>
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-bold tracking-[-0.02em] text-[#1f3426]">{daw.name}</div>
-                                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-[#6d775e]">
-                                  <span className="rounded-full border border-[#183324]/10 bg-[#f7f1e2] px-2 py-0.5 font-semibold uppercase tracking-[0.14em] text-[#59704d]">
+                                <div className="text-[13px] font-bold tracking-[-0.01em] text-[#1f3426] antialiased">{daw.name}</div>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                  <span className="rounded-full border border-[#183324]/8 bg-[#f4f0e6] px-1.5 py-[2px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5a6b52]">
                                     VST3
                                   </span>
-                                  <span className="rounded-full border border-[#183324]/10 bg-white/80 px-2 py-0.5 font-semibold uppercase tracking-[0.14em] text-[#728068]">
+                                  <span className="rounded-full border border-[#183324]/8 bg-white/70 px-1.5 py-[2px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7a64]">
                                     CLAP
                                   </span>
-                                  <span className="text-[#7c846f]">import</span>
                                 </div>
                               </div>
                             </div>
