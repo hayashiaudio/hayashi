@@ -319,6 +319,7 @@ export function generateDpfWrapper(
     `FILES_UI  = ${includeUi ? 'dpf_ui.cpp plugin_ui.cpp' : ''}`,
     '',
     'DPF_PATH ?= /usr/local/share/dpf',
+    'BUILD_DIR ?= build',
     'BIN_DIR ?= bin',
     'FAUST_INCLUDE_PATH ?= /usr/share/faust',
     'include $(DPF_PATH)/Makefile.plugins.mk',

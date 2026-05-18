@@ -64,7 +64,6 @@ jobs:
       HAYASHI_BUILD_ID: ${{ inputs.build_id }}
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
-      DPF_PATH: ${{ github.workspace }}\\.dpf
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -133,6 +132,13 @@ jobs:
             }
           }
           throw "Faust include path not found after Chocolatey install"
+      - name: Normalize MSYS build paths
+        shell: msys2 {0}
+        run: |
+          echo "DPF_PATH=$(cygpath "$GITHUB_WORKSPACE")/.dpf" >> "$GITHUB_ENV"
+          if [ -n "$FAUST_INCLUDE_PATH" ]; then
+            echo "FAUST_INCLUDE_PATH=$(cygpath "$FAUST_INCLUDE_PATH")" >> "$GITHUB_ENV"
+          fi
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle
