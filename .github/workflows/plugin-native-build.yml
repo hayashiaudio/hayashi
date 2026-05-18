@@ -80,9 +80,11 @@ jobs:
         with:
           update: true
           msystem: MINGW64
+          path-type: inherit
           install: >-
             git
             tar
+            perl
             mingw-w64-x86_64-binutils
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
@@ -113,6 +115,24 @@ jobs:
             exit 0
           }
           throw "faust.exe not found after Chocolatey install"
+      - name: Resolve Faust include path
+        shell: powershell
+        run: |
+          $candidates = @(
+            "C:\Program Files\Faust\include",
+            "C:\Program Files\Faust\share\faust",
+            "C:\tools\faust\include",
+            "C:\tools\faust\share\faust"
+          )
+          foreach ($dir in $candidates) {
+            $header = Join-Path $dir "faust\dsp\dsp.h"
+            if (Test-Path $header) {
+              "FAUST_INCLUDE_PATH=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+              Write-Host "Found Faust headers at $dir"
+              exit 0
+            }
+          }
+          throw "Faust include path not found after Chocolatey install"
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle
@@ -121,7 +141,7 @@ jobs:
         shell: msys2 {0}
         run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$(cygpath "$GITHUB_WORKSPACE")/.dpf"
       - name: Run remote build
-        shell: powershell
+        shell: msys2 {0}
         run: node apps/server/dist/export/github-build-runner.js
 
   macos_intel:
