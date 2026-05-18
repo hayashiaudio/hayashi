@@ -1,3 +1,28 @@
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { Resvg } from '@resvg/resvg-js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function loadLogoBase64(): string | null {
+  try {
+    const logoPath = resolve(__dirname, '../../client/public/hayashi-logo.png');
+    const buffer = readFileSync(logoPath);
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+let logoBase64Cache: string | null | undefined;
+function getLogoBase64(): string | null {
+  if (logoBase64Cache === undefined) {
+    logoBase64Cache = loadLogoBase64();
+  }
+  return logoBase64Cache;
+}
+
 type OgMetadata = {
   title: string;
   description: string;
@@ -19,7 +44,6 @@ type ShareOgArgs = {
 const SITE_NAME = 'Hayashi';
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
-const PNG_FALLBACK_PATH = '/ChatGPT%20Image%20May%2014,%202026,%2010_34_10%20AM.png';
 
 function escapeHtml(value: string) {
   return value
@@ -83,7 +107,45 @@ function badges(items: string[]) {
   }).join('');
 }
 
-function baseSvgFrame(content: string) {
+function baseSvgFrame(content: string, opts?: { logoInOval?: boolean; avatarImage?: string | null; avatarFallbackName?: string }) {
+  const logo = getLogoBase64();
+  const showLogo = opts?.logoInOval && logo;
+  const showAvatar = opts?.avatarImage;
+
+  const rightVisual = showAvatar
+    ? `
+      <defs>
+        <clipPath id="avatarClip">
+          <ellipse cx="920" cy="322" rx="138" ry="124" />
+        </clipPath>
+      </defs>
+      <image
+        href="${escapeXml(opts.avatarImage!)}"
+        x="770"
+        y="198"
+        width="300"
+        height="248"
+        preserveAspectRatio="xMidYMid slice"
+        clip-path="url(#avatarClip)"
+      />
+      <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" opacity="0.14" />
+      <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
+    `
+    : showLogo
+      ? `
+        <image href="${escapeXml(logo)}" x="782" y="222" width="276" height="200" preserveAspectRatio="xMidYMid meet" opacity="0.95" />
+        <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" opacity="0.10" />
+        <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
+      `
+      : `
+        <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" />
+        <circle cx="920" cy="318" r="78" fill="#0B1710" opacity="0.95"/>
+        <circle cx="892" cy="295" r="20" fill="#6F9E42"/>
+        <circle cx="950" cy="306" r="26" fill="#6F9E42"/>
+        <rect x="858" y="372" width="124" height="18" rx="9" fill="#FFFFFF" fill-opacity="0.20"/>
+        <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
+      `;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -118,6 +180,11 @@ function baseSvgFrame(content: string) {
   <circle cx="1060" cy="96" r="52" fill="#FFFFFF" fill-opacity="0.42" stroke="#10261D" stroke-opacity="0.08"/>
   <circle cx="804" cy="566" r="28" fill="#FFF8E9" fill-opacity="0.82" stroke="#D48C2E" stroke-opacity="0.18"/>
   <circle cx="926" cy="360" r="248" fill="url(#glow)"/>
+  <g filter="url(#shadow)">
+    <rect x="710" y="112" width="420" height="420" rx="210" fill="url(#ovalBg)" stroke="#10261D" stroke-opacity="0.12"/>
+    <rect x="738" y="140" width="364" height="364" rx="182" fill="#FFFFFF" fill-opacity="0.56" stroke="#10261D" stroke-opacity="0.10"/>
+    ${rightVisual}
+  </g>
   ${content}
 </svg>`;
 }
@@ -127,7 +194,7 @@ export function buildHomeMetadata(origin: string): OgMetadata {
     title: 'Hayashi — Prompt to plugin export',
     description: 'Turn prompts into playable Faust effects and synths, preview them in the browser, and export importable DAW plugin bundles.',
     url: `${origin}/`,
-    image: `${origin}${PNG_FALLBACK_PATH}`,
+    image: `${origin}/og/home.png`,
     secondaryImage: `${origin}/og/home.svg`,
     imageAlt: 'Hayashi home card with parchment grid background, oversized editorial typography, and a dithered oval visual.',
     type: 'website',
@@ -142,7 +209,7 @@ export function buildShareMetadata(origin: string, pluginId: string, args: Share
     title: truncate(`${pluginName} — Hayashi share`, 60),
     description: truncate(`Preview ${pluginName}, a shared ${label} patch by ${ownerName}. Listen live, inspect the Faust, and open it in Hayashi.`, 160),
     url: `${origin}/share?plugin=${encodeURIComponent(pluginId)}`,
-    image: `${origin}${PNG_FALLBACK_PATH}`,
+    image: `${origin}/og/share/${encodeURIComponent(pluginId)}.png`,
     secondaryImage: `${origin}/og/share/${encodeURIComponent(pluginId)}.svg`,
     imageAlt: `Public Hayashi share card for ${pluginName} by ${ownerName}.`,
     type: 'article',
@@ -205,17 +272,7 @@ export function renderHomeOgSvg() {
       audition them in-browser, and ship native builds from one room.
     </text>
     ${badges(['Live preview', 'Faust-native', 'Export-ready'])}
-    <g filter="url(#shadow)">
-      <rect x="710" y="112" width="420" height="420" rx="210" fill="url(#ovalBg)" stroke="#10261D" stroke-opacity="0.12"/>
-      <rect x="738" y="140" width="364" height="364" rx="182" fill="#FFFFFF" fill-opacity="0.56" stroke="#10261D" stroke-opacity="0.10"/>
-      <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" />
-      <circle cx="920" cy="318" r="78" fill="#0B1710" opacity="0.95"/>
-      <circle cx="892" cy="295" r="20" fill="#6F9E42"/>
-      <circle cx="950" cy="306" r="26" fill="#6F9E42"/>
-      <rect x="858" y="372" width="124" height="18" rx="9" fill="#FFFFFF" fill-opacity="0.20"/>
-      <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
-    </g>
-  `);
+  `, { logoInOval: true });
 }
 
 export function renderShareOgSvg(args: ShareOgArgs) {
@@ -223,31 +280,6 @@ export function renderShareOgSvg(args: ShareOgArgs) {
   const pluginName = truncate(args.pluginName, 92);
   const heading = wrapWords(pluginName, 18, 4);
   const typeLabel = `${args.pluginType} patch`;
-  const avatarImage = args.ownerImageUrl
-    ? `
-      <defs>
-        <clipPath id="avatarClip">
-          <ellipse cx="920" cy="322" rx="138" ry="124" />
-        </clipPath>
-      </defs>
-      <image
-        href="${escapeXml(args.ownerImageUrl)}"
-        x="770"
-        y="198"
-        width="300"
-        height="248"
-        preserveAspectRatio="xMidYMid slice"
-        clip-path="url(#avatarClip)"
-      />
-      <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" opacity="0.14" />
-      <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
-    `
-    : `
-      <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" />
-      <circle cx="920" cy="314" r="84" fill="#07160F" opacity="0.96"/>
-      <text x="920" y="337" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-size="52" font-weight="900" letter-spacing="-2" fill="#FFF5D8">${escapeXml((ownerName.match(/\\b\\w/g) ?? ['H']).slice(0, 2).join('').toUpperCase())}</text>
-      <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
-    `;
 
   return baseSvgFrame(`
     <g filter="url(#shadow)">
@@ -263,10 +295,29 @@ export function renderShareOgSvg(args: ShareOgArgs) {
       the current version stack inside Hayashi.
     </text>
     ${badges([typeLabel, `${args.versionCount} version${args.versionCount === 1 ? '' : 's'}`, ownerName])}
-    <g filter="url(#shadow)">
-      <rect x="710" y="112" width="420" height="420" rx="210" fill="url(#ovalBg)" stroke="#10261D" stroke-opacity="0.12"/>
-      <rect x="738" y="140" width="364" height="364" rx="182" fill="#FFFFFF" fill-opacity="0.56" stroke="#10261D" stroke-opacity="0.10"/>
-      ${avatarImage}
-    </g>
-  `);
+  `, { avatarImage: args.ownerImageUrl, avatarFallbackName: ownerName });
+}
+
+function svgToPng(svg: string): Buffer {
+  const resvg = new Resvg(svg, {
+    fitTo: {
+      mode: 'width',
+      value: OG_WIDTH,
+    },
+    font: {
+      fontFiles: [],
+      loadSystemFonts: true,
+      defaultFontFamily: 'DM Sans',
+    },
+  });
+  const pngData = resvg.render();
+  return pngData.asPng();
+}
+
+export function renderHomeOgPng(): Buffer {
+  return svgToPng(renderHomeOgSvg());
+}
+
+export function renderShareOgPng(args: ShareOgArgs): Buffer {
+  return svgToPng(renderShareOgSvg(args));
 }

@@ -7,7 +7,15 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { uploadAsset, getPublicAssetUrl } from './storage.js';
-import { buildHomeMetadata, buildShareMetadata, injectMetadata, renderHomeOgSvg, renderShareOgSvg } from './og.js';
+import {
+  buildHomeMetadata,
+  buildShareMetadata,
+  injectMetadata,
+  renderHomeOgSvg,
+  renderShareOgSvg,
+  renderHomeOgPng,
+  renderShareOgPng,
+} from './og.js';
 import {
   addBillingSubscriber,
   consumeBillingStreamToken,
@@ -2063,6 +2071,34 @@ app.get('/og/share/:id.svg', async (c) => {
     versionCount: thread.versions.length,
   }), 200, {
     'Content-Type': 'image/svg+xml; charset=utf-8',
+    'Cache-Control': 'public, max-age=3600',
+  });
+});
+
+app.get('/og/home.png', (c) => {
+  const png = renderHomeOgPng();
+  return c.body(new Uint8Array(png), 200, {
+    'Content-Type': 'image/png',
+    'Cache-Control': 'public, max-age=3600',
+  });
+});
+
+app.get('/og/share/:id.png', async (c) => {
+  const pluginId = c.req.param('id');
+  if (!pluginId) return c.notFound();
+  const thread = await getPluginThread(pluginId);
+  if (!thread) return c.notFound();
+
+  const owner = await getClerkPublicProfile(thread.ownerId);
+  const png = renderShareOgPng({
+    ownerName: owner?.name ?? 'A Hayashi creator',
+    ownerImageUrl: owner?.imageUrl ?? null,
+    pluginName: thread.name,
+    pluginType: thread.type,
+    versionCount: thread.versions.length,
+  });
+  return c.body(new Uint8Array(png), 200, {
+    'Content-Type': 'image/png',
     'Cache-Control': 'public, max-age=3600',
   });
 });
