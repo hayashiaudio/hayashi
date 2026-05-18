@@ -18,6 +18,7 @@ export function isGitHubBuildDispatchConfigured(): boolean {
     process.env.GITHUB_ACTIONS_BUILDS_TOKEN
     && process.env.GITHUB_ACTIONS_BUILDS_REPO
     && process.env.GITHUB_ACTIONS_BUILDS_WORKFLOW
+    && process.env.GITHUB_ACTIONS_BUILDS_ENVIRONMENT
     && process.env.GITHUB_ACTIONS_BUILDS_SERVER_URL
     && process.env.HAYASHI_BUILD_RUNNER_SECRET
   );
@@ -44,10 +45,11 @@ export async function dispatchGitHubBuild(options: DispatchGitHubBuildOptions): 
   const token = process.env.GITHUB_ACTIONS_BUILDS_TOKEN;
   const repo = process.env.GITHUB_ACTIONS_BUILDS_REPO;
   const workflow = process.env.GITHUB_ACTIONS_BUILDS_WORKFLOW;
+  const environment = process.env.GITHUB_ACTIONS_BUILDS_ENVIRONMENT;
   const ref = process.env.GITHUB_ACTIONS_BUILDS_REF ?? 'main';
   const serverUrl = process.env.GITHUB_ACTIONS_BUILDS_SERVER_URL;
 
-  if (!token || !repo || !workflow || !serverUrl || !process.env.HAYASHI_BUILD_RUNNER_SECRET) {
+  if (!token || !repo || !workflow || !environment || !serverUrl || !process.env.HAYASHI_BUILD_RUNNER_SECRET) {
     throw new Error('GitHub Actions build dispatch is not fully configured');
   }
 
@@ -72,6 +74,7 @@ export async function dispatchGitHubBuild(options: DispatchGitHubBuildOptions): 
         inputs: {
           build_id: options.buildId,
           target: options.target,
+          environment,
           server_url: serverUrl,
         },
       }),

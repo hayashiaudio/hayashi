@@ -11,6 +11,10 @@ on:
         description: Build target
         required: true
         type: string
+      environment:
+        description: GitHub Actions environment name
+        required: true
+        type: string
       server_url:
         description: Hayashi server base URL
         required: true
@@ -20,12 +24,13 @@ jobs:
   linux:
     if: contains(inputs.target, '-linux-')
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     timeout-minutes: 60
     env:
       HAYASHI_BUILD_ID: ${{ inputs.build_id }}
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
-      DPF_PATH: ${{ runner.temp }}/DPF
+      DPF_PATH: ${{ github.workspace }}/.dpf
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -46,19 +51,20 @@ jobs:
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
       - name: Fetch DPF
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$RUNNER_TEMP/DPF"
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
       - name: Run remote build
         run: node apps/server/dist/export/github-build-runner.js
 
   windows:
     if: contains(inputs.target, '-windows-')
     runs-on: windows-latest
+    environment: ${{ inputs.environment }}
     timeout-minutes: 75
     env:
       HAYASHI_BUILD_ID: ${{ inputs.build_id }}
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
-      DPF_PATH: ${{ runner.temp }}\\DPF
+      DPF_PATH: ${{ github.workspace }}\\.dpf
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -86,7 +92,7 @@ jobs:
         run: npm --workspace @hayashi/server run build
       - name: Fetch DPF
         shell: msys2 {0}
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$(cygpath "$RUNNER_TEMP")/DPF"
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$(cygpath "$GITHUB_WORKSPACE")/.dpf"
       - name: Run remote build
         shell: msys2 {0}
         run: node apps/server/dist/export/github-build-runner.js
@@ -94,12 +100,13 @@ jobs:
   macos_intel:
     if: inputs.target == 'vst3-macos-x64' || inputs.target == 'clap-macos-x64'
     runs-on: macos-13
+    environment: ${{ inputs.environment }}
     timeout-minutes: 60
     env:
       HAYASHI_BUILD_ID: ${{ inputs.build_id }}
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
-      DPF_PATH: ${{ runner.temp }}/DPF
+      DPF_PATH: ${{ github.workspace }}/.dpf
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -118,19 +125,20 @@ jobs:
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
       - name: Fetch DPF
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$RUNNER_TEMP/DPF"
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
       - name: Run remote build
         run: node apps/server/dist/export/github-build-runner.js
 
   macos_arm64:
     if: inputs.target == 'vst3-macos-arm64' || inputs.target == 'clap-macos-arm64'
     runs-on: macos-14
+    environment: ${{ inputs.environment }}
     timeout-minutes: 60
     env:
       HAYASHI_BUILD_ID: ${{ inputs.build_id }}
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
-      DPF_PATH: ${{ runner.temp }}/DPF
+      DPF_PATH: ${{ github.workspace }}/.dpf
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -149,6 +157,6 @@ jobs:
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
       - name: Fetch DPF
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$RUNNER_TEMP/DPF"
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
       - name: Run remote build
         run: node apps/server/dist/export/github-build-runner.js
