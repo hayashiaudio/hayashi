@@ -409,8 +409,10 @@ export async function compileDspToNative(
     // ── Step 3: Archive bundle and upload to Tigris ────────────────────
     await reportProgress('packaging', 'Packaging plugin bundle');
     await reportLog('info', 'packaging', `Creating archive ${bundleName}.tar.gz`, 'tar');
-    const archivePath = resolve(workDir, `${safePluginName}.${format}.tar.gz`);
-    await exec('tar', ['czf', archivePath, '-C', workDir, bundleName], {
+    const archiveFilename = `${safePluginName}.${format}.tar.gz`;
+    const archivePath = resolve(workDir, archiveFilename);
+    await exec('tar', ['czf', archiveFilename, bundleName], {
+      cwd: workDir,
       onStdout: (line) => reportLog('info', 'packaging', line, 'tar stdout'),
       onStderr: (line) => reportLog('warn', 'packaging', line, 'tar stderr'),
     });
