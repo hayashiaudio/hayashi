@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync, readFileSync, rmSync, mkdtempSync, copyFileSync, existsSync, readdirSync, statSync, cpSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir, cpus } from 'os';
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
@@ -393,7 +393,7 @@ export async function compileDspToNative(
     if (!dpfArtifactPath || !existsSync(dpfArtifactPath)) {
       throw new Error(`DPF ${format.toUpperCase()} build completed but the plugin artifact could not be located for packaging.`);
     }
-    const bundleName = dpfArtifactPath.split('/').pop() ?? `${safePluginName}.${format}`;
+    const bundleName = basename(dpfArtifactPath) || `${safePluginName}.${format}`;
     const bundleDir = resolve(workDir, bundleName);
     const artifactStat = statSync(dpfArtifactPath);
     const normalizedArtifactPath = resolve(dpfArtifactPath);
