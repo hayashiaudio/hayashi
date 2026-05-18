@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import type { BillingRepository } from './repository.js';
 import { getBillingRepository } from './repository.js';
-import { BillingService, STRIPE_PRICE_CREATOR, STRIPE_PRICE_PRO, STRIPE_PRICE_STUDIO } from './service.js';
+import { BillingService, STRIPE_PRICE_CREATOR, STRIPE_PRICE_PRO, STRIPE_PRICE_STUDIO, matchesStripePriceIdentifier } from './service.js';
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -9,17 +9,11 @@ function getStripe(): Stripe {
   return new Stripe(key, { apiVersion: '2026-04-22.dahlia' });
 }
 
-function priceToPlan(priceId: string | null): import('./types.js').PlanTier {
-  switch (priceId) {
-    case STRIPE_PRICE_CREATOR:
-      return 'creator';
-    case STRIPE_PRICE_PRO:
-      return 'pro';
-    case STRIPE_PRICE_STUDIO:
-      return 'studio';
-    default:
-      return 'free';
-  }
+function priceToPlan(priceId: string | null, productId: string | null): import('./types.js').PlanTier {
+  if (matchesStripePriceIdentifier(STRIPE_PRICE_CREATOR, priceId, productId)) return 'creator';
+  if (matchesStripePriceIdentifier(STRIPE_PRICE_PRO, priceId, productId)) return 'pro';
+  if (matchesStripePriceIdentifier(STRIPE_PRICE_STUDIO, priceId, productId)) return 'studio';
+  return 'free';
 }
 
 export async function handleStripeWebhook(body: string, signature: string): Promise<{ received: boolean; message?: string }> {
@@ -55,6 +49,9 @@ export async function handleStripeWebhook(body: string, signature: string): Prom
 
         const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
         const priceId = subscription.items.data[0]?.price.id ?? null;
+        const productId = typeof subscription.items.data[0]?.price.product === 'string'
+          ? subscription.items.data[0].price.product
+          : subscription.items.data[0]?.price.product?.id ?? null;
         const clerkUserId = session.client_reference_id ?? subscription.metadata?.clerkUserId;
 
         if (!clerkUserId) {
@@ -66,13 +63,13 @@ export async function handleStripeWebhook(body: string, signature: string): Prom
         await billing.syncStripeSubscription(user, {
           status: subscription.status as import('./types.js').SubscriptionStatus,
           currentPeriodEnd: (subscription as any).current_period_end * 1000,
-          plan: priceToPlan(priceId),
+          plan: priceToPlan(priceId, productId),
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
           stripePriceId: priceId,
         });
 
-        console.log('[Hayashi] Upgraded user to', priceToPlan(priceId), clerkUserId);
+        console.log('[Hayashi] Upgraded user to', priceToPlan(priceId, productId), clerkUserId);
         break;
       }
 
@@ -80,6 +77,9 @@ export async function handleStripeWebhook(body: string, signature: string): Prom
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         const priceId = subscription.items.data[0]?.price.id ?? null;
+        const productId = typeof subscription.items.data[0]?.price.product === 'string'
+          ? subscription.items.data[0].price.product
+          : subscription.items.data[0]?.price.product?.id ?? null;
 
         const customer = await getStripe().customers.retrieve(customerId);
         if (customer.deleted) {
@@ -97,7 +97,7 @@ export async function handleStripeWebhook(body: string, signature: string): Prom
         await billing.syncStripeSubscription(user, {
           status: subscription.status as import('./types.js').SubscriptionStatus,
           currentPeriodEnd: (subscription as any).current_period_end * 1000,
-          plan: priceToPlan(priceId),
+          plan: priceToPlan(priceId, productId),
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscription.id,
           stripePriceId: priceId,

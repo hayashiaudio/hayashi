@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { requestMidiAccess, getMidiInputs, addMidiHandler, removeMidiHandler, parseMidiMessage } from '@/audio/midiController';
 
 export interface MidiState {
+  supported: boolean;
   available: boolean;
   inputs: MIDIInput[];
   activeInputId: string | null;
   lastCC: { cc: number; value: number } | null;
+  error: string | null;
 }
 
 export function useMidiController(
@@ -14,10 +16,12 @@ export function useMidiController(
   paramMap: Record<number, string>
 ) {
   const [state, setState] = useState<MidiState>({
+    supported: typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess,
     available: false,
     inputs: [],
     activeInputId: null,
     lastCC: null,
+    error: null,
   });
 
   const onParamChangeRef = useRef(onParamChange);
@@ -43,7 +47,14 @@ export function useMidiController(
 
   useEffect(() => {
     if (!enabled) {
-      setState({ available: false, inputs: [], activeInputId: null, lastCC: null });
+      setState((current) => ({
+        ...current,
+        available: false,
+        inputs: [],
+        activeInputId: null,
+        lastCC: null,
+        error: null,
+      }));
       return;
     }
     let cancelled = false;
@@ -51,11 +62,23 @@ export function useMidiController(
       .then(() => {
         if (cancelled) return;
         const inputs = getMidiInputs();
-        setState((s) => ({ ...s, available: true, inputs, activeInputId: inputs[0]?.id ?? null }));
+        setState((s) => ({
+          ...s,
+          supported: true,
+          available: true,
+          inputs,
+          activeInputId: inputs[0]?.id ?? null,
+          error: null,
+        }));
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
-        setState((s) => ({ ...s, available: false }));
+        setState((s) => ({
+          ...s,
+          supported: typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess,
+          available: false,
+          error: error instanceof Error ? error.message : 'Failed to access MIDI devices',
+        }));
       });
 
     // Poll for device changes every 2s
@@ -66,7 +89,14 @@ export function useMidiController(
     return () => {
       cancelled = true;
       clearInterval(interval);
-      setState({ available: false, inputs: [], activeInputId: null, lastCC: null });
+      setState((current) => ({
+        ...current,
+        available: false,
+        inputs: [],
+        activeInputId: null,
+        lastCC: null,
+        error: null,
+      }));
     };
   }, [enabled]);
 

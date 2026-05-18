@@ -36,9 +36,10 @@ wss.on('connection', async (ws, req) => {
 });
 
 const PORT = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 3001;
+const HOST = process.env.SERVER_HOST ?? '0.0.0.0';
 if (process.env.NODE_ENV !== 'test') {
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} (${hasDatabaseUrl() ? 'billing: postgres' : 'billing: file'})`);
+  server.listen(PORT, HOST, () => {
+    console.log(`Server running on ${HOST}:${PORT} (${hasDatabaseUrl() ? 'billing: postgres' : 'billing: file'})`);
   });
 }
 

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcmaes.a CMakeFiles/cmaes.dir/acovarianceupdate.cc.o CMakeFiles/cmaes.dir/cmaparameters.cc.o CMakeFiles/cmaes.dir/cmastopcriteria.cc.o CMakeFiles/cmaes.dir/covarianceupdate.cc.o CMakeFiles/cmaes.dir/esostrategy.cc.o CMakeFiles/cmaes.dir/pwq_bound_strategy.cc.o CMakeFiles/cmaes.dir/vdcmaupdate.cc.o CMakeFiles/cmaes.dir/bipopcmastrategy.cc.o CMakeFiles/cmaes.dir/cmasolutions.cc.o CMakeFiles/cmaes.dir/cmastrategy.cc.o CMakeFiles/cmaes.dir/errstats.cc.o CMakeFiles/cmaes.dir/ipopcmastrategy.cc.o
+/usr/bin/ranlib libcmaes.a

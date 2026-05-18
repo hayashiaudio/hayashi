@@ -26,8 +26,16 @@ export async function uploadAsset(assetId: string, buffer: Buffer, contentType =
   return `${endpoint}/${bucket}/${assetId}`;
 }
 
-export async function getAssetUrl(assetId: string, expiresIn = 300): Promise<string> {
-  const command = new GetObjectCommand({ Bucket: bucket, Key: assetId });
+export async function getAssetUrl(
+  assetId: string,
+  expiresIn = 300,
+  responseContentDisposition?: string
+): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: assetId,
+    ...(responseContentDisposition ? { ResponseContentDisposition: responseContentDisposition } : {}),
+  });
   return getSignedUrl(s3, command, { expiresIn });
 }
 

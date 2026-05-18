@@ -1,0 +1,272 @@
+cmake_minimum_required (VERSION 3.15)
+
+set(libcmaes_VERSION 0.10.3)
+
+project (libcmaes
+  VERSION ${libcmaes_VERSION}
+  LANGUAGES C CXX
+  DESCRIPTION "A C++11 library for stochastic optimization with CMA-ES")
+
+if (NOT DEFINED CMAKE_BUILD_TYPE)
+  set (CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
+endif ()
+
+list (APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+list (APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
+include(CompilerOptions)
+
+set (LIBCMAES_TOP_LEVEL NO)
+if (${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+  set (LIBCMAES_TOP_LEVEL YES)
+endif ()
+
+# ---------- options ----------
+option (LIBCMAES_BUILD_SHARED_LIBS "Build libcmaes as a shared library" ON)
+option (LIBCMAES_BUILD_PYTHON "build python bindings" OFF)
+option (LIBCMAES_BUILD_TESTS "build tests" OFF)
+option (LIBCMAES_BUILD_EXAMPLES "build examples" ${LIBCMAES_TOP_LEVEL})
+option (LIBCMAES_USE_OPENMP "Use OpenMP for multithreading" ON)
+option (LIBCMAES_ENABLE_SURROG "support for surrogates" ON)
+option (LIBCMAES_EIGEN_5 "Use Eigen v5" OFF)
+
+# Offer the user the choice of overriding the installation directories
+set (INSTALL_LIB_DIR lib${LIB_SUFFIX}
+     CACHE PATH "Installation directory for libraries")
+set (INSTALL_BIN_DIR bin CACHE PATH "Installation directory for executables")
+set (INSTALL_INCLUDE_DIR include
+     CACHE PATH "Installation directory for header files")
+set (INSTALL_DATA_DIR share/libcmaes
+     CACHE PATH "Installation directory for data files")
+set (INSTALL_CMAKE_DIR ${INSTALL_LIB_DIR}/cmake/libcmaes
+     CACHE PATH "Installation directory for cmake config files")
+
+# Make relative paths absolute (needed later on)
+foreach (p LIB BIN INCLUDE DATA CMAKE)
+  set (var INSTALL_${p}_DIR)
+  set (RELATIVE_INSTALL_${p}_DIR ${INSTALL_${p}_DIR})
+  if (NOT IS_ABSOLUTE "${${var}}")
+    set (${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+  endif ()
+endforeach ()
+
+set (CMAKE_INSTALL_RPATH ${INSTALL_LIB_DIR})
+set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# ----------- required include files ----------
+include (CheckIncludeFile)
+
+check_include_file (dlfcn.h HAVE_DLFCN_H)
+check_include_file (unistd.h HAVE_UNISTD_H)
+check_include_file (string.h HAVE_STRING_H)
+check_include_file (strings.h HAVE_STRINGS_H)
+check_include_file (inttypes.h HAVE_INTTYPES_H)
+check_include_file (memory.h HAVE_MEMORY_H)
+check_include_file (stdlib.h HAVE_STDLIB_H)
+check_include_file (stdint.h HAVE_STDINT_H)
+check_include_file (sys/types.h HAVE_SYS_TYPES_H)
+check_include_file (sys/stat.h HAVE_SYS_STAT_H)
+
+# ---------- dependencies ----------
+if(LIBCMAES_BUILD_PYTHON)
+  find_package (Python3 COMPONENTS Interpreter Development NumPy)
+  if (NOT TARGET Python3::Module AND Python3_Development_FOUND)
+    add_library (Python3::Module SHARED IMPORTED)
+    set_target_properties (
+      Python3::Module
+      PROPERTIES IMPORTED_LOCATION ${Python3_LIBRARIES}
+                  INTERFACE_INCLUDE_DIRECTORIES ${Python3_INCLUDE_DIRS})
+  endif ()
+endif()
+
+if (LIBCMAES_EIGEN_5)
+  set (LIBCMAES_EIGEN_MIN_VERSION 5.0.0)
+else ()
+  set (LIBCMAES_EIGEN_MIN_VERSION 3.4.0)
+endif ()
+
+find_package (Eigen3 REQUIRED)
+
+set (LIBCMAES_EIGEN_FOUND_VERSION ${Eigen3_VERSION})
+if (NOT LIBCMAES_EIGEN_FOUND_VERSION AND DEFINED EIGEN3_VERSION_STRING)
+  set (LIBCMAES_EIGEN_FOUND_VERSION ${EIGEN3_VERSION_STRING})
+endif ()
+
+if (NOT LIBCMAES_EIGEN_FOUND_VERSION)
+  message (FATAL_ERROR "Could not determine the Eigen version exposed by package Eigen3.")
+endif ()
+
+set (LIBCMAES_EIGEN_LOCATION "")
+if (DEFINED Eigen3_DIR AND NOT "${Eigen3_DIR}" STREQUAL "")
+  set (LIBCMAES_EIGEN_LOCATION "package dir: ${Eigen3_DIR}")
+elseif (DEFINED EIGEN3_ROOT_DIR AND NOT "${EIGEN3_ROOT_DIR}" STREQUAL "")
+  set (LIBCMAES_EIGEN_LOCATION "root: ${EIGEN3_ROOT_DIR}")
+elseif (DEFINED EIGEN3_INCLUDE_DIRS AND NOT "${EIGEN3_INCLUDE_DIRS}" STREQUAL "")
+  set (LIBCMAES_EIGEN_LOCATION "includes: ${EIGEN3_INCLUDE_DIRS}")
+endif ()
+
+if (LIBCMAES_EIGEN_LOCATION)
+  message (STATUS "Using Eigen ${LIBCMAES_EIGEN_FOUND_VERSION} (${LIBCMAES_EIGEN_LOCATION})")
+else ()
+  message (STATUS "Using Eigen ${LIBCMAES_EIGEN_FOUND_VERSION}")
+endif ()
+
+if (LIBCMAES_EIGEN_FOUND_VERSION VERSION_LESS LIBCMAES_EIGEN_MIN_VERSION)
+  message (
+    FATAL_ERROR
+      "LIBCMAES_EIGEN_5=${LIBCMAES_EIGEN_5} requires Eigen >= ${LIBCMAES_EIGEN_MIN_VERSION}, "
+      "but found ${LIBCMAES_EIGEN_FOUND_VERSION}. Set Eigen3_DIR or CMAKE_PREFIX_PATH to an appropriate Eigen installation.")
+endif ()
+
+if (LIBCMAES_USE_OPENMP)
+  find_package (OpenMP QUIET)
+  if(NOT OpenMP_CXX_FOUND)
+    message(WARNING "No OPENMP support found. Setting LIBCMAES_USE_OPENMP off.")
+    set(LIBCMAES_USE_OPENMP Off)
+  endif()
+endif ()
+
+if (LIBCMAES_BUILD_PYTHON)
+  find_package (Python3 COMPONENTS Interpreter Development NumPy)
+  if (NOT TARGET Python3::Module AND Python3_Development_FOUND)
+    add_library (Python3::Module SHARED IMPORTED)
+    set_target_properties (
+      Python3::Module
+      PROPERTIES IMPORTED_LOCATION ${Python3_LIBRARIES}
+                 INTERFACE_INCLUDE_DIRECTORIES ${Python3_INCLUDE_DIRS})
+  endif ()
+
+  # python site dir
+  if (Python3_EXECUTABLE AND NOT DEFINED PYTHON_SITE_PACKAGES)
+    # $ENV{VIRTUAL_ENV} does not work because not exported by activate :/
+    execute_process (
+      COMMAND
+        ${Python3_EXECUTABLE} -c "
+import sys;
+if 'real_prefix' in dir(sys):
+    print(sys.prefix)"
+        # sys.real_prefix is only defined when in virtualenv
+      OUTPUT_VARIABLE SITE_DIR_PREFIX
+      RESULT_VARIABLE _exit_code
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if (NOT ${SITE_DIR_PREFIX}) # if not set, back to previous behaviour
+      set (SITE_DIR_PREFIX ${CMAKE_INSTALL_PREFIX})
+    endif ()
+    execute_process (
+      COMMAND
+        ${Python3_EXECUTABLE} -c
+        "from distutils import sysconfig; print(sysconfig.get_python_lib(plat_specific=True, prefix='${SITE_DIR_PREFIX}'))"
+      OUTPUT_VARIABLE _ABS_PYTHON_SITE_PACKAGES
+      RESULT_VARIABLE _exit_code
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if (NOT ${_exit_code})
+      get_filename_component (_ABS_PYTHON_SITE_PACKAGES
+                              ${_ABS_PYTHON_SITE_PACKAGES} ABSOLUTE)
+      file (RELATIVE_PATH _REL_PYTHON_SITE_PACKAGES ${CMAKE_INSTALL_PREFIX}
+            ${_ABS_PYTHON_SITE_PACKAGES})
+      set (PYTHON_SITE_PACKAGES ${_REL_PYTHON_SITE_PACKAGES})
+    else ()
+      message (SEND_ERROR "Could not run ${Python3_EXECUTABLE}")
+    endif ()
+  endif ()
+
+  # boost-python
+  find_package(Boost COMPONENTS python)
+  if (Boost_FOUND)
+    set (HAVE_BOOST_PYTHON TRUE)
+    if (NOT TARGET Boost::python)
+      add_library (Boost::python SHARED IMPORTED)
+      set_target_properties (
+        Boost::python
+        PROPERTIES IMPORTED_LOCATION ${Boost_LIBRARIES}
+                   INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIRS})
+    endif ()
+    message (STATUS "Found boost-python: ${Boost_LIBRARIES}")
+  endif ()
+endif ()
+
+set (HAVE_SURROG ${LIBCMAES_ENABLE_SURROG})
+configure_file (include/libcmaes/libcmaes_config.h.cmake.in include/libcmaes/libcmaes_config.h)
+install (FILES ${PROJECT_BINARY_DIR}/include/libcmaes/libcmaes_config.h
+  DESTINATION ${RELATIVE_INSTALL_INCLUDE_DIR}/libcmaes)
+
+if (NOT MSVC)
+  set (prefix ${CMAKE_INSTALL_PREFIX})
+  set (exec_prefix ${prefix})
+  set (libdir ${INSTALL_LIB_DIR})
+  set (includedir ${INSTALL_INCLUDE_DIR})
+  set (VERSION ${LIBCMAES_VERSION_STRING})
+  configure_file (libcmaes.pc.in libcmaes.pc @ONLY)
+  install (FILES ${CMAKE_CURRENT_BINARY_DIR}/libcmaes.pc
+           DESTINATION ${RELATIVE_INSTALL_LIB_DIR}/pkgconfig)
+endif ()
+
+# ---------- subdirectories ----------
+add_subdirectory (src)
+if (LIBCMAES_BUILD_EXAMPLES)
+  add_subdirectory (examples)
+endif ()
+if (LIBCMAES_BUILD_TESTS)
+  include(CTest)
+  add_subdirectory (tests)
+endif ()
+
+if (Boost_FOUND AND Python3_NumPy_FOUND)
+  add_subdirectory (python)
+endif ()
+
+# ------------ export ------------
+add_library (libcmaes::cmaes ALIAS cmaes)
+
+include (CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    libcmaes-config-version.cmake
+    VERSION ${PACKAGE_VERSION}
+    COMPATIBILITY AnyNewerVersion)
+
+
+
+configure_package_config_file(
+  libcmaes-config.cmake.in
+  libcmaes-config.cmake
+  INSTALL_DESTINATION ${RELATIVE_INSTALL_CMAKE_DIR})
+
+# export target to build directory
+export (TARGETS cmaes NAMESPACE libcmaes:: FILE libcmaesTargets.cmake)
+
+# export target on install
+install (
+  EXPORT libcmaesTargets
+  FILE libcmaesTargets.cmake
+  NAMESPACE libcmaes::
+  DESTINATION ${RELATIVE_INSTALL_CMAKE_DIR})
+
+install (
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/libcmaes-config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/libcmaes-config-version.cmake"
+  DESTINATION ${RELATIVE_INSTALL_CMAKE_DIR})
+
+# ------------------------ Doxygen --------------------------------------------
+
+find_package(Doxygen)
+if(DOXYGEN_FOUND AND LIBCMAES_TOP_LEVEL)
+
+  set(DOXYGEN_USE_MATHJAX YES)
+  set(DOXYGEN_STRIP_FROM_INC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/include")
+  set(DOXYGEN_PROJECT_BRIEF ${PROJECT_DESCRIPTION})
+  set(DOXYGEN_EXTRACT_PRIVATE YES)
+  set(DOXYGEN_GENERATE_TREEVIEW YES)
+  set(DOXYGEN_DISTRIBUTE_GROUP_DOC YES)
+  set(DOXYGEN_WARN_IF_UNDOCUMENTED NO)
+  set(DOXYGEN_WARN_IF_DOC_ERROR YES)
+  set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
+
+  doxygen_add_docs(doc
+                     "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+
+else ()
+  message("Doxygen need to be installed to generate the doxygen documentation")
+endif()

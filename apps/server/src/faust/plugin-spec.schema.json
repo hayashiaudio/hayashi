@@ -1,0 +1,650 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tryhayashi.com/schemas/faust-plugin-spec.schema.json",
+  "title": "Hayashi Faust Plugin Spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "name", "voiceArchitecture", "toneModel", "macroControls", "io", "parameters", "graph"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": { "const": "synth" }
+        }
+      },
+      "then": {
+        "properties": {
+          "voiceArchitecture": {
+            "enum": ["mono_bass", "supersaw_pad", "velvet_pluck", "stereo_lead", "custom_graph"]
+          },
+          "graph": {
+            "type": "object",
+            "properties": {
+              "source": { "$ref": "#/$defs/synthSource" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": { "const": "effect" }
+        }
+      },
+      "then": {
+        "properties": {
+          "voiceArchitecture": {
+            "enum": ["plate_space", "hall_bloom", "microshift_widener", "modulated_echo_verb", "dark_motion_verb", "tempo_echo", "chorus_reverb", "tape_saturator", "analog_ladder_filter", "drive_filter_bus", "surgical_tone_filter", "formant_sweeper", "resonant_motion_filter", "wah_texture_filter", "eq_3band_musical", "eq_5band_parametric", "eq_tilt_presence", "eq_resonant_creative", "custom_graph"]
+          },
+          "graph": {
+            "type": "object",
+            "properties": {
+              "source": { "$ref": "#/$defs/effectSource" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": { "const": "percussion" }
+        }
+      },
+      "then": {
+        "properties": {
+          "voiceArchitecture": {
+            "enum": ["impact_hit", "custom_graph"]
+          },
+          "graph": {
+            "type": "object",
+            "properties": {
+              "source": { "$ref": "#/$defs/percussionSource" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["synth", "effect", "percussion"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "voiceArchitecture": {
+      "$ref": "#/$defs/voiceArchitecture"
+    },
+    "toneModel": {
+      "$ref": "#/$defs/toneModel"
+    },
+    "qualityProfile": {
+      "$ref": "#/$defs/qualityProfile"
+    },
+    "stereoProfile": {
+      "$ref": "#/$defs/stereoProfile"
+    },
+    "macroControls": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/macroControl"
+      }
+    },
+    "io": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputs", "outputs"],
+      "properties": {
+        "inputs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "outputs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "$ref": "#/$defs/parameter"
+      }
+    },
+    "modulation": {
+      "$ref": "#/$defs/modulation"
+    },
+    "graph": {
+      "$ref": "#/$defs/graph"
+    }
+  },
+  "$defs": {
+    "voiceArchitecture": {
+      "type": "string",
+      "enum": ["mono_bass", "supersaw_pad", "velvet_pluck", "stereo_lead", "plate_space", "hall_bloom", "microshift_widener", "modulated_echo_verb", "dark_motion_verb", "tempo_echo", "chorus_reverb", "tape_saturator", "analog_ladder_filter", "drive_filter_bus", "surgical_tone_filter", "formant_sweeper", "resonant_motion_filter", "wah_texture_filter", "eq_3band_musical", "eq_5band_parametric", "eq_tilt_presence", "eq_resonant_creative", "impact_hit", "custom_graph"]
+    },
+    "toneModel": {
+      "type": "string",
+      "enum": ["analog_warm", "modern_wide", "clean_precise", "tape_vintage", "lush_spacious", "dark_ambient"]
+    },
+    "qualityProfile": {
+      "type": "string",
+      "enum": ["standard", "premium"]
+    },
+    "stereoProfile": {
+      "type": "string",
+      "enum": ["mono", "stereo", "wide"]
+    },
+    "macroControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "init", "min", "max"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": ["brightness", "movement", "body", "space", "drive", "character", "width", "punch", "diffusion", "damping", "preDelay", "feedbackTone", "modDepth", "modRate", "bloom", "ducking", "resonanceShape", "sweepRange", "tracking", "saturationPre", "saturationPost", "notchAmount", "vowelShift", "low", "lowMid", "mid", "high", "presence", "air", "trim", "weight", "clarity", "color", "resonance"]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "init": {
+          "type": "number"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "kind", "init", "min", "max"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 48
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["slider", "nentry", "button", "checkbox"]
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "init": {
+          "type": "number"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "processors"],
+      "properties": {
+        "source": {
+          "oneOf": [
+            { "$ref": "#/$defs/synthSource" },
+            { "$ref": "#/$defs/percussionSource" },
+            { "$ref": "#/$defs/effectSource" }
+          ]
+        },
+        "processors": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/filterProcessor" },
+              { "$ref": "#/$defs/delayProcessor" },
+              { "$ref": "#/$defs/reverbProcessor" },
+              { "$ref": "#/$defs/distortionProcessor" },
+              { "$ref": "#/$defs/spatialProcessor" },
+              { "$ref": "#/$defs/faustProcessor" }
+            ]
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "polyphony": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "legato": {
+          "type": "boolean"
+        },
+        "portamentoTime": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "portamentoMode": {
+          "type": "string",
+          "enum": ["off", "always", "legato"]
+        },
+        "notePriority": {
+          "type": "string",
+          "enum": ["last", "low", "high"]
+        },
+        "retrigger": {
+          "type": "boolean"
+        }
+      }
+    },
+    "modulator": {
+      "oneOf": [
+        { "$ref": "#/$defs/lfoModulator" },
+        { "$ref": "#/$defs/smootherModulator" }
+      ]
+    },
+    "lfoModulator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "shape", "rate"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+        },
+        "kind": {
+          "const": "lfo"
+        },
+        "shape": {
+          "enum": ["osc", "sawtooth", "square", "triangle", "lf_sawpos", "phasor"]
+        },
+        "rate": {
+          "type": "string"
+        }
+      }
+    },
+    "smootherModulator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "input"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+        },
+        "kind": {
+          "const": "smoother"
+        },
+        "input": {
+          "type": "string"
+        }
+      }
+    },
+    "modulationRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "targetId", "depth"],
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+        },
+        "targetId": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+        },
+        "depth": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        }
+      }
+    },
+    "modulation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modulators", "routes"],
+      "properties": {
+        "modulators": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/modulator"
+          }
+        },
+        "routes": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/modulationRoute"
+          }
+        }
+      }
+    },
+    "synthSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "oscillators", "envelope"],
+      "properties": {
+        "type": {
+          "const": "synth"
+        },
+        "oscillators": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/oscillator"
+          }
+        },
+        "noise": {
+          "$ref": "#/$defs/noiseLayer"
+        },
+        "envelope": {
+          "$ref": "#/$defs/envelope"
+        },
+        "performance": {
+          "$ref": "#/$defs/performance"
+        }
+      }
+    },
+    "percussionSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "exciter", "envelope"],
+      "properties": {
+        "type": {
+          "const": "percussion"
+        },
+        "exciter": {
+          "oneOf": [
+            { "$ref": "#/$defs/noiseLayer" },
+            { "$ref": "#/$defs/oscillator" }
+          ]
+        },
+        "envelope": {
+          "$ref": "#/$defs/envelope"
+        },
+        "performance": {
+          "$ref": "#/$defs/performance"
+        }
+      }
+    },
+    "effectSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "const": "effect"
+        }
+      }
+    },
+    "oscillator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["library", "symbol", "frequency"],
+      "properties": {
+        "library": {
+          "const": "os"
+        },
+        "symbol": {
+          "enum": [
+            "osc",
+            "sawtooth",
+            "square",
+            "triangle",
+            "lf_sawpos",
+            "phasor"
+          ]
+        },
+        "frequency": {
+          "type": "string"
+        },
+        "gain": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "detuneSemitones": {
+          "type": "number",
+          "minimum": -24,
+          "maximum": 24
+        }
+      }
+    },
+    "noiseLayer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["library", "symbol"],
+      "properties": {
+        "library": {
+          "const": "no"
+        },
+        "symbol": {
+          "enum": ["noise", "pink_noise", "brown_noise"]
+        },
+        "gain": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["library", "symbol"],
+      "properties": {
+        "library": {
+          "const": "en"
+        },
+        "symbol": {
+          "enum": ["adsr", "ar", "asr"]
+        },
+        "attack": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "decay": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "sustain": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "release": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    },
+    "filterProcessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "library", "symbol"],
+      "properties": {
+        "kind": {
+          "const": "filter"
+        },
+        "library": {
+          "const": "fi"
+        },
+        "symbol": {
+          "enum": [
+            "lowpass",
+            "highpass",
+            "resonlp",
+            "resonbp"
+          ]
+        },
+        "cutoff": {
+          "type": "string"
+        },
+        "resonance": {
+          "type": "string"
+        }
+      }
+    },
+    "delayProcessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "library", "symbol"],
+      "properties": {
+        "kind": {
+          "const": "delay"
+        },
+        "library": {
+          "const": "ef"
+        },
+        "symbol": {
+          "const": "echo"
+        },
+        "time": {
+          "type": "string"
+        },
+        "feedback": {
+          "type": "string"
+        },
+        "maxTime": {
+          "type": "number",
+          "minimum": 0.01,
+          "maximum": 8
+        }
+      }
+    },
+    "reverbProcessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "library", "symbol"],
+      "properties": {
+        "kind": {
+          "const": "reverb"
+        },
+        "library": {
+          "const": "re"
+        },
+        "symbol": {
+          "enum": ["mono_freeverb", "stereo_freeverb"]
+        },
+        "mix": {
+          "type": "string"
+        }
+      }
+    },
+    "distortionProcessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "library", "symbol"],
+      "properties": {
+        "kind": {
+          "const": "distortion"
+        },
+        "library": {
+          "const": "ef"
+        },
+        "symbol": {
+          "enum": ["cubicnl", "softclipQuadratic", "wavefold"]
+        },
+        "drive": {
+          "type": "string"
+        }
+      }
+    },
+    "spatialProcessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "library", "symbol"],
+      "properties": {
+        "kind": {
+          "const": "spatial"
+        },
+        "library": {
+          "const": "sp"
+        },
+        "symbol": {
+          "const": "panner"
+        },
+        "position": {
+          "type": "string"
+        }
+      }
+    },
+    "faustProcessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "library", "symbol"],
+      "properties": {
+        "kind": {
+          "const": "faust"
+        },
+        "library": {
+          "enum": ["fi", "ef", "re", "sp", "co", "en", "ma", "mo", "si", "ba", "os", "de", "no", "la"]
+        },
+        "symbol": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "args": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" }
+            ]
+          }
+        },
+        "channelMode": {
+          "type": "string",
+          "enum": ["preserve", "mono_to_stereo", "stereo_only"]
+        }
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ interface FeatureReadoutsProps {
   rms: number;
   zcr: number;
   peakDb: number;
+  isLive?: boolean;
   comparison?: {
     centroid?: number;
     rms?: number;
@@ -26,12 +27,26 @@ function diffBadge(current: number, previous: number | undefined, unit: string) 
   );
 }
 
-export function FeatureReadouts({ centroid, rms, zcr, peakDb, comparison }: FeatureReadoutsProps) {
+function formatMetricValue(label: string, value: number, isLive: boolean) {
+  if (!isLive) {
+    if (label === 'CENTROID') return `${value.toFixed(0)}Hz`;
+    if (label === 'RMS') return `${(value * 100).toFixed(1)}%`;
+    if (label === 'ZCR') return `${(value * 100).toFixed(1)}%`;
+    return `${value.toFixed(1)}dB`;
+  }
+
+  if (label === 'CENTROID') return `${value.toFixed(0)}Hz`;
+  if (label === 'RMS') return `${(value * 100).toFixed(1)}%`;
+  if (label === 'ZCR') return `${(value * 100).toFixed(1)}%`;
+  return Number.isFinite(value) ? `${value.toFixed(1)}dB` : 'Silence';
+}
+
+export function FeatureReadouts({ centroid, rms, zcr, peakDb, isLive = false, comparison }: FeatureReadoutsProps) {
   const items = [
-    { icon: Activity, label: 'CENTROID', value: `${centroid.toFixed(0)}Hz`, raw: centroid, prev: comparison?.centroid, unit: 'Hz' },
-    { icon: Volume2, label: 'RMS', value: `${(rms * 100).toFixed(1)}%`, raw: rms, prev: comparison?.rms, unit: '' },
-    { icon: Zap, label: 'ZCR', value: `${(zcr * 100).toFixed(1)}%`, raw: zcr, prev: comparison?.zcr, unit: '' },
-    { icon: Waves, label: 'PEAK', value: `${peakDb.toFixed(1)}dB`, raw: peakDb, prev: comparison?.peakDb, unit: 'dB' },
+    { icon: Activity, label: 'CENTROID', value: formatMetricValue('CENTROID', centroid, isLive), raw: centroid, prev: comparison?.centroid, unit: 'Hz' },
+    { icon: Volume2, label: 'RMS', value: formatMetricValue('RMS', rms, isLive), raw: rms, prev: comparison?.rms, unit: '' },
+    { icon: Zap, label: 'ZCR', value: formatMetricValue('ZCR', zcr, isLive), raw: zcr, prev: comparison?.zcr, unit: '' },
+    { icon: Waves, label: 'PEAK', value: formatMetricValue('PEAK', peakDb, isLive), raw: peakDb, prev: comparison?.peakDb, unit: 'dB' },
   ];
 
   return (

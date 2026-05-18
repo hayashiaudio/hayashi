@@ -1,0 +1,154 @@
+name: Plugin Native Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: Hayashi build id
+        required: true
+        type: string
+      target:
+        description: Build target
+        required: true
+        type: string
+      server_url:
+        description: Hayashi server base URL
+        required: true
+        type: string
+
+jobs:
+  linux:
+    if: contains(inputs.target, '-linux-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      HAYASHI_BUILD_ID: ${{ inputs.build_id }}
+      HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
+      HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
+      DPF_PATH: ${{ runner.temp }}/DPF
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y faust make g++ tar
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Build server bundle
+        run: npm --workspace @hayashi/server run build
+      - name: Fetch DPF
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$RUNNER_TEMP/DPF"
+      - name: Run remote build
+        run: node apps/server/dist/export/github-build-runner.js
+
+  windows:
+    if: contains(inputs.target, '-windows-')
+    runs-on: windows-latest
+    timeout-minutes: 75
+    env:
+      HAYASHI_BUILD_ID: ${{ inputs.build_id }}
+      HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
+      HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
+      DPF_PATH: ${{ runner.temp }}\\DPF
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: MINGW64
+          install: >-
+            git
+            make
+            tar
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-faust
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Build server bundle
+        run: npm --workspace @hayashi/server run build
+      - name: Fetch DPF
+        shell: msys2 {0}
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$(cygpath "$RUNNER_TEMP")/DPF"
+      - name: Run remote build
+        shell: msys2 {0}
+        run: node apps/server/dist/export/github-build-runner.js
+
+  macos_intel:
+    if: inputs.target == 'vst3-macos-x64' || inputs.target == 'clap-macos-x64'
+    runs-on: macos-13
+    timeout-minutes: 60
+    env:
+      HAYASHI_BUILD_ID: ${{ inputs.build_id }}
+      HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
+      HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
+      DPF_PATH: ${{ runner.temp }}/DPF
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install system dependencies
+        run: brew install faust
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Build server bundle
+        run: npm --workspace @hayashi/server run build
+      - name: Fetch DPF
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$RUNNER_TEMP/DPF"
+      - name: Run remote build
+        run: node apps/server/dist/export/github-build-runner.js
+
+  macos_arm64:
+    if: inputs.target == 'vst3-macos-arm64' || inputs.target == 'clap-macos-arm64'
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      HAYASHI_BUILD_ID: ${{ inputs.build_id }}
+      HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
+      HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
+      DPF_PATH: ${{ runner.temp }}/DPF
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install system dependencies
+        run: brew install faust
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Build server bundle
+        run: npm --workspace @hayashi/server run build
+      - name: Fetch DPF
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$RUNNER_TEMP/DPF"
+      - name: Run remote build
+        run: node apps/server/dist/export/github-build-runner.js

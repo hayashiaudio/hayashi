@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, AlertCircle, Zap, Sparkles, Code2 } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
+import { apiFetch } from '@/lib/http';
 
 interface BillingModalProps {
   token: string | null;
@@ -54,7 +55,7 @@ export function BillingModal({ token }: BillingModalProps) {
     }
     setPending(planId);
     try {
-      const res = await fetch(`${import.meta.env.VITE_SERVER_BASE_URL ?? ''}/billing/checkout`, {
+      const res = await apiFetch(`${import.meta.env.VITE_SERVER_BASE_URL ?? ''}/billing/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ plan: planId }),

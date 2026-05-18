@@ -10,7 +10,7 @@ interface MidiDeviceSelectorProps {
 export function MidiDeviceSelector({ enabled, onParamChange, paramMap }: MidiDeviceSelectorProps) {
   const midi = useMidiController(enabled, onParamChange, paramMap);
 
-  if (!midi.available) {
+  if (!midi.supported) {
     return (
       <div className="text-[11px] text-[#525252]">
         Web MIDI not available. Connect a controller and use Chrome/Edge.
@@ -18,14 +18,22 @@ export function MidiDeviceSelector({ enabled, onParamChange, paramMap }: MidiDev
     );
   }
 
+  if (midi.error) {
+    return (
+      <div className="text-[11px] text-[#ff6a55]">
+        {midi.error}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Headphones size={14} className="text-[#ff8c61]" />
       <span className="text-[10px] font-bold tracking-wider text-[#525252] uppercase">
         MIDI
       </span>
       {midi.inputs.length === 0 ? (
-        <span className="text-[11px] text-[#525252]">No MIDI devices detected</span>
+        <span className="text-[11px] text-[#525252]">Permission granted. No MIDI devices detected.</span>
       ) : (
         <select
           disabled

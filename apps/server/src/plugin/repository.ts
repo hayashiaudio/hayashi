@@ -1,6 +1,8 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { getDb, ensureDbSchema } from '../db/index.js';
 import { plugins, pluginVersions, pluginMessages } from '../db/schema.js';
+
+export type QualityLabel = 'good' | 'harsh' | 'muddy' | 'boring' | 'too_wet' | 'too_narrow' | 'unstable';
 
 export interface PluginVersionRecord {
   id: string;
@@ -9,6 +11,17 @@ export interface PluginVersionRecord {
   prompt: string;
   faustCode: string;
   paramsJson: string;
+  specJson: unknown | null;
+  templateId: string | null;
+  toneModel: string | null;
+  qualityProfile: string | null;
+  stereoProfile: string | null;
+  macroJson: unknown | null;
+  uiSpecJson: unknown | null;
+  evalMetricsJson: unknown | null;
+  qualityLabelsJson: unknown | null;
+  compileErrorsJson: unknown | null;
+  artifactManifestJson: unknown | null;
   createdAt: number;
 }
 
@@ -26,6 +39,8 @@ export interface PluginThread {
   ownerId: string;
   name: string;
   type: string;
+  generationStatus: 'ready' | 'generating' | 'refining' | 'failed';
+  generationError: string | null;
   createdAt: number;
   updatedAt: number;
   versions: PluginVersionRecord[];
@@ -37,6 +52,8 @@ export async function createPlugin(params: {
   ownerId: string;
   name: string;
   type: string;
+  generationStatus?: PluginThread['generationStatus'];
+  generationError?: string | null;
 }): Promise<void> {
   await ensureDbSchema();
   const db = getDb();
@@ -46,9 +63,27 @@ export async function createPlugin(params: {
     ownerId: params.ownerId,
     name: params.name,
     type: params.type,
+    generationStatus: params.generationStatus ?? 'ready',
+    generationError: params.generationError ?? null,
     createdAt: now,
     updatedAt: now,
-  });
+  }).onConflictDoNothing({ target: plugins.id });
+}
+
+export async function updatePluginGenerationState(params: {
+  pluginId: string;
+  generationStatus: PluginThread['generationStatus'];
+  generationError?: string | null;
+}): Promise<void> {
+  await ensureDbSchema();
+  const db = getDb();
+  await db.update(plugins)
+    .set({
+      generationStatus: params.generationStatus,
+      generationError: params.generationError ?? null,
+      updatedAt: Date.now(),
+    })
+    .where(eq(plugins.id, params.pluginId));
 }
 
 export async function addVersion(params: {
@@ -58,6 +93,17 @@ export async function addVersion(params: {
   prompt: string;
   faustCode: string;
   paramsJson: string;
+  specJson?: unknown;
+  templateId?: string | null;
+  toneModel?: string | null;
+  qualityProfile?: string | null;
+  stereoProfile?: string | null;
+  macroJson?: unknown;
+  uiSpecJson?: unknown;
+  evalMetricsJson?: unknown;
+  qualityLabelsJson?: unknown;
+  compileErrorsJson?: unknown;
+  artifactManifestJson?: unknown;
 }): Promise<void> {
   await ensureDbSchema();
   const db = getDb();
@@ -68,11 +114,37 @@ export async function addVersion(params: {
     prompt: params.prompt,
     faustCode: params.faustCode,
     paramsJson: params.paramsJson,
+    specJson: params.specJson ?? null,
+    templateId: params.templateId ?? null,
+    toneModel: params.toneModel ?? null,
+    qualityProfile: params.qualityProfile ?? null,
+    stereoProfile: params.stereoProfile ?? null,
+    macroJson: params.macroJson ?? null,
+    uiSpecJson: params.uiSpecJson ?? null,
+    evalMetricsJson: params.evalMetricsJson ?? null,
+    qualityLabelsJson: params.qualityLabelsJson ?? null,
+    compileErrorsJson: params.compileErrorsJson ?? null,
+    artifactManifestJson: params.artifactManifestJson ?? null,
     createdAt: Date.now(),
   });
   await db.update(plugins)
-    .set({ updatedAt: Date.now() })
+    .set({
+      generationStatus: 'ready',
+      generationError: null,
+      updatedAt: Date.now(),
+    })
     .where(eq(plugins.id, params.pluginId));
+}
+
+export async function setVersionQualityLabels(pluginId: string, versionId: string, labels: QualityLabel[]): Promise<void> {
+  await ensureDbSchema();
+  const db = getDb();
+  await db.update(pluginVersions)
+    .set({ qualityLabelsJson: labels })
+    .where(eq(pluginVersions.id, versionId));
+  await db.update(plugins)
+    .set({ updatedAt: Date.now() })
+    .where(eq(plugins.id, pluginId));
 }
 
 export async function addMessage(params: {
@@ -119,11 +191,24 @@ export async function getPluginThread(pluginId: string): Promise<PluginThread | 
     ownerId: plugin.ownerId,
     name: plugin.name,
     type: plugin.type,
+    generationStatus: (plugin.generationStatus as PluginThread['generationStatus']) ?? 'ready',
+    generationError: plugin.generationError ?? null,
     createdAt: plugin.createdAt,
     updatedAt: plugin.updatedAt,
     versions,
     messages: messages as PluginMessageRecord[],
   };
+}
+
+export async function getPluginVersion(pluginId: string, versionNumber: number): Promise<PluginVersionRecord | null> {
+  await ensureDbSchema();
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(pluginVersions)
+    .where(and(eq(pluginVersions.pluginId, pluginId), eq(pluginVersions.versionNumber, versionNumber)))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function getLatestVersionNumber(pluginId: string): Promise<number> {

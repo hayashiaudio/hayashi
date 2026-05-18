@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronUp, RotateCcw, User, Bot } from 'lucide-react';
-import type { GeneratedPlugin } from '@/stores/pluginStore';
+import type { GeneratedPlugin, QualityLabel } from '@/stores/pluginStore';
 
 const C = {
   border: 'rgba(255,255,255,0.06)',
@@ -17,9 +17,20 @@ const C = {
 interface PluginThreadProps {
   plugin: GeneratedPlugin;
   onRollback: (versionId: string) => void;
+  onSetVersionLabels: (pluginId: string, versionId: string, labels: QualityLabel[]) => void | Promise<void>;
 }
 
-export function PluginThread({ plugin, onRollback }: PluginThreadProps) {
+const QUALITY_LABELS: Array<{ id: QualityLabel; label: string }> = [
+  { id: 'good', label: 'Good' },
+  { id: 'harsh', label: 'Harsh' },
+  { id: 'muddy', label: 'Muddy' },
+  { id: 'boring', label: 'Boring' },
+  { id: 'too_wet', label: 'Too Wet' },
+  { id: 'too_narrow', label: 'Too Narrow' },
+  { id: 'unstable', label: 'Unstable' },
+];
+
+export function PluginThread({ plugin, onRollback, onSetVersionLabels }: PluginThreadProps) {
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
 
   return (
@@ -98,6 +109,31 @@ export function PluginThread({ plugin, onRollback }: PluginThreadProps) {
                             <RotateCcw className="h-3 w-3" /> Rollback
                           </Button>
                         )}
+                      </div>
+                      <div className="flex gap-1 flex-wrap mt-3">
+                        {QUALITY_LABELS.map((label) => {
+                          const active = version.qualityLabels?.includes(label.id) ?? false;
+                          return (
+                            <button
+                              key={label.id}
+                              type="button"
+                              className="h-5 px-2 rounded-full text-[9px] border transition-colors"
+                              style={{
+                                borderColor: active ? 'rgba(255,140,97,0.30)' : C.border,
+                                color: active ? C.accent : C.textMuted,
+                                background: active ? 'rgba(255,140,97,0.08)' : 'transparent',
+                              }}
+                              onClick={() => {
+                                const next = active
+                                  ? (version.qualityLabels ?? []).filter((item) => item !== label.id)
+                                  : [...(version.qualityLabels ?? []), label.id];
+                                onSetVersionLabels(plugin.id, version.id, next);
+                              }}
+                            >
+                              {label.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

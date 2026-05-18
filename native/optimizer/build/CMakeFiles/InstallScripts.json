@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/jdbohrman/hayashi/native/optimizer/build/cmake_install.cmake",
+		"/Users/jdbohrman/hayashi/native/optimizer/build/vendor/libcmaes/cmake_install.cmake",
+		"/Users/jdbohrman/hayashi/native/optimizer/build/vendor/libcmaes/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

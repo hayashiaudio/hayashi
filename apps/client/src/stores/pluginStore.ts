@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { UiSpec } from '@/types/uiSpec';
 
 export interface PluginParam {
   name: string;
@@ -13,7 +14,9 @@ export interface PluginVersion {
   prompt: string;
   faustCode: string;
   params: PluginParam[];
+  qualityLabels: QualityLabel[];
   createdAt: number;
+  uiSpec?: UiSpec;
   features?: {
     centroid: number;
     rms: number;
@@ -21,6 +24,8 @@ export interface PluginVersion {
     peakDb: number;
   };
 }
+
+export type QualityLabel = 'good' | 'harsh' | 'muddy' | 'boring' | 'too_wet' | 'too_narrow' | 'unstable';
 
 export interface PluginMessage {
   id: string;
@@ -40,13 +45,16 @@ export interface GeneratedPlugin {
   faustCode: string;
   wasmUrl: string | null;
   createdAt: number;
+  uiSpec?: UiSpec;
 
   // Thread support
   versions: PluginVersion[];
   messages: PluginMessage[];
   currentVersionId: string | null;
 
-  previewMode?: 'loop' | 'midi' | 'mic';
+  previewMode?: 'loop' | 'midi' | 'mic' | 'sample';
+  previewSampleName?: string | null;
+  previewSampleBuffer?: AudioBuffer | null;
 }
 
 interface PluginState {
@@ -61,13 +69,16 @@ interface PluginState {
   updatePluginStatus: (id: string, status: GeneratedPlugin['status']) => void;
   updatePluginParams: (id: string, params: PluginParam[]) => void;
   setPreviewPlaying: (playing: boolean) => void;
+  setPlugins: (plugins: GeneratedPlugin[]) => void;
 
   // Thread actions
   addVersion: (pluginId: string, version: PluginVersion) => void;
   addMessage: (pluginId: string, message: PluginMessage) => void;
   rollbackToVersion: (pluginId: string, versionId: string) => void;
   updatePluginFromVersion: (pluginId: string, versionId: string) => void;
-  setPreviewMode: (pluginId: string, mode: 'loop' | 'midi' | 'mic') => void;
+  setPreviewMode: (pluginId: string, mode: 'loop' | 'midi' | 'mic' | 'sample') => void;
+  setPreviewSample: (pluginId: string, sampleName: string | null, sampleBuffer: AudioBuffer | null) => void;
+  updateVersionQualityLabels: (pluginId: string, versionId: string, qualityLabels: QualityLabel[]) => void;
 }
 
 export const usePluginStore = create<PluginState>((set) => ({
@@ -78,6 +89,10 @@ export const usePluginStore = create<PluginState>((set) => ({
 
   setActivePlugin: (id) => set({ activePluginId: id }),
   setSelectedStyle: (style) => set({ selectedStyle: style }),
+  setPlugins: (plugins) => set({
+    plugins,
+    activePluginId: plugins[0]?.id ?? null,
+  }),
   addPlugin: (plugin) => set((s) => ({ plugins: [plugin, ...s.plugins] })),
   updatePluginStatus: (id, status) =>
     set((s) => ({
@@ -117,6 +132,7 @@ export const usePluginStore = create<PluginState>((set) => ({
           faustCode: version.faustCode,
           params: version.params,
           prompt: version.prompt,
+          uiSpec: version.uiSpec,
         };
       }),
     })),
@@ -134,6 +150,7 @@ export const usePluginStore = create<PluginState>((set) => ({
           params: version.params,
           prompt: version.prompt,
           name: version.prompt.slice(0, 24),
+          uiSpec: version.uiSpec,
         };
       }),
     })),
@@ -142,6 +159,27 @@ export const usePluginStore = create<PluginState>((set) => ({
     set((state) => ({
       plugins: state.plugins.map((p) =>
         p.id === pluginId ? { ...p, previewMode: mode } : p
+      ),
+    })),
+
+  setPreviewSample: (pluginId, sampleName, sampleBuffer) =>
+    set((state) => ({
+      plugins: state.plugins.map((p) =>
+        p.id === pluginId ? { ...p, previewSampleName: sampleName, previewSampleBuffer: sampleBuffer } : p
+      ),
+    })),
+
+  updateVersionQualityLabels: (pluginId, versionId, qualityLabels) =>
+    set((state) => ({
+      plugins: state.plugins.map((plugin) =>
+        plugin.id !== pluginId
+          ? plugin
+          : {
+              ...plugin,
+              versions: plugin.versions.map((version) =>
+                version.id === versionId ? { ...version, qualityLabels } : version
+              ),
+            }
       ),
     })),
 }));

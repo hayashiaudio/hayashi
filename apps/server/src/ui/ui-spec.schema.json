@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tryhayashi.com/schemas/plugin-ui-spec.schema.json",
+  "title": "Hayashi Plugin UI Spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "uiFamily",
+    "uiStyle",
+    "title",
+    "subtitle",
+    "heroControls",
+    "sections",
+    "visualizers",
+    "meters",
+    "layoutHints",
+    "themeTokens"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "uiFamily": {
+      "type": "string",
+      "enum": ["instrument_modern", "space_fx", "motion_filter", "color_fx"]
+    },
+    "uiStyle": {
+      "type": "string",
+      "enum": ["minimal_precision", "boutique_hardware", "soft_ambient", "modern_bold"]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "subtitle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96
+    },
+    "heroControls": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "layout", "controls"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "layout": {
+            "type": "string",
+            "enum": ["row", "column", "grid"]
+          },
+          "controls": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$"
+            }
+          }
+        }
+      }
+    },
+    "visualizers": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "placement"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["filter_curve", "stereo_field", "envelope", "decay_meter", "drive_meter", "macro_orb"]
+          },
+          "placement": {
+            "type": "string",
+            "enum": ["header", "center", "sidebar", "footer"]
+          }
+        }
+      }
+    },
+    "meters": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "enum": ["input", "output", "gain_reduction", "width"]
+      }
+    },
+    "layoutHints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["density", "heroSize", "sidebar"],
+      "properties": {
+        "density": {
+          "type": "string",
+          "enum": ["compact", "comfortable", "spacious"]
+        },
+        "heroSize": {
+          "type": "string",
+          "enum": ["medium", "large"]
+        },
+        "sidebar": {
+          "type": "boolean"
+        }
+      }
+    },
+    "themeTokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accent", "surface", "glow"],
+      "properties": {
+        "accent": {
+          "type": "string",
+          "enum": ["ice", "ember", "violet", "lime", "sunset", "steel"]
+        },
+        "surface": {
+          "type": "string",
+          "enum": ["smoke", "graphite", "mist", "obsidian"]
+        },
+        "glow": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}

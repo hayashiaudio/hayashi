@@ -23,13 +23,17 @@ export const DEMO_PATTERNS: Record<string, DemoPattern> = {
     drums: {
       kick: [0, 4, 8, 12],
       snare: [4, 12],
-      hat: [2, 6, 10, 14],
+      hat: [0, 2, 3, 6, 8, 10, 11, 14],
     },
     bassline: [
       { note: 0, start: 0, duration: 2 },
+      { note: 0, start: 3, duration: 1 },
       { note: 4, start: 4, duration: 2 },
+      { note: 3, start: 7, duration: 1 },
       { note: 3, start: 8, duration: 2 },
+      { note: 5, start: 11, duration: 1 },
       { note: 4, start: 12, duration: 2 },
+      { note: 2, start: 15, duration: 1 },
     ],
   },
   trap: {
@@ -37,15 +41,16 @@ export const DEMO_PATTERNS: Record<string, DemoPattern> = {
     key: 'F-minor',
     scale: F_MINOR,
     drums: {
-      kick: [0, 3, 8, 10],
+      kick: [0, 7, 10, 12, 15],
       snare: [4, 12],
-      hat: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      hat: [0, 1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15],
     },
     bassline: [
-      { note: 0, start: 0, duration: 1 },
-      { note: 0, start: 3, duration: 1 },
+      { note: 0, start: 0, duration: 3 },
+      { note: 0, start: 7, duration: 1 },
       { note: 3, start: 8, duration: 2 },
-      { note: 0, start: 12, duration: 2 },
+      { note: 6, start: 11, duration: 1 },
+      { note: 0, start: 12, duration: 3 },
     ],
   },
   house: {
@@ -55,13 +60,17 @@ export const DEMO_PATTERNS: Record<string, DemoPattern> = {
     drums: {
       kick: [0, 4, 8, 12],
       snare: [4, 12],
-      hat: [2, 6, 10, 14],
+      hat: [2, 4, 6, 8, 10, 12, 14],
     },
     bassline: [
-      { note: 0, start: 0, duration: 2 },
-      { note: 2, start: 4, duration: 2 },
-      { note: 4, start: 8, duration: 2 },
-      { note: 3, start: 12, duration: 2 },
+      { note: 0, start: 0, duration: 1 },
+      { note: 2, start: 2, duration: 1 },
+      { note: 4, start: 4, duration: 1 },
+      { note: 2, start: 6, duration: 1 },
+      { note: 5, start: 8, duration: 1 },
+      { note: 4, start: 10, duration: 1 },
+      { note: 3, start: 12, duration: 1 },
+      { note: 2, start: 14, duration: 1 },
     ],
   },
   ambient: {
@@ -74,8 +83,8 @@ export const DEMO_PATTERNS: Record<string, DemoPattern> = {
       hat: [],
     },
     bassline: [
-      { note: 0, start: 0, duration: 8 },
-      { note: 2, start: 8, duration: 8 },
+      { note: 0, start: 0, duration: 12 },
+      { note: 4, start: 12, duration: 4 },
     ],
   },
 };

@@ -16,6 +16,11 @@ export const STRIPE_PRICE_CREATOR = process.env.STRIPE_PRICE_CREATOR ?? 'price_1
 export const STRIPE_PRICE_PRO = process.env.STRIPE_PRICE_PRO ?? 'price_1TXUAYCmEpq5jdTP6C6Rv9rr';
 export const STRIPE_PRICE_STUDIO = process.env.STRIPE_PRICE_STUDIO ?? 'prod_UWXJLmrcYuXhQb';
 
+export function matchesStripePriceIdentifier(configuredIdentifier: string | null | undefined, priceId: string | null, productId: string | null): boolean {
+  if (!configuredIdentifier) return false;
+  return configuredIdentifier === priceId || configuredIdentifier === productId;
+}
+
 export class BillingService {
   constructor(private readonly repository: BillingRepository) {}
 

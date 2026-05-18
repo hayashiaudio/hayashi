@@ -12,6 +12,7 @@
   "dependencies": {
     "@discord/embedded-app-sdk": "^1.4.0",
     "@grame/faustwasm": "^0.16.1",
+    "@paper-design/shaders-react": "^0.0.76",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-scroll-area": "^1.2.10",
