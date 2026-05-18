@@ -12,7 +12,7 @@ import {
 } from '../plugin/repository.js';
 import { getBuildExecutionPayload, updateBuild, appendBuildLog, type BuildStage } from '../build/repository.js';
 import { randomUUID } from 'crypto';
-import { dispatchGitHubBuild, isGitHubBuildDispatchConfigured } from '../build/github-actions.js';
+import { dispatchGitHubBuild, getGitHubWorkflowRunStatus, isGitHubBuildDispatchConfigured } from '../build/github-actions.js';
 
 interface GeneratePluginInput {
   pluginId: string;
@@ -199,7 +199,8 @@ export async function exportBuildActivity(input: ExportBuildInput): Promise<void
   const heartbeatInterval = setInterval(() => {
     const elapsed = Date.now() - lastLogAt;
     if (elapsed > HEARTBEAT_LOG_INTERVAL_MS) {
-      void appendLog('info', 'building_dpf', `Build still running (${Math.round(elapsed / 1000)}s since last output)`, 'heartbeat');
+      const heartbeatStage = build.status === 'queued' ? 'dispatching' : 'building_dpf';
+      void appendLog('info', heartbeatStage, `Build still running (${Math.round(elapsed / 1000)}s since last output)`, 'heartbeat');
     }
     temporalHeartbeat?.({ elapsedSinceLastLog: elapsed });
   }, HEARTBEAT_INTERVAL_MS);
@@ -247,15 +248,29 @@ export async function exportBuildActivity(input: ExportBuildInput): Promise<void
   const waitForExternalBuildCompletion = async () => {
     await setProgress('dispatching', `Dispatching ${build.target} build to GitHub Actions`);
     await appendLog('info', 'dispatching', `Dispatching ${build.target} build to GitHub Actions`, 'dispatch');
-    await dispatchGitHubBuild({ buildId: input.buildId, target: build.target });
-    await appendLog('info', 'dispatching', 'GitHub Actions workflow dispatched successfully', 'dispatch');
+    const dispatch = await dispatchGitHubBuild({ buildId: input.buildId, target: build.target });
+    await appendLog('info', 'dispatching', `GitHub Actions workflow dispatched successfully: ${dispatch.htmlUrl}`, 'dispatch');
 
     const pollIntervalMs = 5000;
     const timeoutMs = 4 * 60 * 60 * 1000;
     const startedWaitingAt = Date.now();
+    let lastRemoteStatus = '';
 
     while (Date.now() - startedWaitingAt < timeoutMs) {
       sendHeartbeat();
+      const remoteRun = await getGitHubWorkflowRunStatus(dispatch.workflowRunId);
+      const remoteSummary = remoteRun.conclusion
+        ? `${remoteRun.status}:${remoteRun.conclusion}`
+        : remoteRun.status;
+      if (remoteSummary !== lastRemoteStatus) {
+        lastRemoteStatus = remoteSummary;
+        await appendLog('info', 'dispatching', `GitHub Actions run status: ${remoteSummary}`, 'dispatch');
+      }
+
+      if (remoteRun.status === 'completed' && remoteRun.conclusion && remoteRun.conclusion !== 'success') {
+        throw new Error(`GitHub Actions run failed with conclusion "${remoteRun.conclusion}": ${remoteRun.htmlUrl}`);
+      }
+
       const current = await getBuildExecutionPayload(input.buildId);
       if (!current) {
         throw new Error(`Build ${input.buildId} disappeared while waiting for remote builder`);

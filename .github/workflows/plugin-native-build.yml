@@ -98,7 +98,7 @@ jobs:
         shell: msys2 {0}
         run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$(cygpath "$GITHUB_WORKSPACE")/.dpf"
       - name: Run remote build
-        shell: msys2 {0}
+        shell: powershell
         run: node apps/server/dist/export/github-build-runner.js
 
   macos_intel:
