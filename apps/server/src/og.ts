@@ -3,6 +3,7 @@ type OgMetadata = {
   description: string;
   url: string;
   image: string;
+  secondaryImage?: string;
   imageAlt: string;
   type?: 'website' | 'article';
 };
@@ -18,6 +19,7 @@ type ShareOgArgs = {
 const SITE_NAME = 'Hayashi';
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
+const PNG_FALLBACK_PATH = '/ChatGPT%20Image%20May%2014,%202026,%2010_34_10%20AM.png';
 
 function escapeHtml(value: string) {
   return value
@@ -122,10 +124,11 @@ function baseSvgFrame(content: string) {
 
 export function buildHomeMetadata(origin: string): OgMetadata {
   return {
-    title: 'Hayashi — Prompt to plugin, preview in browser, export VST3 and CLAP',
-    description: 'Turn plain-language prompts into playable effects and synths, audition them instantly in the browser, and ship export builds with a bold, live preview workflow.',
+    title: 'Hayashi — Prompt to plugin export',
+    description: 'Turn prompts into playable Faust effects and synths, preview them in the browser, and export importable DAW plugin bundles.',
     url: `${origin}/`,
-    image: `${origin}/og/home.svg`,
+    image: `${origin}${PNG_FALLBACK_PATH}`,
+    secondaryImage: `${origin}/og/home.svg`,
     imageAlt: 'Hayashi home card with parchment grid background, oversized editorial typography, and a dithered oval visual.',
     type: 'website',
   };
@@ -136,10 +139,11 @@ export function buildShareMetadata(origin: string, pluginId: string, args: Share
   const pluginName = truncate(args.pluginName, 88);
   const label = args.pluginType.toLowerCase() === 'effect' ? 'effect' : args.pluginType.toLowerCase();
   return {
-    title: `${pluginName} — shared by ${ownerName} on Hayashi`,
-    description: `Preview ${pluginName}, a public ${label} patch shared by ${ownerName}. Audition the live patch, inspect the generated Faust, and explore the current version stack in Hayashi.`,
+    title: truncate(`${pluginName} — Hayashi share`, 60),
+    description: truncate(`Preview ${pluginName}, a shared ${label} patch by ${ownerName}. Listen live, inspect the Faust, and open it in Hayashi.`, 160),
     url: `${origin}/share?plugin=${encodeURIComponent(pluginId)}`,
-    image: `${origin}/og/share/${encodeURIComponent(pluginId)}.svg`,
+    image: `${origin}${PNG_FALLBACK_PATH}`,
+    secondaryImage: `${origin}/og/share/${encodeURIComponent(pluginId)}.svg`,
     imageAlt: `Public Hayashi share card for ${pluginName} by ${ownerName}.`,
     type: 'article',
   };
@@ -158,9 +162,12 @@ export function injectMetadata(html: string, metadata: OgMetadata) {
     <meta property="og:image" content="${escapeHtml(metadata.image)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(metadata.image)}" />
     <meta property="og:image:alt" content="${escapeHtml(metadata.imageAlt)}" />
-    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="${OG_WIDTH}" />
     <meta property="og:image:height" content="${OG_HEIGHT}" />
+    ${metadata.secondaryImage ? `<meta property="og:image" content="${escapeHtml(metadata.secondaryImage)}" />` : ''}
+    ${metadata.secondaryImage ? `<meta property="og:image:secure_url" content="${escapeHtml(metadata.secondaryImage)}" />` : ''}
+    ${metadata.secondaryImage ? `<meta property="og:image:type" content="image/svg+xml" />` : ''}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(metadata.title)}" />
     <meta name="twitter:description" content="${escapeHtml(metadata.description)}" />

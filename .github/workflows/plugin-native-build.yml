@@ -31,6 +31,8 @@ jobs:
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
       DPF_PATH: ${{ github.workspace }}/.dpf
+      ELEMENTS_INCLUDE_PATH: ${{ github.workspace }}/.elements/install/include
+      ELEMENTS_LIB_PATH: ${{ github.workspace }}/.elements/install/lib
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -45,11 +47,32 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y faust make g++ tar
+          sudo apt-get install -y faust make g++ tar cmake pkg-config git libasio-dev libgtk-3-dev libcairo2-dev libfontconfig1-dev libfreetype6-dev libwebp-dev
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
+      - name: Build Elements
+        run: |
+          git clone --depth 1 https://github.com/cycfi/elements.git "$GITHUB_WORKSPACE/.elements"
+          cmake -S "$GITHUB_WORKSPACE/.elements" -B "$GITHUB_WORKSPACE/.elements/build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DELEMENTS_HOST_UI_LIBRARY=gtk \
+            -DELEMENTS_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/.elements/install"
+          cmake --build "$GITHUB_WORKSPACE/.elements/build" --parallel
+          cmake --install "$GITHUB_WORKSPACE/.elements/build"
+          mkdir -p "$GITHUB_WORKSPACE/.elements/install/include" "$GITHUB_WORKSPACE/.elements/install/lib"
+          find "$GITHUB_WORKSPACE/.elements/build" -name libelements.a -exec cp {} "$GITHUB_WORKSPACE/.elements/install/lib/" \;
+          cp -r "$GITHUB_WORKSPACE/.elements/lib/include/elements" "$GITHUB_WORKSPACE/.elements/install/include/"
+          cp "$GITHUB_WORKSPACE/.elements/lib/include/elements.hpp" "$GITHUB_WORKSPACE/.elements/install/include/"
+          cp -r "$GITHUB_WORKSPACE/.elements/build/_deps/cycfi_infra-src/include/infra" "$GITHUB_WORKSPACE/.elements/install/include/"
+          find "$GITHUB_WORKSPACE/.elements/build/_deps/cycfi_infra-src/include" -maxdepth 1 -name '*.hpp' -exec cp {} "$GITHUB_WORKSPACE/.elements/install/include/" \;
+          GHC_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/ghc/filesystem.hpp' | head -n 1)"
+          if [ -n "$GHC_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$GHC_HEADER_PATH")")/ghc" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
+          NONSTD_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/nonstd/string_view.hpp' | head -n 1)"
+          if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
       - name: Fetch DPF
         run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
       - name: Run remote build
@@ -64,6 +87,8 @@ jobs:
       HAYASHI_BUILD_ID: ${{ inputs.build_id }}
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
+      ELEMENTS_INCLUDE_PATH: ${{ github.workspace }}\\.elements\\install\\include
+      ELEMENTS_LIB_PATH: ${{ github.workspace }}\\.elements\\install\\lib
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -85,9 +110,16 @@ jobs:
             tar
             perl
             mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-cmake
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
             mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-asio
+            mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-cairo
+            mingw-w64-x86_64-fontconfig
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-libwebp
       - name: Install Faust
         shell: powershell
         run: choco install faust --yes
@@ -136,6 +168,8 @@ jobs:
         shell: msys2 {0}
         run: |
           echo "DPF_PATH=$(cygpath "$GITHUB_WORKSPACE")/.dpf" >> "$GITHUB_ENV"
+          echo "ELEMENTS_INCLUDE_PATH=$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include" >> "$GITHUB_ENV"
+          echo "ELEMENTS_LIB_PATH=$(cygpath "$GITHUB_WORKSPACE")/.elements/install/lib" >> "$GITHUB_ENV"
           if [ -n "$FAUST_INCLUDE_PATH" ]; then
             echo "FAUST_INCLUDE_PATH=$(cygpath "$FAUST_INCLUDE_PATH")" >> "$GITHUB_ENV"
           fi
@@ -143,6 +177,29 @@ jobs:
         run: npm ci
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
+      - name: Build Elements
+        shell: msys2 {0}
+        run: |
+          git clone --depth 1 https://github.com/cycfi/elements.git "$(cygpath "$GITHUB_WORKSPACE")/.elements"
+          cmake -S "$(cygpath "$GITHUB_WORKSPACE")/.elements" -B "$(cygpath "$GITHUB_WORKSPACE")/.elements/build" \
+            -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DELEMENTS_HOST_UI_LIBRARY=gtk \
+            -DELEMENTS_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$(cygpath "$GITHUB_WORKSPACE")/.elements/install"
+          cmake --build "$(cygpath "$GITHUB_WORKSPACE")/.elements/build" --parallel
+          cmake --install "$(cygpath "$GITHUB_WORKSPACE")/.elements/build"
+          mkdir -p "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include" "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/lib"
+          find "$(cygpath "$GITHUB_WORKSPACE")/.elements/build" -name libelements.a -exec cp {} "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/lib/" \;
+          cp -r "$(cygpath "$GITHUB_WORKSPACE")/.elements/lib/include/elements" "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include/"
+          cp "$(cygpath "$GITHUB_WORKSPACE")/.elements/lib/include/elements.hpp" "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include/"
+          cp -r "$(cygpath "$GITHUB_WORKSPACE")/.elements/build/_deps/cycfi_infra-src/include/infra" "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include/"
+          find "$(cygpath "$GITHUB_WORKSPACE")/.elements/build/_deps/cycfi_infra-src/include" -maxdepth 1 -name '*.hpp' -exec cp {} "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include/" \;
+          GHC_HEADER_PATH="$(find "$(cygpath "$GITHUB_WORKSPACE")/.elements" -path '*/ghc/filesystem.hpp' | head -n 1)"
+          if [ -n "$GHC_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$GHC_HEADER_PATH")")/ghc" "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include/"; fi
+          NONSTD_HEADER_PATH="$(find "$(cygpath "$GITHUB_WORKSPACE")/.elements" -path '*/nonstd/string_view.hpp' | head -n 1)"
+          if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include/"; fi
       - name: Fetch DPF
         shell: msys2 {0}
         run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$(cygpath "$GITHUB_WORKSPACE")/.dpf"
@@ -160,6 +217,8 @@ jobs:
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
       DPF_PATH: ${{ github.workspace }}/.dpf
+      ELEMENTS_INCLUDE_PATH: ${{ github.workspace }}/.elements/install/include
+      ELEMENTS_LIB_PATH: ${{ github.workspace }}/.elements/install/lib
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -172,11 +231,32 @@ jobs:
         with:
           node-version: 22
       - name: Install system dependencies
-        run: brew install faust
+        run: brew install faust cmake pkg-config asio gtk+3 cairo fontconfig freetype webp
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
+      - name: Build Elements
+        run: |
+          git clone --depth 1 https://github.com/cycfi/elements.git "$GITHUB_WORKSPACE/.elements"
+          cmake -S "$GITHUB_WORKSPACE/.elements" -B "$GITHUB_WORKSPACE/.elements/build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DELEMENTS_HOST_UI_LIBRARY=gtk \
+            -DELEMENTS_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/.elements/install"
+          cmake --build "$GITHUB_WORKSPACE/.elements/build" --parallel
+          cmake --install "$GITHUB_WORKSPACE/.elements/build"
+          mkdir -p "$GITHUB_WORKSPACE/.elements/install/include" "$GITHUB_WORKSPACE/.elements/install/lib"
+          find "$GITHUB_WORKSPACE/.elements/build" -name libelements.a -exec cp {} "$GITHUB_WORKSPACE/.elements/install/lib/" \;
+          cp -r "$GITHUB_WORKSPACE/.elements/lib/include/elements" "$GITHUB_WORKSPACE/.elements/install/include/"
+          cp "$GITHUB_WORKSPACE/.elements/lib/include/elements.hpp" "$GITHUB_WORKSPACE/.elements/install/include/"
+          cp -r "$GITHUB_WORKSPACE/.elements/build/_deps/cycfi_infra-src/include/infra" "$GITHUB_WORKSPACE/.elements/install/include/"
+          find "$GITHUB_WORKSPACE/.elements/build/_deps/cycfi_infra-src/include" -maxdepth 1 -name '*.hpp' -exec cp {} "$GITHUB_WORKSPACE/.elements/install/include/" \;
+          GHC_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/ghc/filesystem.hpp' | head -n 1)"
+          if [ -n "$GHC_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$GHC_HEADER_PATH")")/ghc" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
+          NONSTD_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/nonstd/string_view.hpp' | head -n 1)"
+          if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
       - name: Fetch DPF
         run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
       - name: Run remote build
@@ -192,6 +272,8 @@ jobs:
       HAYASHI_BUILD_SERVER_URL: ${{ inputs.server_url }}
       HAYASHI_BUILD_SECRET: ${{ secrets.HAYASHI_BUILD_RUNNER_SECRET }}
       DPF_PATH: ${{ github.workspace }}/.dpf
+      ELEMENTS_INCLUDE_PATH: ${{ github.workspace }}/.elements/install/include
+      ELEMENTS_LIB_PATH: ${{ github.workspace }}/.elements/install/lib
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
@@ -204,11 +286,32 @@ jobs:
         with:
           node-version: 22
       - name: Install system dependencies
-        run: brew install faust
+        run: brew install faust cmake pkg-config asio gtk+3 cairo fontconfig freetype webp
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
+      - name: Build Elements
+        run: |
+          git clone --depth 1 https://github.com/cycfi/elements.git "$GITHUB_WORKSPACE/.elements"
+          cmake -S "$GITHUB_WORKSPACE/.elements" -B "$GITHUB_WORKSPACE/.elements/build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DELEMENTS_HOST_UI_LIBRARY=gtk \
+            -DELEMENTS_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/.elements/install"
+          cmake --build "$GITHUB_WORKSPACE/.elements/build" --parallel
+          cmake --install "$GITHUB_WORKSPACE/.elements/build"
+          mkdir -p "$GITHUB_WORKSPACE/.elements/install/include" "$GITHUB_WORKSPACE/.elements/install/lib"
+          find "$GITHUB_WORKSPACE/.elements/build" -name libelements.a -exec cp {} "$GITHUB_WORKSPACE/.elements/install/lib/" \;
+          cp -r "$GITHUB_WORKSPACE/.elements/lib/include/elements" "$GITHUB_WORKSPACE/.elements/install/include/"
+          cp "$GITHUB_WORKSPACE/.elements/lib/include/elements.hpp" "$GITHUB_WORKSPACE/.elements/install/include/"
+          cp -r "$GITHUB_WORKSPACE/.elements/build/_deps/cycfi_infra-src/include/infra" "$GITHUB_WORKSPACE/.elements/install/include/"
+          find "$GITHUB_WORKSPACE/.elements/build/_deps/cycfi_infra-src/include" -maxdepth 1 -name '*.hpp' -exec cp {} "$GITHUB_WORKSPACE/.elements/install/include/" \;
+          GHC_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/ghc/filesystem.hpp' | head -n 1)"
+          if [ -n "$GHC_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$GHC_HEADER_PATH")")/ghc" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
+          NONSTD_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/nonstd/string_view.hpp' | head -n 1)"
+          if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
       - name: Fetch DPF
         run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
       - name: Run remote build
