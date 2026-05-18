@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - uses: msys2/setup-msys2@v2
         with:
           update: true
@@ -90,6 +90,29 @@ jobs:
       - name: Install Faust
         shell: powershell
         run: choco install faust --yes
+      - name: Resolve Faust on PATH
+        shell: powershell
+        run: |
+          $candidates = @(
+            "C:\ProgramData\chocolatey\bin",
+            "C:\Program Files\Faust\bin",
+            "C:\tools\faust\bin"
+          )
+          foreach ($dir in $candidates) {
+            $exe = Join-Path $dir "faust.exe"
+            if (Test-Path $exe) {
+              $dir | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+              Write-Host "Found faust.exe at $exe"
+              exit 0
+            }
+          }
+          $command = Get-Command faust -ErrorAction SilentlyContinue
+          if ($command) {
+            Split-Path $command.Source | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+            Write-Host "Resolved faust command at $($command.Source)"
+            exit 0
+          }
+          throw "faust.exe not found after Chocolatey install"
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle
@@ -121,7 +144,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install system dependencies
         run: brew install faust
       - name: Install npm dependencies
@@ -153,7 +176,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install system dependencies
         run: brew install faust
       - name: Install npm dependencies
