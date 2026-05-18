@@ -396,10 +396,14 @@ export async function compileDspToNative(
     const bundleName = dpfArtifactPath.split('/').pop() ?? `${safePluginName}.${format}`;
     const bundleDir = resolve(workDir, bundleName);
     const artifactStat = statSync(dpfArtifactPath);
-    if (artifactStat.isDirectory()) {
-      cpSync(dpfArtifactPath, bundleDir, { recursive: true });
-    } else {
-      copyFileSync(dpfArtifactPath, bundleDir);
+    const normalizedArtifactPath = resolve(dpfArtifactPath);
+    const normalizedBundlePath = resolve(bundleDir);
+    if (normalizedArtifactPath !== normalizedBundlePath) {
+      if (artifactStat.isDirectory()) {
+        cpSync(dpfArtifactPath, bundleDir, { recursive: true });
+      } else {
+        copyFileSync(dpfArtifactPath, bundleDir);
+      }
     }
 
     // ── Step 3: Archive bundle and upload to Tigris ────────────────────
