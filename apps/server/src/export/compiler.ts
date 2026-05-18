@@ -39,7 +39,7 @@ interface ExecOptions {
   onStderr?: (chunk: string) => void | Promise<void>;
 }
 
-const EXPORT_CACHE_VERSION = 'v2';
+const EXPORT_CACHE_VERSION = 'v3';
 
 async function objectExists(key: string): Promise<boolean> {
   try {
@@ -249,7 +249,7 @@ export async function compileDspToNative(
 ): Promise<CompileResult> {
   const format = formatForTarget(target);
   const platform = platformForTarget(target);
-  const includeUi = process.env.ENABLE_ELEMENTS_PLUGIN_UI === '1' && platform === 'linux';
+  const includeUi = process.env.ENABLE_ELEMENTS_PLUGIN_UI !== '0';
   const hash = sha256(JSON.stringify({
     sourceCode,
     target,
@@ -294,28 +294,27 @@ export async function compileDspToNative(
     // ── Generate UI code if spec is available ───────────────────────────
     let dspClassPath: string | undefined;
     let uiSourcePath: string | undefined;
-    if (includeUi && uiSpecJson && macroJson && Array.isArray(macroJson)) {
-      try {
-        await reportProgress('preparing', 'Generating Faust UI wrapper code');
-        await reportLog('info', 'preparing', 'Generating HayashiDSP.h and Elements UI wrapper', 'faust');
-        const uiSpec = uiSpecJson as Parameters<typeof generateElementsUi>[0];
-        const macros = macroJson as Parameters<typeof generateElementsUi>[1];
-
-        dspClassPath = resolve(workDir, 'HayashiDSP.h');
-        await exec('faust', ['-cn', 'HayashiDSP', '-i', dspPath, '-o', dspClassPath], {
-          onStdout: (line) => reportLog('info', 'preparing', line, 'faust stdout'),
-          onStderr: (line) => reportLog('warn', 'preparing', line, 'faust stderr'),
-        });
-
-        const generated = generateElementsUi(uiSpec, macros);
-        const uiHeaderPath = resolve(workDir, 'plugin_ui.h');
-        uiSourcePath = resolve(workDir, 'plugin_ui.cpp');
-        writeFileSync(uiHeaderPath, generated.header);
-        writeFileSync(uiSourcePath, generated.source);
-      } catch (genErr) {
-        await reportLog('warn', 'preparing', genErr instanceof Error ? genErr.message : String(genErr), 'ui generation');
-        console.warn('[Hayashi] UI code generation failed:', genErr instanceof Error ? genErr.message : String(genErr));
+    if (includeUi) {
+      if (!uiSpecJson || !macroJson || !Array.isArray(macroJson)) {
+        throw new Error('Native export was configured to include a generated UI, but the UI spec or macro controls were missing.');
       }
+
+      await reportProgress('preparing', 'Generating Faust UI wrapper code');
+      await reportLog('info', 'preparing', 'Generating HayashiDSP.h and Elements UI wrapper', 'faust');
+      const uiSpec = uiSpecJson as Parameters<typeof generateElementsUi>[0];
+      const macros = macroJson as Parameters<typeof generateElementsUi>[1];
+
+      dspClassPath = resolve(workDir, 'HayashiDSP.h');
+      await exec('faust', ['-cn', 'HayashiDSP', '-i', dspPath, '-o', dspClassPath], {
+        onStdout: (line) => reportLog('info', 'preparing', line, 'faust stdout'),
+        onStderr: (line) => reportLog('warn', 'preparing', line, 'faust stderr'),
+      });
+
+      const generated = generateElementsUi(uiSpec, macros);
+      const uiHeaderPath = resolve(workDir, 'plugin_ui.h');
+      uiSourcePath = resolve(workDir, 'plugin_ui.cpp');
+      writeFileSync(uiHeaderPath, generated.header);
+      writeFileSync(uiSourcePath, generated.source);
     }
 
     // ── Step 1: DPF multi-format build ─────────────────────────────────

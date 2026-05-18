@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import {
   AlertTriangle,
-  Ban,
   Crown,
   ExternalLink,
   FileText,
@@ -19,7 +18,6 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useClerkToken } from '@/hooks/useClerkToken';
 import {
-  blockSupportThread,
   createSupportThread,
   loadSupportSession,
   loadSupportThread,
@@ -84,6 +82,76 @@ function toFileSize(size: number | null) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+type NormalizedThreadContext = {
+  summary: string | null;
+  urgency: string | null;
+  sentiment: string | null;
+  issues: string[];
+  nextStep: string | null;
+};
+
+function stripCodeFence(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('```')) return trimmed;
+  return trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+}
+
+function readContextObject(value: unknown) {
+  if (!value) return null;
+  if (typeof value === 'object') return value as Record<string, unknown>;
+  if (typeof value !== 'string') return null;
+  const stripped = stripCodeFence(value);
+  if (!(stripped.startsWith('{') || stripped.startsWith('['))) return null;
+  try {
+    const parsed = JSON.parse(stripped);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readContextString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
+
+function readContextIssues(...values: unknown[]) {
+  for (const value of values) {
+    if (!Array.isArray(value)) continue;
+    const issues = value
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (issues.length) return issues;
+  }
+  return [] as string[];
+}
+
+function normalizeThreadContext(thread: SupportThread | null): NormalizedThreadContext {
+  const rawContextJson = (thread as { contextJson?: unknown } | null)?.contextJson ?? null;
+  const summaryPayload = readContextObject(thread?.contextSummary);
+  const contextPayload = readContextObject(rawContextJson);
+  const merged = { ...(summaryPayload ?? {}), ...(contextPayload ?? {}) };
+  const literalSummary = typeof thread?.contextSummary === 'string' && !summaryPayload
+    ? stripCodeFence(thread.contextSummary)
+    : null;
+
+  return {
+    summary: readContextString(
+      merged.summary,
+      literalSummary,
+    ),
+    urgency: readContextString(merged.urgency),
+    sentiment: readContextString(merged.sentiment),
+    issues: readContextIssues(merged.issues),
+    nextStep: readContextString(merged.nextStep),
+  };
 }
 
 function Avatar({ profile, tone }: { profile: Pick<SupportProfile, 'displayName' | 'avatarUrl'> | null; tone?: 'support' | 'customer' | 'system' }) {
@@ -178,14 +246,14 @@ function MessageAttachments({ message }: { message: SupportMessage }) {
               href={attachment.url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-between gap-3 rounded-[16px] border border-[#183324]/10 bg-[#f8f3e7] px-3 py-3 text-sm text-[#193125] transition hover:border-[#d48c2e]/28"
+              className="flex min-w-0 items-center justify-between gap-3 rounded-[16px] border border-[#183324]/10 bg-[#f8f3e7] px-3 py-3 text-sm text-[#193125] transition hover:border-[#d48c2e]/28"
             >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#10261d] text-[#f7f0e3]">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#10261d] text-[#f7f0e3]">
                   <FileText className="h-4 w-4" />
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate font-semibold">{attachment.filename}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="overflow-hidden text-ellipsis whitespace-nowrap font-semibold">{attachment.filename}</div>
                   <div className="text-xs text-[#6d775e]">{toFileSize(attachment.size) ?? attachment.contentType ?? 'Attachment'}</div>
                 </div>
               </div>
@@ -227,16 +295,16 @@ function SupportMessageRow({ message, thread }: { message: SupportMessage; threa
   const authorName = isSystem ? 'System' : profile?.displayName ?? (message.authorRole === 'customer' ? 'Customer' : 'Support');
 
   return (
-    <div className={`flex gap-3 ${isSystem ? 'rounded-[18px] border border-[#b45309]/18 bg-[rgba(180,83,9,0.08)] px-4 py-3' : ''}`}>
-      <div className="pt-0.5">
+    <div className={`flex min-w-0 gap-3 ${isSystem ? 'rounded-[18px] border border-[#b45309]/18 bg-[rgba(180,83,9,0.08)] px-4 py-3' : ''}`}>
+      <div className="flex-shrink-0 pt-0.5">
         <Avatar profile={profile} tone={roleTone} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-sm font-bold text-[#10261d]">{authorName}</span>
-          <span className="text-[11px] uppercase tracking-[0.12em] text-[#7d876d]">{formatTime(message.createdAt)}</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="min-w-0 break-words text-sm font-bold text-[#10261d]">{authorName}</span>
+          <span className="max-w-full text-[11px] uppercase tracking-[0.12em] text-[#7d876d]">{formatTime(message.createdAt)}</span>
           {!isSystem && (
-            <span className="rounded-full bg-[#efe6d2] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8b5a20]">
+            <span className="flex-shrink-0 rounded-full bg-[#efe6d2] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8b5a20]">
               {message.source}
             </span>
           )}
@@ -289,7 +357,6 @@ export function SupportChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [composer, setComposer] = useState('');
   const [newThreadText, setNewThreadText] = useState('');
-  const [blocking, setBlocking] = useState(false);
   const [sending, setSending] = useState(false);
   const [composerFiles, setComposerFiles] = useState<File[]>([]);
   const [newThreadFiles, setNewThreadFiles] = useState<File[]>([]);
@@ -301,6 +368,7 @@ export function SupportChatPage() {
   const isOwner = session?.isOwner ?? discordUserId === OWNER_ID;
   const supportLocked = locked || !!session?.requiresDiscordJoin || !!session?.requiresTermsAcceptance || !!session?.requiresPrivacyAcceptance;
   const supportDisplayName = activeThread?.ownerProfile.displayName ?? session?.ownerProfile.displayName ?? 'Hayashi Support';
+  const threadContext = useMemo(() => normalizeThreadContext(activeThread), [activeThread]);
 
   function navigateHome() {
     const params = new URLSearchParams();
@@ -456,29 +524,6 @@ export function SupportChatPage() {
       setError(err instanceof Error ? err.message : 'Failed to send support message');
     } finally {
       setSending(false);
-    }
-  }
-
-  async function handleBlock() {
-    if (!activeThread) return;
-    setBlocking(true);
-    setError(null);
-    try {
-      const token = await getToken();
-      if (!token) {
-        setError('Waiting for authenticated session...');
-        return;
-      }
-      const thread = await blockSupportThread(token, activeThread.id, 'Rude or confrontational behavior');
-      setActiveThread(thread);
-      if (session?.discordUserId) {
-        const nextSession = await loadSupportSession(token, session.discordUserId);
-        setSession(nextSession);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to block thread');
-    } finally {
-      setBlocking(false);
     }
   }
 
@@ -679,17 +724,6 @@ export function SupportChatPage() {
                           <div className="mt-1 truncate text-lg font-bold text-[#10261d]">{activeThread?.ownerProfile.displayName ?? supportDisplayName}</div>
                         </div>
                       </div>
-                      {isOwner && activeThread && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={blocking}
-                          onClick={handleBlock}
-                          className="rounded-full border-[#b45309]/20 bg-[rgba(180,83,9,0.08)] text-[#92400e] hover:bg-[rgba(180,83,9,0.14)]"
-                        >
-                          <Ban className="mr-1.5 h-3.5 w-3.5" /> Block user
-                        </Button>
-                      )}
                     </div>
 
                     <ScrollArea className="flex-1 bg-[linear-gradient(180deg,rgba(255,252,245,0.94),rgba(249,242,228,0.92))]">
@@ -814,32 +848,32 @@ export function SupportChatPage() {
                   <aside className="rounded-[30px] border border-[#183324]/10 bg-[rgba(251,249,242,0.84)] p-5 shadow-[0_28px_64px_rgba(16,38,29,0.06)]">
                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6d775e]">Thread Context</div>
                     <div className="mt-3 text-sm leading-6 text-[#38503d]">
-                      {activeThread?.contextSummary ?? 'Azure-backed context fill will appear here once the thread has messages.'}
+                      {threadContext.summary ?? 'Support context will appear here once the thread has enough message history to summarize.'}
                     </div>
 
                     <div className="mt-5 space-y-3">
                       <div className="rounded-[22px] border border-[#183324]/10 bg-white/65 p-4">
                         <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#7d876d]">Urgency</div>
-                        <div className="mt-2 text-sm font-semibold text-[#10261d]">{activeThread?.contextJson?.urgency ?? 'normal'}</div>
+                        <div className="mt-2 text-sm font-semibold capitalize text-[#10261d]">{threadContext.urgency ?? 'normal'}</div>
                       </div>
                       <div className="rounded-[22px] border border-[#183324]/10 bg-white/65 p-4">
                         <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#7d876d]">Sentiment</div>
-                        <div className="mt-2 text-sm font-semibold text-[#10261d]">{activeThread?.contextJson?.sentiment ?? 'unknown'}</div>
+                        <div className="mt-2 text-sm font-semibold capitalize text-[#10261d]">{threadContext.sentiment ?? 'unknown'}</div>
                       </div>
                       <div className="rounded-[22px] border border-[#183324]/10 bg-white/65 p-4">
                         <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#7d876d]">Open Issues</div>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {(activeThread?.contextJson?.issues ?? []).map((issue) => (
+                          {threadContext.issues.map((issue) => (
                             <Badge key={issue} variant="outline" className="rounded-full border-[#183324]/12 bg-[#f3ecd7] text-[10px] text-[#56763c]">{issue}</Badge>
                           ))}
-                          {!(activeThread?.contextJson?.issues ?? []).length && (
+                          {!threadContext.issues.length && (
                             <span className="text-xs text-[#6d775e]">No extracted issues yet.</span>
                           )}
                         </div>
                       </div>
                       <div className="rounded-[22px] border border-[#183324]/10 bg-white/65 p-4">
                         <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#7d876d]">Next Step</div>
-                        <div className="mt-2 text-sm text-[#38503d]">{activeThread?.contextJson?.nextStep ?? 'Pending support analysis.'}</div>
+                        <div className="mt-2 text-sm text-[#38503d]">{threadContext.nextStep ?? 'Pending support analysis.'}</div>
                       </div>
                       {activeThread?.blockedAt && (
                         <div className="rounded-[22px] border border-[#b45309]/18 bg-[rgba(180,83,9,0.08)] p-4 text-sm text-[#92400e]">

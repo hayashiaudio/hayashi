@@ -15,14 +15,13 @@ import { useClerkToken } from '@/hooks/useClerkToken';
 import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Terminal, Sparkles, Wand2, Code2, Lock, Crown } from 'lucide-react';
+import { Terminal, Sparkles, Lock, Crown } from 'lucide-react';
 import { usePluginStore } from '@/stores/pluginStore';
 import { useBuildStore } from '@/stores/buildStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useProjectStore } from '@/stores/projectStore';
 import {
   HeroDitheringActions,
-  HeroDitheringBadges,
   HeroDitheringContainer,
   HeroDitheringContent,
   HeroDitheringDescription,
@@ -704,21 +703,60 @@ export default function PluginGenerator() {
                           ENGINE
                         </>
                       }
-                      description="Describe a sound. Generate a Faust DSP plugin. Preview it in the browser and export a production bundle when it is ready."
+                      description="Describe a sound. Generate a Faust DSP DAW plugin. Preview it in the browser and export an importable bundle when it is ready."
                     />
 
                     <HeroDitheringDescription>
-                      <HeroDitheringBadges>
-                        <Badge variant="outline" className="h-7 rounded-full border-[#183324]/14 bg-white/55 px-3 text-[11px] font-semibold text-[#294232] shadow-[0_8px_20px_rgba(16,38,29,0.06)]">
-                          <Wand2 className="mr-1.5 h-3.5 w-3.5" /> GPT-4o
-                        </Badge>
-                        <Badge variant="outline" className="h-7 rounded-full border-[#183324]/14 bg-white/55 px-3 text-[11px] font-semibold text-[#294232] shadow-[0_8px_20px_rgba(16,38,29,0.06)]">
-                          <Code2 className="mr-1.5 h-3.5 w-3.5" /> Faust
-                        </Badge>
-                        <Badge variant="outline" className="h-7 rounded-full border-[#183324]/14 bg-[#f3ecd7] px-3 text-[11px] font-semibold text-[#56763c] shadow-[0_8px_20px_rgba(16,38,29,0.04)]">
-                          Live preview + export
-                        </Badge>
-                      </HeroDitheringBadges>
+                      <div className="mt-6 max-w-4xl rounded-[32px] border border-[#183324]/12 bg-[linear-gradient(180deg,rgba(255,252,245,0.82),rgba(251,247,237,0.72))] px-5 py-5 shadow-[0_24px_54px_rgba(16,38,29,0.09)]">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#7d876d]">Supported DAWs</div>
+                            <div className="mt-1 text-sm text-[#66725b]">Export importable plugin bundles for the hosts most people actually use.</div>
+                          </div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9aa28c]">VST3 + CLAP where supported</div>
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          {[
+                            {
+                              name: 'FL Studio',
+                              src: 'https://upload.wikimedia.org/wikipedia/en/6/69/FL_Studio_11_just_logo.png',
+                            },
+                            {
+                              name: 'Ableton Live',
+                              src: 'https://i.redd.it/3ru0ufljlc021.png',
+                            },
+                            {
+                              name: 'Reason',
+                              src: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Reason_Software_Logo.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original',
+                            },
+                            {
+                              name: 'Bitwig',
+                              src: 'https://dl.flathub.org/media/com/bitwig/BitwigStudio/eda5ca313649147ffa0a36ffb0e6bf9f/icons/128x128@2/com.bitwig.BitwigStudio.png',
+                            },
+                          ].map((daw) => (
+                            <div
+                              key={daw.name}
+                              className="flex min-w-0 items-center gap-4 rounded-[24px] border border-[#183324]/10 bg-[rgba(255,255,255,0.74)] px-4 py-4 shadow-[0_14px_28px_rgba(16,38,29,0.06)] transition-transform duration-200 hover:-translate-y-0.5"
+                            >
+                              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[#183324]/10 bg-[#f8f3e7] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                                <img src={daw.src} alt={daw.name} className="h-9 w-9 object-contain" loading="lazy" referrerPolicy="no-referrer" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-bold tracking-[-0.02em] text-[#1f3426]">{daw.name}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-[#6d775e]">
+                                  <span className="rounded-full border border-[#183324]/10 bg-[#f7f1e2] px-2 py-0.5 font-semibold uppercase tracking-[0.14em] text-[#59704d]">
+                                    VST3
+                                  </span>
+                                  <span className="rounded-full border border-[#183324]/10 bg-white/80 px-2 py-0.5 font-semibold uppercase tracking-[0.14em] text-[#728068]">
+                                    CLAP
+                                  </span>
+                                  <span className="text-[#7c846f]">import</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </HeroDitheringDescription>
 
                     <HeroDitheringActions>

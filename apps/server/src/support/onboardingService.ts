@@ -65,7 +65,21 @@ export async function syncOnboardingForUser(clerkUserId: string, discordUserId: 
   }
   if (record.termsAcceptedAt && record.privacyAcceptedAt && !record.supportDmSentAt) {
     const channelId = await createDmChannel(discordUserId);
-    await sendDiscordMessage(channelId, 'You can now send messages via the /support page in Hayashi. Your account is fully onboarded.');
+    await sendDiscordMessage(channelId, {
+      embeds: [
+        {
+          title: 'Support unlocked',
+          description: 'Your account is fully onboarded. You can now send messages through the Hayashi /support page.',
+          color: 0x4cbf73,
+          fields: [
+            { name: 'Status', value: 'Verified and ready', inline: true },
+            { name: 'Access', value: 'Hayashi support DM bridge', inline: true },
+          ],
+          footer: { text: 'Hayashi Support' },
+          timestamp: new Date(now).toISOString(),
+        },
+      ],
+    });
     patch.supportDmSentAt = now;
   }
 

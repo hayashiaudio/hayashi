@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { verifyWebhook, type UserWebhookEvent } from '@clerk/backend/webhooks';
 import type Stripe from 'stripe';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { uploadAsset, getPublicAssetUrl } from './storage.js';
+import { buildHomeMetadata, buildShareMetadata, injectMetadata, renderHomeOgSvg, renderShareOgSvg } from './og.js';
 import {
   addBillingSubscriber,
   consumeBillingStreamToken,
@@ -88,6 +90,28 @@ app.use('*', async (c, next) => {
 
 const billingRepository = getBillingRepository();
 const billing = new BillingService(billingRepository);
+const CLERK_SIGNUP_DISCORD_CHANNEL_ID = process.env.CLERK_SIGNUP_DISCORD_CHANNEL_ID?.trim() || '1505933125954306099';
+type ClerkWebhookUserData = {
+  id: string;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  image_url: string;
+  primary_email_address_id: string | null;
+  email_addresses: Array<{ id: string; email_address: string }>;
+  external_accounts: Array<{
+    provider: string;
+    provider_user_id: string;
+    username: string | null;
+    email_address: string;
+  }>;
+  created_at: number;
+  locale: string | null;
+};
+type ClerkUserCreatedEvent = {
+  type: 'user.created';
+  data: ClerkWebhookUserData;
+};
 
 async function verifyAuth(c: any, bodyToken?: string | null) {
   const header = c.req.header('authorization') ?? '';
@@ -105,6 +129,94 @@ function normalizeBuildFormat(value: string | undefined | null): BuildFormat | n
 function normalizeBuildTarget(value: string | undefined | null): BuildTarget | null {
   if (!value || !isBuildTarget(value)) return null;
   return value;
+}
+
+function getOrigin(c: any) {
+  const url = new URL(c.req.url);
+  const forwardedProto = c.req.header('x-forwarded-proto');
+  if (forwardedProto) url.protocol = `${forwardedProto}:`;
+  return url.origin;
+}
+
+function hasFileExtension(path: string) {
+  return /\.[a-z0-9]+$/i.test(path);
+}
+
+function formatWebhookDate(timestampMs: number | null | undefined) {
+  if (!timestampMs) return 'Unknown';
+  return new Date(timestampMs).toISOString();
+}
+
+function readPrimaryEmail(user: ClerkWebhookUserData) {
+  const email = user.email_addresses.find((item) => item.id === user.primary_email_address_id) ?? user.email_addresses[0];
+  return email?.email_address ?? null;
+}
+
+function readDisplayName(user: ClerkWebhookUserData) {
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+  return fullName || user.username || readPrimaryEmail(user) || user.id;
+}
+
+function readDiscordExternalAccount(user: ClerkWebhookUserData) {
+  return user.external_accounts.find((account) => account.provider === 'discord' || account.provider === 'oauth_discord') ?? null;
+}
+
+async function postClerkSignupToDiscord(event: ClerkUserCreatedEvent) {
+  if (!CLERK_SIGNUP_DISCORD_CHANNEL_ID) return;
+
+  const email = readPrimaryEmail(event.data);
+  const displayName = readDisplayName(event.data);
+  const discordAccount = readDiscordExternalAccount(event.data);
+
+  await sendDiscordMessage(CLERK_SIGNUP_DISCORD_CHANNEL_ID, {
+    embeds: [{
+      title: 'New Hayashi signup',
+      description: `${displayName} just created a Hayashi account.`,
+      color: 0x6f9e42,
+      thumbnail: event.data.image_url ? { url: event.data.image_url } : undefined,
+      fields: [
+        { name: 'User', value: displayName, inline: true },
+        { name: 'Email', value: email ?? 'No primary email', inline: true },
+        { name: 'Username', value: event.data.username ?? 'No username', inline: true },
+        { name: 'Clerk ID', value: `\`${event.data.id}\``, inline: false },
+        {
+          name: 'Discord',
+          value: discordAccount
+            ? `${discordAccount.username ?? discordAccount.email_address ?? 'Linked account'} (\`${discordAccount.provider_user_id}\`)`
+            : 'No Discord account linked',
+          inline: false,
+        },
+        { name: 'Locale', value: event.data.locale ?? 'Unknown', inline: true },
+        { name: 'Created At', value: formatWebhookDate(event.data.created_at), inline: true },
+      ],
+      footer: {
+        text: 'Hayashi signup • Clerk webhook',
+      },
+      timestamp: new Date(event.data.created_at || Date.now()).toISOString(),
+    }],
+  });
+}
+
+async function resolvePageMetadata(c: any) {
+  const origin = getOrigin(c);
+  const url = new URL(c.req.url);
+
+  if (url.pathname === '/share') {
+    const pluginId = url.searchParams.get('plugin');
+    if (!pluginId) return buildHomeMetadata(origin);
+    const thread = await getPluginThread(pluginId);
+    if (!thread) return buildHomeMetadata(origin);
+    const owner = await getClerkPublicProfile(thread.ownerId);
+    return buildShareMetadata(origin, pluginId, {
+      ownerName: owner?.name ?? 'A Hayashi creator',
+      ownerImageUrl: owner?.imageUrl ?? null,
+      pluginName: thread.name,
+      pluginType: thread.type,
+      versionCount: thread.versions.length,
+    });
+  }
+
+  return buildHomeMetadata(origin);
 }
 
 async function authorizeSmokeExport(identity: { userId: string }) {
@@ -315,6 +427,55 @@ interface SupportEmbedPayload {
   imageUrl: string | null;
   thumbnailUrl: string | null;
   providerName: string | null;
+}
+
+function truncateDiscordField(value: string, limit = 1024): string {
+  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+}
+
+function buildSupportDiscordEmbed(args: {
+  title: string;
+  threadId: string;
+  accentColor: number;
+  summary?: string | null;
+  actorLabel: string;
+  actorValue: string;
+  secondaryLabel?: string;
+  secondaryValue?: string;
+  reasonLabel?: string;
+  reasonValue?: string | null;
+  thumbnailUrl?: string | null;
+}) {
+  const fields = [
+    { name: 'Thread', value: truncateDiscordField(args.threadId), inline: true },
+    { name: args.actorLabel, value: truncateDiscordField(args.actorValue), inline: true },
+  ];
+
+  if (args.secondaryLabel && args.secondaryValue) {
+    fields.push({
+      name: args.secondaryLabel,
+      value: truncateDiscordField(args.secondaryValue),
+      inline: true,
+    });
+  }
+
+  if (args.reasonLabel && args.reasonValue) {
+    fields.push({
+      name: args.reasonLabel,
+      value: truncateDiscordField(args.reasonValue),
+      inline: false,
+    });
+  }
+
+  return {
+    title: args.title,
+    description: args.summary ? truncateDiscordField(args.summary, 4096) : undefined,
+    color: args.accentColor,
+    fields,
+    footer: { text: 'Hayashi Support' },
+    timestamp: new Date().toISOString(),
+    thumbnail: args.thumbnailUrl ? { url: args.thumbnailUrl } : undefined,
+  };
 }
 
 interface SupportMessageMetadata {
@@ -607,6 +768,35 @@ app.post('/billing/webhook', async (c) => {
   return c.json({ error: result.message }, 400);
 });
 
+async function handleClerkWebhookRequest(c: any) {
+  let event: UserWebhookEvent;
+  try {
+    event = await verifyWebhook(c.req.raw) as UserWebhookEvent;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Webhook verification failed';
+    console.error('[Hayashi] Clerk webhook verification failed:', message);
+    return c.json({ error: message }, 400);
+  }
+
+  if (event.type !== 'user.created') {
+    return c.json({ received: true, ignored: event.type }, 200);
+  }
+
+  try {
+    const createdEvent = event as ClerkUserCreatedEvent;
+    await billing.getOrCreateUser({ userId: createdEvent.data.id });
+    await postClerkSignupToDiscord(createdEvent);
+    return c.json({ received: true, type: event.type }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Clerk webhook handler failed';
+    console.error('[Hayashi] Clerk webhook handler failed:', message);
+    return c.json({ error: message }, 500);
+  }
+}
+
+app.post('/clerk/webhook', handleClerkWebhookRequest);
+app.post('/clerk/webook', handleClerkWebhookRequest);
+
 app.post('/billing/checkout', async (c) => {
   const identity = await verifyAuth(c);
   if (!identity) return c.json({ error: 'Unauthorized' }, 401);
@@ -876,14 +1066,30 @@ app.post('/api/support/threads', async (c) => {
     });
 
     if (messageContent || body.files.length) {
+      const attachmentPayload = await Promise.all(body.files.map(async (file) => ({
+        name: file.name,
+        contentType: file.type || 'application/octet-stream',
+        bytes: new Uint8Array(await file.arrayBuffer()),
+      })));
       const outbound = await sendDiscordMessage(
         channelId,
-        `New support thread ${threadId}\nCustomer Discord ID: ${resolved.discord.providerUserId}${messageContent ? `\n\n${messageContent}` : ''}`,
-        await Promise.all(body.files.map(async (file) => ({
-          name: file.name,
-          contentType: file.type || 'application/octet-stream',
-          bytes: new Uint8Array(await file.arrayBuffer()),
-        })))
+        {
+          content: messageContent || `New support thread ${threadId}`,
+          embeds: [
+            buildSupportDiscordEmbed({
+              title: 'New support thread',
+              threadId,
+              accentColor: 0xf3a95f,
+              summary: messageContent || 'No text message provided.',
+              actorLabel: 'Customer',
+              actorValue: customerProfile.displayName,
+              secondaryLabel: 'Discord ID',
+              secondaryValue: resolved.discord.providerUserId,
+              thumbnailUrl: customerProfile.avatarUrl,
+            }),
+          ],
+          files: attachmentPayload,
+        }
       );
       await addSupportMessage({
         id: `support-web-${Date.now()}`,
@@ -944,6 +1150,7 @@ app.post('/api/support/threads/:id/messages', async (c) => {
 
   const authorRole = resolved.isOwner ? 'support' : 'customer';
   const authorProfile = await getSupportProfile(resolved.isOwner ? SUPPORT_OWNER_DISCORD_USER_ID : resolved.discord.providerUserId);
+  const customerProfile = await getSupportProfile(thread.discordUserId);
   let outbound: Awaited<ReturnType<typeof sendDiscordMessage>> | null = null;
   try {
     const channelId = thread.discordChannelId ?? await createDmChannel(SUPPORT_OWNER_DISCORD_USER_ID);
@@ -952,13 +1159,32 @@ app.post('/api/support/threads/:id/messages', async (c) => {
     }
 
     const outboundText = resolved.isOwner
-      ? `Support reply on ${thread.id}${messageContent ? `\n\n${messageContent}` : ''}`
-      : `Customer reply on ${thread.id}\nCustomer Discord ID: ${thread.discordUserId}${messageContent ? `\n\n${messageContent}` : ''}`;
-    outbound = await sendDiscordMessage(channelId, outboundText, await Promise.all(body.files.map(async (file) => ({
+      ? messageContent || `Support reply on ${thread.id}`
+      : messageContent || `Customer reply on ${thread.id}`;
+    const attachmentPayload = await Promise.all(body.files.map(async (file) => ({
       name: file.name,
       contentType: file.type || 'application/octet-stream',
       bytes: new Uint8Array(await file.arrayBuffer()),
-    }))));
+    })));
+    outbound = await sendDiscordMessage(channelId, {
+      content: outboundText,
+      embeds: [
+        buildSupportDiscordEmbed({
+          title: resolved.isOwner ? 'Support reply' : 'Customer reply',
+          threadId: thread.id,
+          accentColor: resolved.isOwner ? 0x4cbf73 : 0x6f9e42,
+          summary: messageContent || (body.files.length ? 'Attachment only message.' : null),
+          actorLabel: resolved.isOwner ? 'Moderator' : 'Customer',
+          actorValue: authorProfile.displayName,
+          secondaryLabel: resolved.isOwner ? 'To' : 'Discord ID',
+          secondaryValue: resolved.isOwner ? customerProfile.displayName : thread.discordUserId,
+          reasonLabel: body.files.length ? 'Attachments' : undefined,
+          reasonValue: body.files.length ? body.files.map((file) => file.name).join('\n') : undefined,
+          thumbnailUrl: authorProfile.avatarUrl,
+        }),
+      ],
+      files: attachmentPayload,
+    });
   } catch (error) {
     if (isDiscordMutualGuildError(error)) return supportJoinRequiredResponse(c);
     throw error;
@@ -1815,6 +2041,32 @@ app.get('/api/share/:id', async (c) => {
   });
 });
 
+app.get('/og/home.svg', (c) => {
+  return c.body(renderHomeOgSvg(), 200, {
+    'Content-Type': 'image/svg+xml; charset=utf-8',
+    'Cache-Control': 'public, max-age=3600',
+  });
+});
+
+app.get('/og/share/:id.svg', async (c) => {
+  const pluginId = c.req.param('id');
+  if (!pluginId) return c.notFound();
+  const thread = await getPluginThread(pluginId);
+  if (!thread) return c.notFound();
+
+  const owner = await getClerkPublicProfile(thread.ownerId);
+  return c.body(renderShareOgSvg({
+    ownerName: owner?.name ?? 'A Hayashi creator',
+    ownerImageUrl: owner?.imageUrl ?? null,
+    pluginName: thread.name,
+    pluginType: thread.type,
+    versionCount: thread.versions.length,
+  }), 200, {
+    'Content-Type': 'image/svg+xml; charset=utf-8',
+    'Cache-Control': 'public, max-age=3600',
+  });
+});
+
 app.get('/api/training-corpus', async (c) => {
   const identity = await verifyAuth(c, c.req.query('accessToken'));
   if (!identity) return c.json({ error: 'Unauthorized' }, 401);
@@ -1977,6 +2229,17 @@ app.get('*', (c) => {
   }
 
   const relativePath = path === '/' ? 'index.html' : path.replace(/^\/+/, '');
+  if (!hasFileExtension(relativePath)) {
+    try {
+      const indexContent = readFileSync(resolve(CLIENT_DIST, 'index.html'));
+      return resolvePageMetadata(c)
+        .then((metadata) => c.html(injectMetadata(indexContent.toString(), metadata)))
+        .catch(() => c.html(indexContent.toString()));
+    } catch {
+      return c.text('Client build not found. Run npm run build in apps/client/', 404);
+    }
+  }
+
   const filePath = resolve(CLIENT_DIST, relativePath);
   try {
     const content = readFileSync(filePath);
@@ -1985,7 +2248,9 @@ app.get('*', (c) => {
   } catch {
     try {
       const indexContent = readFileSync(resolve(CLIENT_DIST, 'index.html'));
-      return c.html(indexContent.toString());
+      return resolvePageMetadata(c)
+        .then((metadata) => c.html(injectMetadata(indexContent.toString(), metadata)))
+        .catch(() => c.html(indexContent.toString()));
     } catch {
       return c.text('Client build not found. Run npm run build in apps/client/', 404);
     }

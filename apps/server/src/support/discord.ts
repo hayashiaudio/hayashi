@@ -35,6 +35,26 @@ interface DiscordMessageResponse {
   timestamp?: string;
 }
 
+export interface DiscordEmbedField {
+  name: string;
+  value: string;
+  inline?: boolean;
+}
+
+export interface DiscordOutboundEmbed {
+  title?: string;
+  description?: string;
+  color?: number;
+  fields?: DiscordEmbedField[];
+  footer?: {
+    text: string;
+  };
+  timestamp?: string;
+  thumbnail?: {
+    url: string;
+  };
+}
+
 interface DiscordUserResponse {
   id: string;
   username: string;
@@ -130,20 +150,26 @@ export async function createDmChannel(recipientUserId: string): Promise<string> 
 
 export async function sendDiscordMessage(
   channelId: string,
-  content: string,
-  files?: Array<{ name: string; contentType: string; bytes: Uint8Array }>
+  options: {
+    content?: string;
+    embeds?: DiscordOutboundEmbed[];
+    files?: Array<{ name: string; contentType: string; bytes: Uint8Array }>;
+  }
 ): Promise<DiscordMessageResponse> {
+  const content = options.content?.trim() ?? '';
+  const embeds = options.embeds ?? [];
+  const files = options.files;
   const hasFiles = !!files?.length;
   let body: FormData | string;
   if (hasFiles) {
     const form = new FormData();
-    form.set('payload_json', JSON.stringify({ content }));
+    form.set('payload_json', JSON.stringify({ content, embeds }));
     files?.forEach((file, index) => {
       form.set(`files[${index}]`, new Blob([new Uint8Array(file.bytes)], { type: file.contentType }), file.name);
     });
     body = form;
   } else {
-    body = JSON.stringify({ content });
+    body = JSON.stringify({ content, embeds });
   }
   const res = await discordFetch(`/channels/${encodeURIComponent(channelId)}/messages`, {
     method: 'POST',
@@ -153,6 +179,12 @@ export async function sendDiscordMessage(
   const data = await res.json() as DiscordMessageResponse;
   if (!data.id) throw new Error('Discord message send returned no id');
   return data;
+}
+
+export async function addDiscordReaction(channelId: string, messageId: string, emoji: string): Promise<void> {
+  await discordFetch(`/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(emoji)}/@me`, {
+    method: 'PUT',
+  });
 }
 
 export async function listDiscordMessages(channelId: string, limit = 50): Promise<DiscordMessageResponse[]> {
@@ -173,6 +205,12 @@ export async function isDiscordGuildMember(guildId: string, userId: string): Pro
 export async function addGuildMemberRole(guildId: string, userId: string, roleId: string): Promise<void> {
   await discordFetch(`/guilds/${encodeURIComponent(guildId)}/members/${encodeURIComponent(userId)}/roles/${encodeURIComponent(roleId)}`, {
     method: 'PUT',
+  });
+}
+
+export async function removeGuildMemberRole(guildId: string, userId: string, roleId: string): Promise<void> {
+  await discordFetch(`/guilds/${encodeURIComponent(guildId)}/members/${encodeURIComponent(userId)}/roles/${encodeURIComponent(roleId)}`, {
+    method: 'DELETE',
   });
 }
 

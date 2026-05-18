@@ -27,6 +27,19 @@ const C = {
   textMuted: '#737373',
   textDim: '#525252',
   void: '#0a0a0a',
+  panel: 'rgba(255,255,255,0.02)',
+  panelAlt: 'rgba(255,255,255,0.02)',
+} as const;
+
+const PUBLIC_C = {
+  border: 'rgba(24,51,36,0.10)',
+  accent: '#d48c2e',
+  text: '#10261d',
+  textMuted: '#45604b',
+  textDim: '#7d876d',
+  void: 'rgba(255,252,245,0.72)',
+  panel: 'rgba(255,252,245,0.82)',
+  panelAlt: 'rgba(243,236,215,0.62)',
 } as const;
 
 interface PluginPreviewProps {
@@ -54,6 +67,7 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
   const upsertBuild = useBuildStore((s) => s.upsertBuild);
   const analysis = useAudioAnalysis(previewPlaying);
   const sessionLocked = useSessionStore((s) => s.locked);
+  const theme = publicMode ? PUBLIC_C : C;
 
   const plugin = plugins.find((p) => p.id === activePluginId);
 
@@ -304,21 +318,49 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 pb-12 max-w-6xl mx-auto">
-      <div className="rounded-[28px] border p-4 sm:p-6 lg:p-8 animate-slide-up" style={{ borderColor: C.border, background: '#111111' }}>
+      <div
+        className="rounded-[28px] border p-4 sm:p-6 lg:p-8 animate-slide-up shadow-[0_24px_70px_rgba(16,38,29,0.08)]"
+        style={{
+          borderColor: theme.border,
+          background: publicMode
+            ? 'linear-gradient(180deg, rgba(255,252,245,0.92) 0%, rgba(244,238,220,0.84) 100%)'
+            : '#111111',
+        }}
+      >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between mb-6">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h2 className="text-2xl sm:text-3xl font-bold leading-[0.95] text-[#f2eeea] break-words" style={{ overflowWrap: 'anywhere' }}>
+              <h2 className="text-2xl sm:text-3xl font-bold leading-[0.95] break-words" style={{ color: theme.text, overflowWrap: 'anywhere' }}>
                 {plugin.name}
               </h2>
-              <Badge variant="outline" className="h-6 px-3 text-[10px] border-[#525252] text-[#8e8e8e] rounded-full capitalize">{plugin.type}</Badge>
+              <Badge
+                variant="outline"
+                className="h-6 px-3 text-[10px] rounded-full capitalize"
+                style={{
+                  borderColor: publicMode ? 'rgba(24,51,36,0.12)' : '#525252',
+                  color: publicMode ? '#56763c' : '#8e8e8e',
+                  background: publicMode ? 'rgba(243,236,215,0.72)' : 'transparent',
+                }}
+              >
+                {plugin.type}
+              </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-[#646464] font-mono leading-relaxed break-words max-w-3xl" style={{ overflowWrap: 'anywhere' }}>
+            <p className="text-xs sm:text-sm font-mono leading-relaxed break-words max-w-3xl" style={{ color: theme.textMuted, overflowWrap: 'anywhere' }}>
               {plugin.prompt}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:justify-end lg:max-w-[32rem]">
-            <Button variant="outline" size="sm" className="h-10 px-4 text-[11px] border-[#525252] text-[#737373] hover:text-[#e5e5e5] rounded-xl gap-1.5" onClick={handleCopy}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-4 text-[11px] rounded-xl gap-1.5"
+              style={{
+                borderColor: publicMode ? 'rgba(24,51,36,0.12)' : '#525252',
+                color: publicMode ? '#45604b' : '#737373',
+                background: publicMode ? 'rgba(255,255,255,0.6)' : 'transparent',
+              }}
+              onClick={handleCopy}
+            >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? 'Copied' : 'Copy'}
             </Button>
@@ -330,7 +372,17 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 px-4 text-[11px] border-[#ff8c61]/30 text-[#ff8c61] hover:bg-[#ff8c61]/10 rounded-xl gap-1.5" onClick={() => setShowSource((s) => !s)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-4 text-[11px] rounded-xl gap-1.5"
+                  style={{
+                    borderColor: publicMode ? 'rgba(212,140,46,0.26)' : 'rgba(255,140,97,0.30)',
+                    color: publicMode ? '#d48c2e' : '#ff8c61',
+                    background: publicMode ? 'rgba(255,255,255,0.6)' : 'transparent',
+                  }}
+                  onClick={() => setShowSource((s) => !s)}
+                >
                   <Code2 className="h-3.5 w-3.5" /> FAUST
                 </Button>
               </TooltipTrigger>
@@ -387,7 +439,7 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
           </div>
         </div>
 
-        <div className="rounded-xl p-4 mb-6 space-y-3" style={{ background: C.void, border: `1px solid ${C.border}` }}>
+        <div className="rounded-xl p-4 mb-6 space-y-3" style={{ background: theme.void, border: `1px solid ${theme.border}` }}>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {previewModes.map((mode) => (
               <button
@@ -395,9 +447,13 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
                 onClick={() => { void handleSelectEnhancedPreviewMode(mode); }}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all"
                 style={{
-                  background: activePreviewMode === mode ? 'rgba(255,140,97,0.12)' : 'transparent',
-                  color: activePreviewMode === mode ? '#ff8c61' : '#737373',
-                  border: `1px solid ${activePreviewMode === mode ? 'rgba(255,140,97,0.30)' : 'rgba(255,255,255,0.06)'}`
+                  background: activePreviewMode === mode
+                    ? (publicMode ? 'rgba(212,140,46,0.12)' : 'rgba(255,140,97,0.12)')
+                    : (publicMode ? 'rgba(255,255,255,0.35)' : 'transparent'),
+                  color: activePreviewMode === mode ? theme.accent : theme.textMuted,
+                  border: `1px solid ${activePreviewMode === mode
+                    ? (publicMode ? 'rgba(212,140,46,0.28)' : 'rgba(255,140,97,0.30)')
+                    : (publicMode ? 'rgba(24,51,36,0.08)' : 'rgba(255,255,255,0.06)')}`
                 }}
               >
                 {mode === 'loop' && <Music size={12} />}
@@ -410,7 +466,7 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
           </div>
 
           {plugin.type === 'effect' && activePreviewMode === 'sample' && (
-            <div className="rounded-xl border px-3 py-3" style={{ borderColor: C.border, background: 'rgba(255,255,255,0.02)' }}>
+            <div className="rounded-xl border px-3 py-3" style={{ borderColor: theme.border, background: publicMode ? theme.panelAlt : 'rgba(255,255,255,0.02)' }}>
               <input
                 ref={sampleInputRef}
                 type="file"
@@ -420,15 +476,20 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
               />
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-[10px] font-bold tracking-wider text-[#737373]">UPLOAD SAMPLE</div>
-                  <div className="mt-1 text-[11px] font-mono text-[#e5e5e5] break-words" style={{ overflowWrap: 'anywhere' }}>
+                  <div className="text-[10px] font-bold tracking-wider" style={{ color: theme.textDim }}>UPLOAD SAMPLE</div>
+                  <div className="mt-1 text-[11px] font-mono break-words" style={{ color: theme.text, overflowWrap: 'anywhere' }}>
                     {plugin.previewSampleName ?? 'No sample loaded. Use WAV or MP3.'}
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 px-3 text-[11px] border-[#525252] text-[#d4d4d4] rounded-xl gap-1.5"
+                  className="h-9 px-3 text-[11px] rounded-xl gap-1.5"
+                  style={{
+                    borderColor: publicMode ? 'rgba(24,51,36,0.12)' : '#525252',
+                    color: publicMode ? '#294232' : '#d4d4d4',
+                    background: publicMode ? 'rgba(255,255,255,0.6)' : 'transparent',
+                  }}
                   onClick={() => sampleInputRef.current?.click()}
                 >
                   <Upload className="h-3.5 w-3.5" />
@@ -462,19 +523,31 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
             <div
               className="rounded-[24px] border p-4 sm:p-5"
               style={{
-                borderColor: 'rgba(255,255,255,0.08)',
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.018) 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                borderColor: publicMode ? 'rgba(24,51,36,0.08)' : 'rgba(255,255,255,0.08)',
+                background: publicMode
+                  ? 'linear-gradient(180deg, rgba(255,252,245,0.86) 0%, rgba(243,236,215,0.58) 100%)'
+                  : 'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.018) 100%)',
+                boxShadow: publicMode
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.45)'
+                  : 'inset 0 1px 0 rgba(255,255,255,0.04)',
               }}
             >
               <div className="mb-4 flex items-end justify-between gap-3">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#6f6a64]">Live Controls</div>
-                  <div className="mt-1 text-sm text-[#d7d0ca]">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: theme.textDim }}>Live Controls</div>
+                  <div className="mt-1 text-sm" style={{ color: theme.textMuted }}>
                     Browser knobs drive the current `faustwasm` preview in real time.
                   </div>
                 </div>
-                <Badge variant="outline" className="border-[#ff8c61]/25 bg-[#ff8c61]/8 text-[#ffb08a] rounded-full">
+                <Badge
+                  variant="outline"
+                  className="rounded-full"
+                  style={{
+                    borderColor: publicMode ? 'rgba(212,140,46,0.24)' : 'rgba(255,140,97,0.25)',
+                    background: publicMode ? 'rgba(212,140,46,0.10)' : 'rgba(255,140,97,0.08)',
+                    color: publicMode ? '#9a6a32' : '#ffb08a',
+                  }}
+                >
                   {plugin.params.length} params
                 </Badge>
               </div>
@@ -576,10 +649,10 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
         )}
 
         {showSource && plugin.faustCode && (
-          <div className="mt-6 rounded-xl border overflow-hidden" style={{ borderColor: C.border, background: C.void }}>
-            <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: C.border }}>
-              <span className="text-[10px] font-bold tracking-wider text-[#525252]">FAUST SOURCE</span>
-              <Button variant="ghost" size="sm" className="h-6 text-[10px] text-[#737373] hover:text-[#e5e5e5]" onClick={() => {
+          <div className="mt-6 rounded-xl border overflow-hidden" style={{ borderColor: theme.border, background: theme.void }}>
+            <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: theme.border }}>
+              <span className="text-[10px] font-bold tracking-wider" style={{ color: theme.textDim }}>FAUST SOURCE</span>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px]" style={{ color: theme.textMuted }} onClick={() => {
                 navigator.clipboard.writeText(plugin.faustCode).then(() => {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
@@ -589,7 +662,7 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
                 {copied ? ' Copied' : ' Copy'}
               </Button>
             </div>
-            <pre className="p-4 text-[11px] font-mono leading-relaxed overflow-auto max-h-[400px] hayashi-scroll whitespace-pre-wrap break-words" style={{ color: '#e5e5e5', overflowWrap: 'anywhere' }}>
+            <pre className="p-4 text-[11px] font-mono leading-relaxed overflow-auto max-h-[400px] hayashi-scroll whitespace-pre-wrap break-words" style={{ color: theme.text, overflowWrap: 'anywhere' }}>
               {plugin.faustCode || '// No Faust code generated yet'}
             </pre>
           </div>

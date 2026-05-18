@@ -54,8 +54,8 @@ export function HeroDitheringHeading({
           {eyebrow}
         </div>
       ) : null}
-      <div className="space-y-4">
-        <div className="max-w-[11ch] text-balance font-sans text-[clamp(3.2rem,8vw,5.8rem)] font-black leading-[0.9] tracking-[-0.08em] text-[#10261d]">
+      <div className="space-y-5">
+        <div className="max-w-[11ch] text-balance font-sans text-[clamp(3.2rem,8vw,5.8rem)] font-black leading-[0.96] tracking-[-0.08em] text-[#10261d]">
           {heading}
         </div>
         {description ? (
@@ -104,15 +104,15 @@ export function HeroDitheringVisual({
             image={imageSrc}
             colorFront="#6f9e42"
             colorBack="#07160f"
-          colorHighlight="#fff5d8"
-          type="8x8"
-          size={2}
-          colorSteps={4}
-          originalColors
-          speed={speed}
-          fit="cover"
-          scale={0.82}
-          className="absolute inset-0 h-full w-full"
+            colorHighlight="#fff5d8"
+            type="8x8"
+            size={2}
+            colorSteps={4}
+            originalColors
+            speed={speed}
+            fit="cover"
+            scale={1.04}
+            className="absolute inset-0 h-full w-full"
           />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0)_35%,rgba(7,22,15,0.12)_100%)]" />
         </div>
@@ -141,8 +141,8 @@ export function HeroDitheringMobileVisual({
           colorSteps={4}
           originalColors
           speed={speed}
-          fit="contain"
-          scale={0.74}
+          fit="cover"
+          scale={1.02}
           className="absolute inset-0 h-full w-full"
         />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0)_22%,rgba(7,22,15,0.12)_100%)]" />
