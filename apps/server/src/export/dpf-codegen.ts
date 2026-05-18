@@ -319,15 +319,15 @@ export function generateDpfWrapper(
     `FILES_UI  = ${includeUi ? 'dpf_ui.cpp plugin_ui.cpp' : ''}`,
     '',
     'DPF_PATH ?= /usr/local/share/dpf',
-    'BUILD_DIR ?= build',
-    'BIN_DIR ?= bin',
+    'DPF_BUILD_DIR ?= build',
+    'DPF_TARGET_DIR ?= bin',
     'FAUST_INCLUDE_PATH ?= /usr/share/faust',
     'include $(DPF_PATH)/Makefile.plugins.mk',
     '',
     '# Extra include / link flags for Elements + Faust',
     includeUi
-      ? 'BUILD_CXX_FLAGS += -std=c++20 -I/usr/local/include -I/usr/local/include/elements -I$(FAUST_INCLUDE_PATH) $(shell pkg-config --cflags gtk+-3.0 cairo fontconfig freetype2)'
-      : 'BUILD_CXX_FLAGS += -std=c++20 -I$(FAUST_INCLUDE_PATH)',
+      ? 'BUILD_CXX_FLAGS += -std=c++20 -I/usr/local/include -I/usr/local/include/elements -I"$(FAUST_INCLUDE_PATH)" $(shell pkg-config --cflags gtk+-3.0 cairo fontconfig freetype2)'
+      : 'BUILD_CXX_FLAGS += -std=c++20 -I"$(FAUST_INCLUDE_PATH)"',
     includeUi
       ? 'LINK_FLAGS += -L/usr/local/lib -lelements $(shell pkg-config --libs gtk+-3.0 cairo fontconfig freetype2) -lpthread'
       : 'LINK_FLAGS += -lpthread',
