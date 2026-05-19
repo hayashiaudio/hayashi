@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { app, getPublicOrigin } from './routes.js';
+import { app, getPublicOrigin, parseOgShareRequestPath } from './routes.js';
 import { rmSync, existsSync } from 'fs';
 
 vi.mock('./auth/clerk.js', () => ({
@@ -142,6 +142,18 @@ describe('routes', () => {
         },
       });
       expect(origin).toBe('https://tryhayashi.io');
+    });
+
+    it('parses share OG asset paths without including the file extension in the plugin id', () => {
+      expect(parseOgShareRequestPath('/og/share/plugin-123.png')).toEqual({
+        pluginId: 'plugin-123',
+        format: 'png',
+      });
+      expect(parseOgShareRequestPath('/og/share/plugin-123.svg')).toEqual({
+        pluginId: 'plugin-123',
+        format: 'svg',
+      });
+      expect(parseOgShareRequestPath('/og/share/plugin-123')).toBeNull();
     });
   });
 });

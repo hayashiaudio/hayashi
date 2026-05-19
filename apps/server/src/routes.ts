@@ -186,6 +186,15 @@ function hasFileExtension(path: string) {
   return /\.[a-z0-9]+$/i.test(path);
 }
 
+export function parseOgShareRequestPath(path: string): { pluginId: string; format: 'png' | 'svg' } | null {
+  const match = path.match(/^\/og\/share\/(.+)\.(png|svg)$/);
+  if (!match) return null;
+  return {
+    pluginId: decodeURIComponent(match[1]),
+    format: match[2] as 'png' | 'svg',
+  };
+}
+
 function formatWebhookDate(timestampMs: number | null | undefined) {
   if (!timestampMs) return 'Unknown';
   return new Date(timestampMs).toISOString();
@@ -2092,25 +2101,6 @@ app.get('/og/home.svg', async (c) => {
   });
 });
 
-app.get('/og/share/:id.svg', async (c) => {
-  const pluginId = c.req.param('id');
-  if (!pluginId) return c.notFound();
-  const thread = await getPluginThread(pluginId);
-  if (!thread) return c.notFound();
-
-  const owner = await getClerkPublicProfile(thread.ownerId);
-  return c.body(await renderShareOgSvg({
-    ownerName: owner?.name ?? 'A Hayashi creator',
-    ownerImageUrl: owner?.imageUrl ?? null,
-    pluginName: thread.name,
-    pluginType: thread.type,
-    versionCount: thread.versions.length,
-  }), 200, {
-    'Content-Type': 'image/svg+xml; charset=utf-8',
-    'Cache-Control': 'public, max-age=3600',
-  });
-});
-
 app.get('/og/home.png', async (c) => {
   const png = await renderHomeOgPng();
   return c.body(new Uint8Array(png), 200, {
@@ -2119,13 +2109,28 @@ app.get('/og/home.png', async (c) => {
   });
 });
 
-app.get('/og/share/:id.png', async (c) => {
-  const pluginId = c.req.param('id');
-  if (!pluginId) return c.notFound();
+app.get('/og/share/*', async (c) => {
+  const parsed = parseOgShareRequestPath(c.req.path);
+  if (!parsed) return c.notFound();
+
+  const { pluginId, format } = parsed;
   const thread = await getPluginThread(pluginId);
   if (!thread) return c.notFound();
 
   const owner = await getClerkPublicProfile(thread.ownerId);
+  if (format === 'svg') {
+    return c.body(await renderShareOgSvg({
+      ownerName: owner?.name ?? 'A Hayashi creator',
+      ownerImageUrl: owner?.imageUrl ?? null,
+      pluginName: thread.name,
+      pluginType: thread.type,
+      versionCount: thread.versions.length,
+    }), 200, {
+      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+    });
+  }
+
   const png = await renderShareOgPng({
     ownerName: owner?.name ?? 'A Hayashi creator',
     ownerImageUrl: owner?.imageUrl ?? null,
