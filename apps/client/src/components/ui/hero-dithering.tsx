@@ -22,7 +22,7 @@ export function HeroDitheringContainer({ className, ...props }: DivProps) {
   return (
     <div
       className={cn(
-        'relative z-10 grid gap-8 px-5 py-6 sm:px-8 sm:py-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)] lg:gap-10 lg:px-10 lg:py-10',
+        'relative z-10 grid gap-6 px-5 py-6 sm:px-8 sm:py-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)] lg:gap-8 lg:px-8 lg:py-8',
         className
       )}
       {...props}
@@ -92,12 +92,12 @@ export function HeroDitheringVisual({
   ...props
 }: HeroDitheringVisualProps) {
   return (
-    <div className={cn('relative hidden min-h-[420px] items-center justify-center lg:flex', className)} {...props}>
-      <div className="pointer-events-none absolute inset-8 rounded-[36px] bg-[radial-gradient(circle_at_center,rgba(106,155,61,0.16),transparent_56%)] blur-2xl" />
-      <div className="pointer-events-none absolute right-8 top-8 h-24 w-24 rounded-full border border-[#183324]/10 bg-white/35 backdrop-blur-sm" />
-      <div className="pointer-events-none absolute bottom-10 left-8 h-16 w-16 rounded-full border border-[#d48c2e]/20 bg-[#f8f2e5]/80 shadow-[0_12px_24px_rgba(212,140,46,0.08)]" />
+    <div className={cn('relative hidden min-h-[340px] items-center justify-center lg:flex', className)} {...props}>
+      <div className="pointer-events-none absolute inset-6 rounded-[36px] bg-[radial-gradient(circle_at_center,rgba(106,155,61,0.16),transparent_56%)] blur-2xl" />
+      <div className="pointer-events-none absolute right-6 top-6 h-20 w-20 rounded-full border border-[#183324]/10 bg-white/35 backdrop-blur-sm" />
+      <div className="pointer-events-none absolute bottom-8 left-6 h-14 w-14 rounded-full border border-[#d48c2e]/20 bg-[#f8f2e5]/80 shadow-[0_12px_24px_rgba(212,140,46,0.08)]" />
 
-      <div className="relative aspect-[0.8] w-full max-w-[430px] overflow-hidden rounded-[999px] border border-[#183324]/14 bg-[linear-gradient(180deg,rgba(253,249,240,0.94)_0%,rgba(232,240,222,0.92)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_24px_60px_rgba(16,38,29,0.14)]">
+      <div className="relative aspect-[1.05] w-full max-w-[320px] overflow-hidden rounded-[999px] border border-[#183324]/14 bg-[linear-gradient(180deg,rgba(253,249,240,0.94)_0%,rgba(232,240,222,0.92)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_24px_60px_rgba(16,38,29,0.14)]">
         <div className="absolute inset-[6%] rounded-[999px] border border-[#183324]/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.9),rgba(248,242,229,0.52)_62%,rgba(106,155,61,0.14)_100%)]" />
         <div className="absolute inset-[11%] overflow-hidden rounded-[999px] border border-[#183324]/12 bg-[#eef2df]">
           <ImageDithering

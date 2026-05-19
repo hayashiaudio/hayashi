@@ -792,7 +792,7 @@ export default function PluginGenerator() {
                               icon: 'https://dl.flathub.org/media/com/bitwig/BitwigStudio/eda5ca313649147ffa0a36ffb0e6bf9f/icons/128x128@2/com.bitwig.BitwigStudio.png',
                             },
                           ].map((daw) => (
-                            <div key={daw.name} className="group flex min-w-0 items-center gap-3">
+                            <div key={daw.name} className="group">
                               <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-white/78 ring-1 ring-[#183324]/8 shadow-[0_10px_22px_rgba(16,38,29,0.08)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-[1.03]">
                                 <img
                                   src={daw.icon}
@@ -801,9 +801,6 @@ export default function PluginGenerator() {
                                   loading="lazy"
                                   referrerPolicy="no-referrer"
                                 />
-                              </div>
-                              <div className="text-[14px] font-bold tracking-[-0.02em] text-[#1f3426] antialiased">
-                                {daw.name}
                               </div>
                             </div>
                           ))}

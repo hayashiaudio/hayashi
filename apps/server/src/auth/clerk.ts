@@ -16,6 +16,22 @@ const clerkClient = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
 });
 
+function describeClerkVerificationError(err: unknown): string {
+  if (!(err instanceof Error)) return 'Unknown Clerk token verification failure';
+
+  const message = err.message || 'Unknown Clerk token verification failure';
+  if (!message.includes('Unable to find a signing key in JWKS')) {
+    return message;
+  }
+
+  return [
+    message,
+    'This usually means the frontend and backend are using different Clerk instances.',
+    'Check that the client publishable key baked into the app build matches the server CLERK_SECRET_KEY for the same Clerk environment.',
+    'On Fly, VITE_CLERK_PUBLISHABLE_KEY is a build-time value, while CLERK_SECRET_KEY is read at runtime.',
+  ].join(' ');
+}
+
 export async function verifyClerkToken(token: string): Promise<ClerkIdentity | null> {
   try {
     const payload = await verifyToken(token, {
@@ -29,7 +45,7 @@ export async function verifyClerkToken(token: string): Promise<ClerkIdentity | n
         : (payload.username as string | undefined) ?? null,
     };
   } catch (err) {
-    console.error('[Hayashi] Clerk token verification failed:', err);
+    console.error('[Hayashi] Clerk token verification failed:', describeClerkVerificationError(err));
     return null;
   }
 }
