@@ -333,9 +333,29 @@ export async function compileDspToNative(
           });
         }
 
+        let extraBuildCxxFlags: string | undefined;
+        let extraLinkFlags: string | undefined;
+        if (includeUi) {
+          const pkgs = ['gtk+-3.0', 'cairo', 'fontconfig', 'freetype2'];
+          try {
+            extraBuildCxxFlags = await execCapture('pkg-config', ['--cflags', ...pkgs], dpfDir, 10000);
+            await reportLog('info', 'building_dpf', `pkg-config cflags: ${extraBuildCxxFlags}`, 'dpf');
+          } catch (e) {
+            await reportLog('warn', 'building_dpf', `pkg-config --cflags failed: ${e}`, 'dpf');
+          }
+          try {
+            extraLinkFlags = await execCapture('pkg-config', ['--libs', ...pkgs], dpfDir, 10000);
+            await reportLog('info', 'building_dpf', `pkg-config libs: ${extraLinkFlags}`, 'dpf');
+          } catch (e) {
+            await reportLog('warn', 'building_dpf', `pkg-config --libs failed: ${e}`, 'dpf');
+          }
+        }
+
         const dpfOut = generateDpfWrapper(pluginName, pluginId, version, macros, 2, 2, format, {
           includeUi,
           platform,
+          extraBuildCxxFlags,
+          extraLinkFlags,
         });
 
         writeFileSync(resolve(dpfDir, 'dpf_plugin.cpp'), dpfOut.pluginSource);

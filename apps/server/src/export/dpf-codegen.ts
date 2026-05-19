@@ -38,6 +38,8 @@ export function generateDpfWrapper(
   options: {
     includeUi: boolean;
     platform: BuildPlatform;
+    extraBuildCxxFlags?: string;
+    extraLinkFlags?: string;
   }
 ): DpfOutput {
   const safeName = sanitizeCppId(pluginName);
@@ -309,6 +311,15 @@ export function generateDpfWrapper(
   }
 
   // ── Makefile ────────────────────────────────────────────────────────
+  const pkgConfigCflags = options.extraBuildCxxFlags ?? '$(shell pkg-config --cflags gtk+-3.0 cairo fontconfig freetype2 2>/dev/null)';
+  let pkgConfigLibs = options.extraLinkFlags ?? '$(shell pkg-config --libs gtk+-3.0 cairo fontconfig freetype2 2>/dev/null)';
+  // DPF adds -static on Windows, which makes ld prefer .a over .dll.a.
+  // Force dynamic linkage for GTK/Elements deps so we link against import
+  // libraries and avoid needing Libs.private transitive dependencies.
+  if (includeUi && options.platform === 'windows') {
+    pkgConfigLibs = `-Wl,-Bdynamic ${pkgConfigLibs} -Wl,-Bstatic`;
+  }
+
   const makefile = [
     '#!/usr/bin/make -f',
     '# Makefile for Hayashi DPF Plugin',
@@ -328,10 +339,10 @@ export function generateDpfWrapper(
     '',
     '# Extra include / link flags for Elements + Faust',
     includeUi
-      ? 'BUILD_CXX_FLAGS += -std=c++20 -I"$(ELEMENTS_INCLUDE_PATH)" -I"$(ELEMENTS_INCLUDE_PATH)/elements" -I"$(FAUST_INCLUDE_PATH)" $(shell pkg-config --cflags gtk+-3.0 cairo fontconfig freetype2)'
+      ? `BUILD_CXX_FLAGS += -std=c++20 -I"$(ELEMENTS_INCLUDE_PATH)" -I"$(ELEMENTS_INCLUDE_PATH)/elements" -I"$(FAUST_INCLUDE_PATH)" ${pkgConfigCflags}`
       : 'BUILD_CXX_FLAGS += -std=c++20 -I"$(FAUST_INCLUDE_PATH)"',
     includeUi
-      ? 'LINK_FLAGS += -L"$(ELEMENTS_LIB_PATH)" -lelements $(shell pkg-config --libs gtk+-3.0 cairo fontconfig freetype2) -lpthread'
+      ? `LINK_FLAGS += -L"$(ELEMENTS_LIB_PATH)" -lelements ${pkgConfigLibs} -lpthread`
       : 'LINK_FLAGS += -lpthread',
     '',
     `TARGETS += ${format}`,
