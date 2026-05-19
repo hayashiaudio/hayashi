@@ -186,7 +186,7 @@ jobs:
         run: |
           _WS="$(cygpath "$GITHUB_WORKSPACE")"
           python3 -c "
-          import os, sys
+          import os, re, sys
           ws = sys.argv[1]
           if isinstance(ws, bytes):
               ws = ws.decode('utf-8', errors='replace')
@@ -197,41 +197,41 @@ jobs:
 
           # Add windows.h include (with guards to avoid macro clashes) before first #include
           if '#include <windows.h>' not in content:
-              content = '#if defined(_WIN32)\n#define WIN32_LEAN_AND_MEAN\n#define NOMINMAX\n#include <windows.h>\n#endif\n' + content
+              content = (
+                  '#if defined(_WIN32)\\n'
+                  '#ifndef WIN32_LEAN_AND_MEAN\\n'
+                  '#define WIN32_LEAN_AND_MEAN\\n'
+                  '#endif\\n'
+                  '#ifndef NOMINMAX\\n'
+                  '#define NOMINMAX\\n'
+                  '#endif\\n'
+                  '#include <windows.h>\\n'
+                  '#endif\\n'
+              ) + content
 
-          old_func = '''   std::filesystem::path get_app_path()
-             {
-                char result[PATH_MAX + 1];
-                // get the full path to the executable file of the current process.
-                if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)
-                {
-                   result[count] = '\\0'; // null terminate the string because readlink doesn't
-                   return std::filesystem::path(result);
-                }
-                throw std::runtime_error(\"Fatal Error: Failed to get application path\");
-             }'''
-
-          new_func = (
-              '   std::filesystem::path get_app_path()\\n'
-              '   {\\n'
+          replacement = (
+              'std::filesystem::path get_app_path()\\n'
+              '{\\n'
               '#if defined(_WIN32)\\n'
-              '      wchar_t wpath[MAX_PATH + 1];\\n'
-              '      if (GetModuleFileNameW(nullptr, wpath, MAX_PATH) != 0)\\n'
-              '         return std::filesystem::path(wpath);\\n'
+              '   wchar_t wpath[MAX_PATH + 1];\\n'
+              '   if (GetModuleFileNameW(nullptr, wpath, MAX_PATH) != 0)\\n'
+              '      return std::filesystem::path(wpath);\\n'
               '#else\\n'
-              '      char result[PATH_MAX + 1];\\n'
-              '      // get the full path to the executable file of the current process.\\n'
-              '      if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)\\n'
-              '      {\\n'
-              '         result[count] = \\'\\\\0\\'; // null terminate the string because readlink doesn\\'t\\n'
-              '         return std::filesystem::path(result);\\n'
-              '      }\\n'
+              '   char result[PATH_MAX + 1];\\n'
+              '   // get the full path to the executable file of the current process.\\n'
+              '   if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)\\n'
+              '   {\\n'
+              '      result[count] = \\'\\\\0\\'; // null terminate the string because readlink doesn\\'t\\n'
+              '      return std::filesystem::path(result);\\n'
+              '   }\\n'
               '#endif\\n'
-              '      throw std::runtime_error(\"Fatal Error: Failed to get application path\");\\n'
-              '   }'
+              '   throw std::runtime_error(\"Fatal Error: Failed to get application path\");\\n'
+              '}'
           )
-
-          content = content.replace(old_func, new_func)
+          pattern = r'std::filesystem::path\\s+get_app_path\\(\\)\\s*\\{.*?throw std::runtime_error\\(\"Fatal Error: Failed to get application path\"\\);\\s*\\}'
+          content, count = re.subn(pattern, replacement, content, count=1, flags=re.S)
+          if count != 1:
+              raise RuntimeError('Failed to patch get_app_path() in Elements base_view.cpp')
           with open(path, 'w') as f:
               f.write(content)
           " "$_WS"
