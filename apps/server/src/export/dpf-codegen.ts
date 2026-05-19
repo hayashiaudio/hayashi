@@ -342,8 +342,8 @@ export function generateDpfWrapper(
       ? `BUILD_CXX_FLAGS += -std=c++20 -I"$(ELEMENTS_INCLUDE_PATH)" -I"$(ELEMENTS_INCLUDE_PATH)/elements" -I"$(FAUST_INCLUDE_PATH)" ${pkgConfigCflags}`
       : 'BUILD_CXX_FLAGS += -std=c++20 -I"$(FAUST_INCLUDE_PATH)"',
     includeUi
-      ? `LINK_FLAGS += -L"$(ELEMENTS_LIB_PATH)" -lelements ${pkgConfigLibs} -lpthread`
-      : 'LINK_FLAGS += -lpthread',
+      ? `LINK_FLAGS += -L"$(ELEMENTS_LIB_PATH)" -lelements ${pkgConfigLibs} -lpthread${options.platform === 'windows' ? ' -lws2_32' : ''}`
+      : `LINK_FLAGS += -lpthread${options.platform === 'windows' ? ' -lws2_32' : ''}`,
     '',
     `TARGETS += ${format}`,
     '',

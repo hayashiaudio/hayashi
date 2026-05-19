@@ -50,4 +50,16 @@ describe('generateDpfWrapper', () => {
     expect(result.makefile).toContain('TARGETS += clap');
     expect(result.uiSource).toContain('class My_PluginUI : public UI');
   });
+
+  it('adds ws2_32 on Windows with UI', () => {
+    const win = { includeUi: true as const, platform: 'windows' as const };
+    const result = generateDpfWrapper('My Plugin', 'com.test.plugin', '1.0.0', mockMacros, 2, 2, 'vst3', win);
+    expect(result.makefile).toContain('-lws2_32');
+  });
+
+  it('does not add ws2_32 on Linux with UI', () => {
+    const linux = { includeUi: true as const, platform: 'linux' as const };
+    const result = generateDpfWrapper('My Plugin', 'com.test.plugin', '1.0.0', mockMacros, 2, 2, 'vst3', linux);
+    expect(result.makefile).not.toContain('-lws2_32');
+  });
 });
