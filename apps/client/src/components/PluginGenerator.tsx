@@ -746,19 +746,28 @@ export default function PluginGenerator() {
                           </div>
                         </SignedIn>
                         <SignedOut>
-                          <div className="flex flex-col items-center justify-center gap-4 p-8">
-                            <Lock className="h-8 w-8 text-[#56763c]" />
-                            <div className="text-center">
-                              <p className="text-sm font-semibold text-[#10261d]">Sign in to generate plugins</p>
-                              <p className="mt-1 text-xs text-[rgba(16,38,29,0.6)]">Create an account to start building custom instruments.</p>
+                          <div className="flex items-start gap-3 p-4 sm:p-5">
+                            <Terminal className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#56763c]" />
+                            <div className="flex-1 text-sm font-mono text-[rgba(16,38,29,0.42)] sm:text-base">
+                              e.g. "warm analog pad with slow attack and chorus"
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-3 border-t border-[#183324]/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+                              <span className="rounded-full border border-[#183324]/10 bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#556b4e]">
+                                Sign in to generate
+                              </span>
+                              <span className="text-[11px] text-[rgba(16,38,29,0.58)]">
+                                Create an account to start building custom instruments.
+                              </span>
                             </div>
                             <SignInButton>
                               <Button
                                 size="sm"
-                                className="h-10 rounded-xl border-0 px-4 text-xs font-bold tracking-[0.16em] text-[#0f170f] shadow-[0_18px_30px_rgba(212,140,46,0.18)]"
+                                className="h-11 self-start rounded-2xl border-0 px-5 text-xs font-bold tracking-[0.2em] text-[#0f170f] shadow-[0_18px_30px_rgba(212,140,46,0.22)] sm:self-auto"
                                 style={{ background: 'linear-gradient(135deg, #f3a95f 0%, #d48c2e 100%)' }}
                               >
-                                <Sparkles className="h-3.5 w-3.5" /> Sign In to Generate
+                                <Lock className="h-3.5 w-3.5" /> Sign In
                               </Button>
                             </SignInButton>
                           </div>
@@ -773,7 +782,7 @@ export default function PluginGenerator() {
                           </div>
                           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9aa28c]">Built for real host workflows</div>
                         </div>
-                        <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-4 sm:gap-x-10">
+                        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-4 lg:gap-x-8">
                           {[
                             {
                               name: 'FL Studio',
@@ -792,7 +801,7 @@ export default function PluginGenerator() {
                               icon: 'https://dl.flathub.org/media/com/bitwig/BitwigStudio/eda5ca313649147ffa0a36ffb0e6bf9f/icons/128x128@2/com.bitwig.BitwigStudio.png',
                             },
                           ].map((daw) => (
-                            <div key={daw.name} className="group">
+                            <div key={daw.name} className="group flex items-center gap-3">
                               <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-white/78 ring-1 ring-[#183324]/8 shadow-[0_10px_22px_rgba(16,38,29,0.08)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-[1.03]">
                                 <img
                                   src={daw.icon}
@@ -802,6 +811,9 @@ export default function PluginGenerator() {
                                   referrerPolicy="no-referrer"
                                 />
                               </div>
+                              <span className="text-[14px] font-bold tracking-[-0.02em] text-[#294232]">
+                                {daw.name}
+                              </span>
                             </div>
                           ))}
                         </div>

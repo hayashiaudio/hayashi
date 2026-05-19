@@ -1,27 +1,13 @@
 import { readFileSync } from 'fs';
+import { createRequire } from 'module';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { Resvg } from '@resvg/resvg-js';
+import satori from 'satori';
+import { createElement, type CSSProperties, type ReactNode } from 'react';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function loadLogoBase64(): string | null {
-  try {
-    const logoPath = resolve(__dirname, '../../client/public/hayashi-logo.png');
-    const buffer = readFileSync(logoPath);
-    return `data:image/png;base64,${buffer.toString('base64')}`;
-  } catch {
-    return null;
-  }
-}
-
-let logoBase64Cache: string | null | undefined;
-function getLogoBase64(): string | null {
-  if (logoBase64Cache === undefined) {
-    logoBase64Cache = loadLogoBase64();
-  }
-  return logoBase64Cache;
-}
+const require = createRequire(import.meta.url);
 
 type OgMetadata = {
   title: string;
@@ -41,9 +27,93 @@ type ShareOgArgs = {
   versionCount: number;
 };
 
+type SatoriFont = {
+  name: string;
+  data: Buffer;
+  weight: 400 | 600 | 700 | 800;
+  style: 'normal';
+};
+
 const SITE_NAME = 'Hayashi';
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
+const BODY_COLOR = '#10261d';
+const MUTED_COLOR = 'rgba(16, 38, 29, 0.72)';
+const ACCENT_COLOR = '#6f9e42';
+const HIGHLIGHT_COLOR = '#fff5d8';
+
+function loadLogoBase64(): string | null {
+  try {
+    const logoPath = resolve(__dirname, '../../client/public/hayashi-logo.png');
+    const buffer = readFileSync(logoPath);
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+let logoBase64Cache: string | null | undefined;
+function getLogoBase64(): string | null {
+  if (logoBase64Cache === undefined) {
+    logoBase64Cache = loadLogoBase64();
+  }
+  return logoBase64Cache;
+}
+
+let satoriFontsPromise: Promise<SatoriFont[]> | null = null;
+function getSatoriFonts() {
+  if (!satoriFontsPromise) {
+    satoriFontsPromise = Promise.resolve([
+      {
+        name: 'Manrope',
+        data: readFileSync(require.resolve('@fontsource/manrope/files/manrope-latin-400-normal.woff')),
+        weight: 400,
+        style: 'normal',
+      },
+      {
+        name: 'Manrope',
+        data: readFileSync(require.resolve('@fontsource/manrope/files/manrope-latin-600-normal.woff')),
+        weight: 600,
+        style: 'normal',
+      },
+      {
+        name: 'Manrope',
+        data: readFileSync(require.resolve('@fontsource/manrope/files/manrope-latin-700-normal.woff')),
+        weight: 700,
+        style: 'normal',
+      },
+      {
+        name: 'Manrope',
+        data: readFileSync(require.resolve('@fontsource/manrope/files/manrope-latin-800-normal.woff')),
+        weight: 800,
+        style: 'normal',
+      },
+    ]);
+  }
+  return satoriFontsPromise;
+}
+
+const remoteImageCache = new Map<string, Promise<string | null>>();
+
+async function fetchImageAsDataUri(url: string): Promise<string | null> {
+  if (url.startsWith('data:')) return url;
+  if (remoteImageCache.has(url)) return remoteImageCache.get(url)!;
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const contentType = response.headers.get('content-type') ?? 'image/png';
+      const arrayBuffer = await response.arrayBuffer();
+      return `data:${contentType};base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+    } catch {
+      return null;
+    }
+  })();
+
+  remoteImageCache.set(url, promise);
+  return promise;
+}
 
 function escapeHtml(value: string) {
   return value
@@ -54,13 +124,98 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;');
 }
 
-function escapeXml(value: string) {
-  return escapeHtml(value);
-}
-
 function truncate(value: string, length: number) {
   if (value.length <= length) return value;
   return `${value.slice(0, Math.max(0, length - 1)).trimEnd()}…`;
+}
+
+function svgDataUri(svg: string) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function buildDitheringVisualSvg(imageHref: string | null) {
+  const embeddedLogo = getLogoBase64();
+  const source = imageHref ?? embeddedLogo;
+  const innerVisual = source
+    ? `
+      <image
+        href="${escapeHtml(source)}"
+        x="84"
+        y="84"
+        width="392"
+        height="392"
+        preserveAspectRatio="xMidYMid slice"
+        clip-path="url(#heroClip)"
+        filter="url(#duotone)"
+      />
+      <image
+        href="${escapeHtml(source)}"
+        x="84"
+        y="84"
+        width="392"
+        height="392"
+        preserveAspectRatio="xMidYMid slice"
+        clip-path="url(#heroClip)"
+        opacity="0.20"
+      />
+    `
+    : '';
+
+  return svgDataUri(`
+    <svg width="560" height="560" viewBox="0 0 560 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="heroGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(278 266) rotate(90) scale(220 220)">
+          <stop stop-color="#6A9B3D" stop-opacity="0.20"/>
+          <stop offset="1" stop-color="#6A9B3D" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="heroShell" x1="280" y1="22" x2="280" y2="538" gradientUnits="userSpaceOnUse">
+          <stop stop-color="rgba(253,249,240,0.96)"/>
+          <stop offset="1" stop-color="rgba(232,240,222,0.92)"/>
+        </linearGradient>
+        <radialGradient id="heroInner" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(280 280) rotate(90) scale(170 170)">
+          <stop stop-color="rgba(255,255,255,0.90)"/>
+          <stop offset="0.62" stop-color="rgba(248,242,229,0.58)"/>
+          <stop offset="1" stop-color="rgba(106,155,61,0.20)"/>
+        </radialGradient>
+        <clipPath id="heroClip">
+          <ellipse cx="280" cy="280" rx="196" ry="196"/>
+        </clipPath>
+        <pattern id="heroDots" width="12" height="12" patternUnits="userSpaceOnUse">
+          <circle cx="2" cy="2" r="1.6" fill="#07160f"/>
+          <circle cx="8" cy="5" r="1.2" fill="#6f9e42"/>
+          <circle cx="6" cy="10" r="1.1" fill="#fff5d8"/>
+        </pattern>
+        <filter id="duotone" x="-10%" y="-10%" width="120%" height="120%">
+          <feColorMatrix
+            type="matrix"
+            values="
+              0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0
+              0 0 0 1 0"
+          />
+          <feComponentTransfer>
+            <feFuncR type="table" tableValues="0.027 0.435 1"/>
+            <feFuncG type="table" tableValues="0.086 0.620 0.961"/>
+            <feFuncB type="table" tableValues="0.059 0.259 0.847"/>
+          </feComponentTransfer>
+        </filter>
+      </defs>
+
+      <circle cx="280" cy="280" r="236" fill="url(#heroGlow)"/>
+      <circle cx="470" cy="112" r="46" fill="rgba(255,255,255,0.34)" stroke="rgba(24,51,36,0.10)"/>
+      <circle cx="112" cy="468" r="30" fill="rgba(248,242,229,0.85)" stroke="rgba(212,140,46,0.18)"/>
+
+      <ellipse cx="280" cy="280" rx="258" ry="258" fill="url(#heroShell)" stroke="rgba(24,51,36,0.14)"/>
+      <ellipse cx="280" cy="280" rx="226" ry="226" fill="url(#heroInner)" stroke="rgba(24,51,36,0.10)"/>
+      <ellipse cx="280" cy="280" rx="198" ry="198" fill="#eef2df" stroke="rgba(24,51,36,0.12)"/>
+      ${innerVisual}
+      <ellipse cx="280" cy="280" rx="196" ry="196" fill="url(#heroDots)" opacity="0.20"/>
+      <ellipse cx="280" cy="280" rx="196" ry="196" fill="url(#heroDots)" opacity="0.08" transform="rotate(9 280 280)"/>
+      <ellipse cx="280" cy="280" rx="196" ry="196" fill="url(#heroInner)" opacity="0.28"/>
+      <ellipse cx="280" cy="418" rx="118" ry="18" fill="rgba(255,255,255,0.35)"/>
+    </svg>
+  `);
 }
 
 function wrapWords(text: string, maxChars: number, maxLines: number) {
@@ -89,104 +244,233 @@ function wrapWords(text: string, maxChars: number, maxLines: number) {
   return lines.slice(0, maxLines);
 }
 
-function renderTextLines(lines: string[], x: number, y: number, lineHeight: number) {
-  return lines
-    .map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`)
-    .join('');
+function h(type: string, props: Record<string, unknown> | null, ...children: ReactNode[]) {
+  return createElement(type, props, ...children);
 }
 
-function badges(items: string[]) {
-  return items.slice(0, 3).map((item, index) => {
-    const x = 74 + index * 188;
-    return `
-      <g transform="translate(${x} 520)">
-        <rect width="168" height="42" rx="21" fill="#FFFCF5" fill-opacity="0.82" stroke="#10261D" stroke-opacity="0.10" />
-        <text x="84" y="27" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="1.8" fill="#36543f">${escapeXml(item.toUpperCase())}</text>
-      </g>
-    `;
-  }).join('');
+const shellStyle: CSSProperties = {
+  width: `${OG_WIDTH}px`,
+  height: `${OG_HEIGHT}px`,
+  display: 'flex',
+  position: 'relative',
+  overflow: 'hidden',
+  background: 'linear-gradient(135deg, #fbf7eb 0%, #f4eedc 48%, #e8f0de 100%)',
+  color: BODY_COLOR,
+  fontFamily: 'Manrope',
+};
+
+const gridStyle: CSSProperties = {
+  position: 'absolute',
+  inset: '0px',
+  backgroundImage:
+    'linear-gradient(rgba(16,38,29,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(16,38,29,0.035) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+  opacity: 0.7,
+};
+
+const fadeStyle: CSSProperties = {
+  position: 'absolute',
+  left: '0px',
+  right: '0px',
+  bottom: '0px',
+  height: '160px',
+  background: 'linear-gradient(180deg, rgba(251,247,235,0) 0%, rgba(16,26,18,0.08) 100%)',
+};
+
+const layoutStyle: CSSProperties = {
+  position: 'relative',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  padding: '52px 60px',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '40px',
+};
+
+const contentStyle: CSSProperties = {
+  width: '620px',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+};
+
+const eyebrowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  alignSelf: 'flex-start',
+  padding: '10px 16px',
+  borderRadius: '999px',
+  border: '1px solid rgba(24,51,36,0.14)',
+  background: 'rgba(255,255,255,0.55)',
+  boxShadow: '0 8px 18px rgba(16,38,29,0.06)',
+  color: '#375540',
+  fontSize: '15px',
+  fontWeight: 800,
+  letterSpacing: '0.24em',
+  textTransform: 'uppercase',
+};
+
+const badgeRowStyle: CSSProperties = {
+  marginTop: '34px',
+  display: 'flex',
+  gap: '12px',
+  flexWrap: 'wrap',
+};
+
+function badge(label: string, background = 'rgba(255,255,255,0.74)') {
+  return h('div', {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '10px 16px',
+      borderRadius: '999px',
+      border: '1px solid rgba(24,51,36,0.14)',
+      background,
+      color: '#294232',
+      fontSize: '15px',
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: '0.08em',
+    } satisfies CSSProperties,
+  }, label);
 }
 
-function baseSvgFrame(content: string, opts?: { logoInOval?: boolean; avatarImage?: string | null; avatarFallbackName?: string }) {
-  const logo = getLogoBase64();
-  const showLogo = opts?.logoInOval && logo;
-  const showAvatar = opts?.avatarImage;
+function visualPane(imageHref: string | null) {
+  return h('div', {
+    style: {
+      width: '440px',
+      height: '540px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      flexShrink: 0,
+    } satisfies CSSProperties,
+  },
+  h('img', {
+    src: buildDitheringVisualSvg(imageHref),
+    width: '440',
+    height: '440',
+    style: {
+      width: '440px',
+      height: '440px',
+      objectFit: 'contain',
+    } satisfies CSSProperties,
+  }));
+}
 
-  const rightVisual = showAvatar
-    ? `
-      <defs>
-        <clipPath id="avatarClip">
-          <ellipse cx="920" cy="322" rx="138" ry="124" />
-        </clipPath>
-      </defs>
-      <image
-        href="${escapeXml(opts.avatarImage!)}"
-        x="770"
-        y="198"
-        width="300"
-        height="248"
-        preserveAspectRatio="xMidYMid slice"
-        clip-path="url(#avatarClip)"
-      />
-      <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" opacity="0.14" />
-      <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
-    `
-    : showLogo
-      ? `
-        <image href="${escapeXml(logo)}" x="782" y="222" width="276" height="200" preserveAspectRatio="xMidYMid meet" opacity="0.95" />
-        <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" opacity="0.10" />
-        <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
-      `
-      : `
-        <ellipse cx="920" cy="322" rx="138" ry="124" fill="url(#dots)" />
-        <circle cx="920" cy="318" r="78" fill="#0B1710" opacity="0.95"/>
-        <circle cx="892" cy="295" r="20" fill="#6F9E42"/>
-        <circle cx="950" cy="306" r="26" fill="#6F9E42"/>
-        <rect x="858" y="372" width="124" height="18" rx="9" fill="#FFFFFF" fill-opacity="0.20"/>
-        <ellipse cx="920" cy="438" rx="110" ry="18" fill="#FFFFFF" fill-opacity="0.32"/>
-      `;
+function headingBlock(lines: string[], accentIndex?: number) {
+  return h('div', {
+    style: {
+      marginTop: '22px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '2px',
+      fontSize: '76px',
+      lineHeight: 0.96,
+      letterSpacing: '-0.08em',
+      fontWeight: 800,
+      maxWidth: '11ch',
+    } satisfies CSSProperties,
+  }, ...lines.map((line, index) => h('div', {
+    style: {
+      color: index === accentIndex ? '#49633c' : BODY_COLOR,
+      display: 'flex',
+    } satisfies CSSProperties,
+  }, line)));
+}
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FBF7EB"/>
-      <stop offset="0.5" stop-color="#F3EBD7"/>
-      <stop offset="1" stop-color="#E4ECD8"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(925 360) rotate(90) scale(250 250)">
-      <stop stop-color="#8FB85A" stop-opacity="0.30"/>
-      <stop offset="1" stop-color="#8FB85A" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="ovalBg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(928 355) rotate(90) scale(200 170)">
-      <stop stop-color="#FFFDF7"/>
-      <stop offset="0.68" stop-color="#F3EAD9"/>
-      <stop offset="1" stop-color="#DBE6CB"/>
-    </radialGradient>
-    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M32 0H0V32" fill="none" stroke="#10261D" stroke-opacity="0.05" stroke-width="1"/>
-    </pattern>
-    <pattern id="dots" width="12" height="12" patternUnits="userSpaceOnUse">
-      <circle cx="2" cy="2" r="1.8" fill="#143122" />
-      <circle cx="8" cy="6" r="1.4" fill="#6F9E42" />
-      <circle cx="6" cy="10" r="1.2" fill="#143122" opacity="0.65" />
-    </pattern>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="30" stdDeviation="30" flood-color="#10261D" flood-opacity="0.14"/>
-    </filter>
-  </defs>
-  <rect width="1200" height="630" rx="0" fill="url(#bg)"/>
-  <rect width="1200" height="630" fill="url(#grid)" opacity="0.9"/>
-  <circle cx="1060" cy="96" r="52" fill="#FFFFFF" fill-opacity="0.42" stroke="#10261D" stroke-opacity="0.08"/>
-  <circle cx="804" cy="566" r="28" fill="#FFF8E9" fill-opacity="0.82" stroke="#D48C2E" stroke-opacity="0.18"/>
-  <circle cx="926" cy="360" r="248" fill="url(#glow)"/>
-  <g filter="url(#shadow)">
-    <rect x="710" y="112" width="420" height="420" rx="210" fill="url(#ovalBg)" stroke="#10261D" stroke-opacity="0.12"/>
-    <rect x="738" y="140" width="364" height="364" rx="182" fill="#FFFFFF" fill-opacity="0.56" stroke="#10261D" stroke-opacity="0.10"/>
-    ${rightVisual}
-  </g>
-  ${content}
-</svg>`;
+function paragraph(lines: string[]) {
+  return h('div', {
+    style: {
+      marginTop: '26px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      maxWidth: '560px',
+      fontSize: '28px',
+      lineHeight: 1.35,
+      color: MUTED_COLOR,
+    } satisfies CSSProperties,
+  }, ...lines.map((line) => h('div', { style: { display: 'flex' } }, line)));
+}
+
+async function resolveOgImageSrc(value?: string | null) {
+  if (!value) return getLogoBase64();
+  if (value.startsWith('data:')) return value;
+  return await fetchImageAsDataUri(value);
+}
+
+async function renderSatoriSvg(node: ReactNode) {
+  return await satori(node, {
+    width: OG_WIDTH,
+    height: OG_HEIGHT,
+    fonts: await getSatoriFonts(),
+  });
+}
+
+function homeNode() {
+  return h('div', { style: shellStyle },
+    h('div', { style: gridStyle }),
+    h('div', { style: fadeStyle }),
+    h('div', { style: layoutStyle },
+      h('div', { style: contentStyle },
+        h('div', { style: eyebrowStyle }, 'Prompt-to-plugin studio'),
+        headingBlock(['Prompt to plugin.', 'Preview instantly.', 'Export VST3 + CLAP.']),
+        paragraph([
+          'Turn plain-language ideas into playable FX and synths,',
+          'audition them in-browser, and ship native builds from one room.',
+        ]),
+        h('div', { style: badgeRowStyle },
+          badge('Live preview'),
+          badge('Faust-native', 'rgba(243,236,215,0.96)'),
+          badge('Export-ready'),
+        ),
+      ),
+      visualPane(getLogoBase64()),
+    ),
+  );
+}
+
+async function shareNode(args: ShareOgArgs) {
+  const ownerName = truncate(args.ownerName, 34);
+  const pluginName = truncate(args.pluginName, 92);
+  const wrappedName = wrapWords(pluginName, 18, 4);
+  const imageSrc = await resolveOgImageSrc(args.ownerImageUrl);
+  const badges = [
+    `${args.pluginType} patch`,
+    `${args.versionCount} version${args.versionCount === 1 ? '' : 's'}`,
+    ownerName,
+  ];
+
+  return h('div', { style: shellStyle },
+    h('div', { style: gridStyle }),
+    h('div', { style: fadeStyle }),
+    h('div', { style: layoutStyle },
+      h('div', { style: contentStyle },
+        h('div', { style: eyebrowStyle }, 'Public effect share'),
+        h('div', {
+          style: {
+            marginTop: '34px',
+            display: 'flex',
+            color: '#4e6a53',
+            fontSize: '34px',
+            fontWeight: 700,
+          } satisfies CSSProperties,
+        }, `${ownerName} shared`),
+        headingBlock(wrappedName),
+        paragraph([
+          'Audition the live patch, inspect the generated Faust, and step through',
+          'the current version stack inside Hayashi.',
+        ]),
+        h('div', { style: badgeRowStyle }, ...badges.map((item, index) =>
+          badge(item, index === 0 ? 'rgba(243,236,215,0.96)' : 'rgba(255,255,255,0.74)'),
+        )),
+      ),
+      visualPane(imageSrc),
+    ),
+  );
 }
 
 export function buildHomeMetadata(origin: string): OgMetadata {
@@ -263,54 +547,15 @@ export function injectMetadata(html: string, metadata: OgMetadata) {
   return next.replace('</head>', `${metaBlock}\n  </head>`);
 }
 
-export function renderHomeOgSvg() {
-  const heading = renderTextLines(
-    ['Prompt to plugin.', 'Preview instantly.', 'Export VST3 + CLAP.'],
-    74,
-    154,
-    92,
-  );
-
-  return baseSvgFrame(`
-    <g filter="url(#shadow)">
-      <rect x="74" y="50" width="255" height="38" rx="19" fill="#FFFFFF" fill-opacity="0.72" stroke="#10261D" stroke-opacity="0.08" />
-      <text x="102" y="74" font-family="DM Sans, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="5" fill="#385540">PROMPT-TO-PLUGIN STUDIO</text>
-    </g>
-    <text x="74" y="154" font-family="DM Sans, Arial, sans-serif" font-size="80" font-weight="900" letter-spacing="-4.5" fill="#10261D">${heading}</text>
-    <text x="74" y="456" font-family="DM Sans, Arial, sans-serif" font-size="28" font-weight="500" fill="#10261D" fill-opacity="0.72">
-      Turn plain-language ideas into playable FX and synths,
-    </text>
-    <text x="74" y="492" font-family="DM Sans, Arial, sans-serif" font-size="28" font-weight="500" fill="#10261D" fill-opacity="0.72">
-      audition them in-browser, and ship native builds from one room.
-    </text>
-    ${badges(['Live preview', 'Faust-native', 'Export-ready'])}
-  `, { logoInOval: true });
+export async function renderHomeOgSvg() {
+  return await renderSatoriSvg(homeNode());
 }
 
-export function renderShareOgSvg(args: ShareOgArgs) {
-  const ownerName = truncate(args.ownerName, 34);
-  const pluginName = truncate(args.pluginName, 92);
-  const heading = wrapWords(pluginName, 18, 4);
-  const typeLabel = `${args.pluginType} patch`;
-
-  return baseSvgFrame(`
-    <g filter="url(#shadow)">
-      <rect x="74" y="50" width="252" height="38" rx="19" fill="#FFFFFF" fill-opacity="0.72" stroke="#10261D" stroke-opacity="0.08" />
-      <text x="102" y="74" font-family="DM Sans, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="5" fill="#385540">PUBLIC EFFECT SHARE</text>
-    </g>
-    <text x="74" y="146" font-family="DM Sans, Arial, sans-serif" font-size="36" font-weight="700" fill="#4E6A53">${escapeXml(ownerName)} shared</text>
-    <text x="74" y="206" font-family="DM Sans, Arial, sans-serif" font-size="72" font-weight="900" letter-spacing="-4" fill="#10261D">${renderTextLines(heading, 74, 206, 78)}</text>
-    <text x="74" y="510" font-family="DM Sans, Arial, sans-serif" font-size="28" font-weight="500" fill="#10261D" fill-opacity="0.72">
-      Audition the live patch, inspect the generated Faust, and step through
-    </text>
-    <text x="74" y="546" font-family="DM Sans, Arial, sans-serif" font-size="28" font-weight="500" fill="#10261D" fill-opacity="0.72">
-      the current version stack inside Hayashi.
-    </text>
-    ${badges([typeLabel, `${args.versionCount} version${args.versionCount === 1 ? '' : 's'}`, ownerName])}
-  `, { avatarImage: args.ownerImageUrl, avatarFallbackName: ownerName });
+export async function renderShareOgSvg(args: ShareOgArgs) {
+  return await renderSatoriSvg(await shareNode(args));
 }
 
-function svgToPng(svg: string): Buffer {
+async function svgToPng(svg: string): Promise<Buffer> {
   const resvg = new Resvg(svg, {
     fitTo: {
       mode: 'width',
@@ -319,17 +564,17 @@ function svgToPng(svg: string): Buffer {
     font: {
       fontFiles: [],
       loadSystemFonts: true,
-      defaultFontFamily: 'DM Sans',
+      defaultFontFamily: 'Manrope',
     },
   });
   const pngData = resvg.render();
   return pngData.asPng();
 }
 
-export function renderHomeOgPng(): Buffer {
-  return svgToPng(renderHomeOgSvg());
+export async function renderHomeOgPng(): Promise<Buffer> {
+  return await svgToPng(await renderHomeOgSvg());
 }
 
-export function renderShareOgPng(args: ShareOgArgs): Buffer {
-  return svgToPng(renderShareOgSvg(args));
+export async function renderShareOgPng(args: ShareOgArgs): Promise<Buffer> {
+  return await svgToPng(await renderShareOgSvg(args));
 }

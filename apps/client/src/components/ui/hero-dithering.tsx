@@ -8,7 +8,7 @@ export function HeroDitheringRoot({ className, ...props }: DivProps) {
   return (
     <section
       className={cn(
-        'relative isolate overflow-hidden rounded-[36px] border border-[#183324]/12 bg-[linear-gradient(135deg,#fbf7eb_0%,#f4eedc_48%,#e8f0de_100%)] shadow-[0_40px_120px_rgba(9,27,18,0.16)]',
+        'relative isolate overflow-hidden rounded-[36px] border border-[#183324]/12 bg-[linear-gradient(135deg,#fbf7eb_0%,#f4eedc_48%,#e8f0de_100%)] shadow-[0_40px_120px_rgba(9,27,18,0.16)] lg:min-h-[calc(100vh-8.5rem)]',
         'before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(rgba(16,38,29,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(16,38,29,0.035)_1px,transparent_1px)] before:bg-[size:28px_28px] before:opacity-70',
         'after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-40 after:bg-[linear-gradient(180deg,rgba(251,247,235,0)_0%,rgba(16,26,18,0.08)_100%)]',
         className
@@ -22,7 +22,7 @@ export function HeroDitheringContainer({ className, ...props }: DivProps) {
   return (
     <div
       className={cn(
-        'relative z-10 grid gap-6 px-5 py-6 sm:px-8 sm:py-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)] lg:gap-8 lg:px-8 lg:py-8',
+        'relative z-10 grid gap-6 px-5 py-6 sm:px-8 sm:py-8 lg:min-h-[calc(100vh-8.5rem)] lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-center lg:gap-10 lg:px-10 lg:py-10',
         className
       )}
       {...props}
@@ -31,7 +31,7 @@ export function HeroDitheringContainer({ className, ...props }: DivProps) {
 }
 
 export function HeroDitheringContent({ className, ...props }: DivProps) {
-  return <div className={cn('flex min-w-0 flex-col justify-center', className)} {...props} />;
+  return <div className={cn('flex min-w-0 flex-col justify-center lg:pr-4', className)} {...props} />;
 }
 
 interface HeroDitheringHeadingProps extends DivProps {
@@ -92,12 +92,12 @@ export function HeroDitheringVisual({
   ...props
 }: HeroDitheringVisualProps) {
   return (
-    <div className={cn('relative hidden min-h-[340px] items-center justify-center lg:flex', className)} {...props}>
+    <div className={cn('relative hidden min-h-[560px] items-center justify-center lg:flex', className)} {...props}>
       <div className="pointer-events-none absolute inset-6 rounded-[36px] bg-[radial-gradient(circle_at_center,rgba(106,155,61,0.16),transparent_56%)] blur-2xl" />
-      <div className="pointer-events-none absolute right-6 top-6 h-20 w-20 rounded-full border border-[#183324]/10 bg-white/35 backdrop-blur-sm" />
-      <div className="pointer-events-none absolute bottom-8 left-6 h-14 w-14 rounded-full border border-[#d48c2e]/20 bg-[#f8f2e5]/80 shadow-[0_12px_24px_rgba(212,140,46,0.08)]" />
+      <div className="pointer-events-none absolute right-2 top-8 h-24 w-24 rounded-full border border-[#183324]/10 bg-white/35 backdrop-blur-sm" />
+      <div className="pointer-events-none absolute bottom-10 left-2 h-16 w-16 rounded-full border border-[#d48c2e]/20 bg-[#f8f2e5]/80 shadow-[0_12px_24px_rgba(212,140,46,0.08)]" />
 
-      <div className="relative aspect-[1.05] w-full max-w-[320px] overflow-hidden rounded-[999px] border border-[#183324]/14 bg-[linear-gradient(180deg,rgba(253,249,240,0.94)_0%,rgba(232,240,222,0.92)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_24px_60px_rgba(16,38,29,0.14)]">
+      <div className="relative aspect-[0.95] w-full max-w-[560px] overflow-hidden rounded-[999px] border border-[#183324]/14 bg-[linear-gradient(180deg,rgba(253,249,240,0.94)_0%,rgba(232,240,222,0.92)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_24px_60px_rgba(16,38,29,0.14)]">
         <div className="absolute inset-[6%] rounded-[999px] border border-[#183324]/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.9),rgba(248,242,229,0.52)_62%,rgba(106,155,61,0.14)_100%)]" />
         <div className="absolute inset-[11%] overflow-hidden rounded-[999px] border border-[#183324]/12 bg-[#eef2df]">
           <ImageDithering
@@ -130,7 +130,7 @@ export function HeroDitheringMobileVisual({
 }: HeroDitheringVisualProps) {
   return (
     <div className={cn('relative z-10 px-5 pb-5 pt-0 lg:hidden', className)} {...props}>
-      <div className="relative mx-auto aspect-[1.05] w-full max-w-[320px] overflow-hidden rounded-[28px] border border-[#183324]/12 bg-[linear-gradient(180deg,rgba(253,249,240,0.96)_0%,rgba(232,240,222,0.92)_100%)] shadow-[0_18px_40px_rgba(16,38,29,0.12)]">
+      <div className="relative mx-auto aspect-[1.05] w-full max-w-[360px] overflow-hidden rounded-[28px] border border-[#183324]/12 bg-[linear-gradient(180deg,rgba(253,249,240,0.96)_0%,rgba(232,240,222,0.92)_100%)] shadow-[0_18px_40px_rgba(16,38,29,0.12)]">
         <ImageDithering
           image={imageSrc}
           colorFront="#6f9e42"

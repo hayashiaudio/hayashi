@@ -161,7 +161,7 @@ export function SharedPluginPage() {
             </div>
           </div>
 
-          <HeroDitheringRoot>
+          <HeroDitheringRoot className="lg:min-h-[calc(100vh-8.5rem)]">
             <HeroDitheringContainer>
               <HeroDitheringContent>
                 <HeroDitheringHeading

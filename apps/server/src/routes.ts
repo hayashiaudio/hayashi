@@ -2085,8 +2085,8 @@ app.get('/api/share/:id', async (c) => {
   });
 });
 
-app.get('/og/home.svg', (c) => {
-  return c.body(renderHomeOgSvg(), 200, {
+app.get('/og/home.svg', async (c) => {
+  return c.body(await renderHomeOgSvg(), 200, {
     'Content-Type': 'image/svg+xml; charset=utf-8',
     'Cache-Control': 'public, max-age=3600',
   });
@@ -2099,7 +2099,7 @@ app.get('/og/share/:id.svg', async (c) => {
   if (!thread) return c.notFound();
 
   const owner = await getClerkPublicProfile(thread.ownerId);
-  return c.body(renderShareOgSvg({
+  return c.body(await renderShareOgSvg({
     ownerName: owner?.name ?? 'A Hayashi creator',
     ownerImageUrl: owner?.imageUrl ?? null,
     pluginName: thread.name,
@@ -2111,8 +2111,8 @@ app.get('/og/share/:id.svg', async (c) => {
   });
 });
 
-app.get('/og/home.png', (c) => {
-  const png = renderHomeOgPng();
+app.get('/og/home.png', async (c) => {
+  const png = await renderHomeOgPng();
   return c.body(new Uint8Array(png), 200, {
     'Content-Type': 'image/png',
     'Cache-Control': 'public, max-age=3600',
@@ -2126,7 +2126,7 @@ app.get('/og/share/:id.png', async (c) => {
   if (!thread) return c.notFound();
 
   const owner = await getClerkPublicProfile(thread.ownerId);
-  const png = renderShareOgPng({
+  const png = await renderShareOgPng({
     ownerName: owner?.name ?? 'A Hayashi creator',
     ownerImageUrl: owner?.imageUrl ?? null,
     pluginName: thread.name,

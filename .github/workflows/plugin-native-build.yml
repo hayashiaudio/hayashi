@@ -74,7 +74,11 @@ jobs:
           NONSTD_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/nonstd/string_view.hpp' | head -n 1)"
           if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
       - name: Fetch DPF
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
+        run: |
+          git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
+          git -C "$GITHUB_WORKSPACE/.dpf" submodule sync --recursive
+          git -C "$GITHUB_WORKSPACE/.dpf" submodule update --init --recursive --depth 1
+          test -f "$GITHUB_WORKSPACE/.dpf/dgl/src/pugl-upstream/include/pugl/pugl.h"
       - name: Run remote build
         run: node apps/server/dist/export/github-build-runner.js
 
@@ -259,7 +263,12 @@ jobs:
           if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$(cygpath "$GITHUB_WORKSPACE")/.elements/install/include/"; fi
       - name: Fetch DPF
         shell: msys2 {0}
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$(cygpath "$GITHUB_WORKSPACE")/.dpf"
+        run: |
+          DPF_DIR="$(cygpath "$GITHUB_WORKSPACE")/.dpf"
+          git clone --depth 1 https://github.com/DISTRHO/DPF.git "$DPF_DIR"
+          git -C "$DPF_DIR" submodule sync --recursive
+          git -C "$DPF_DIR" submodule update --init --recursive --depth 1
+          test -f "$DPF_DIR/dgl/src/pugl-upstream/include/pugl/pugl.h"
       - name: Run remote build
         shell: msys2 {0}
         run: node apps/server/dist/export/github-build-runner.js
@@ -315,7 +324,11 @@ jobs:
           NONSTD_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/nonstd/string_view.hpp' | head -n 1)"
           if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
       - name: Fetch DPF
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
+        run: |
+          git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
+          git -C "$GITHUB_WORKSPACE/.dpf" submodule sync --recursive
+          git -C "$GITHUB_WORKSPACE/.dpf" submodule update --init --recursive --depth 1
+          test -f "$GITHUB_WORKSPACE/.dpf/dgl/src/pugl-upstream/include/pugl/pugl.h"
       - name: Run remote build
         run: node apps/server/dist/export/github-build-runner.js
 
@@ -370,6 +383,10 @@ jobs:
           NONSTD_HEADER_PATH="$(find "$GITHUB_WORKSPACE/.elements" -path '*/nonstd/string_view.hpp' | head -n 1)"
           if [ -n "$NONSTD_HEADER_PATH" ]; then cp -r "$(dirname "$(dirname "$NONSTD_HEADER_PATH")")/nonstd" "$GITHUB_WORKSPACE/.elements/install/include/"; fi
       - name: Fetch DPF
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
+        run: |
+          git clone --depth 1 https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/.dpf"
+          git -C "$GITHUB_WORKSPACE/.dpf" submodule sync --recursive
+          git -C "$GITHUB_WORKSPACE/.dpf" submodule update --init --recursive --depth 1
+          test -f "$GITHUB_WORKSPACE/.dpf/dgl/src/pugl-upstream/include/pugl/pugl.h"
       - name: Run remote build
         run: node apps/server/dist/export/github-build-runner.js

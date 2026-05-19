@@ -68,6 +68,13 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
   const analysis = useAudioAnalysis(previewPlaying);
   const sessionLocked = useSessionStore((s) => s.locked);
   const theme = publicMode ? PUBLIC_C : C;
+  const previewWindowStyle = publicMode
+    ? null
+    : {
+        maxWidth: '800px',
+        aspectRatio: '4 / 3',
+        minHeight: '600px',
+      } as const;
 
   const plugin = plugins.find((p) => p.id === activePluginId);
 
@@ -553,11 +560,20 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
               </div>
 
               {plugin.uiSpec ? (
-                <PluginUiRenderer
-                  uiSpec={plugin.uiSpec}
-                  params={plugin.params}
-                  onParamChange={handleParamChange}
-                />
+                <div className={publicMode ? '' : 'mx-auto w-full'}>
+                  <div
+                    className={publicMode ? '' : 'overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0b0b] shadow-[0_22px_44px_rgba(0,0,0,0.28)]'}
+                    style={previewWindowStyle ?? undefined}
+                  >
+                    <div className={publicMode ? '' : 'h-full w-full overflow-auto p-3'}>
+                      <PluginUiRenderer
+                        uiSpec={plugin.uiSpec}
+                        params={plugin.params}
+                        onParamChange={handleParamChange}
+                      />
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {plugin.params.slice(0, 8).map((param) => {
