@@ -186,7 +186,7 @@ jobs:
         run: |
           _WS="$(cygpath "$GITHUB_WORKSPACE")"
           python3 -c "
-          import os, re, sys
+          import os, sys
           ws = sys.argv[1]
           if isinstance(ws, bytes):
               ws = ws.decode('utf-8', errors='replace')
@@ -211,23 +211,25 @@ jobs:
                 throw std::runtime_error(\"Fatal Error: Failed to get application path\");
              }'''
 
-          new_func = '''   std::filesystem::path get_app_path()
-             {
-#if defined(_WIN32)
-                wchar_t wpath[MAX_PATH + 1];
-                if (GetModuleFileNameW(nullptr, wpath, MAX_PATH) != 0)
-                   return std::filesystem::path(wpath);
-#else
-                char result[PATH_MAX + 1];
-                // get the full path to the executable file of the current process.
-                if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)
-                {
-                   result[count] = '\\0'; // null terminate the string because readlink doesn't
-                   return std::filesystem::path(result);
-                }
-#endif
-                throw std::runtime_error(\"Fatal Error: Failed to get application path\");
-             }'''
+          new_func = (
+              '   std::filesystem::path get_app_path()\\n'
+              '   {\\n'
+              '#if defined(_WIN32)\\n'
+              '      wchar_t wpath[MAX_PATH + 1];\\n'
+              '      if (GetModuleFileNameW(nullptr, wpath, MAX_PATH) != 0)\\n'
+              '         return std::filesystem::path(wpath);\\n'
+              '#else\\n'
+              '      char result[PATH_MAX + 1];\\n'
+              '      // get the full path to the executable file of the current process.\\n'
+              '      if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)\\n'
+              '      {\\n'
+              '         result[count] = \\'\\\\0\\'; // null terminate the string because readlink doesn\\'t\\n'
+              '         return std::filesystem::path(result);\\n'
+              '      }\\n'
+              '#endif\\n'
+              '      throw std::runtime_error(\"Fatal Error: Failed to get application path\");\\n'
+              '   }'
+          )
 
           content = content.replace(old_func, new_func)
           with open(path, 'w') as f:
