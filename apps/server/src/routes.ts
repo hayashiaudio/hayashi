@@ -139,11 +139,47 @@ function normalizeBuildTarget(value: string | undefined | null): BuildTarget | n
   return value;
 }
 
-function getOrigin(c: any) {
+export function getOrigin(c: any) {
   const url = new URL(c.req.url);
-  const forwardedProto = c.req.header('x-forwarded-proto');
+  const forwardedProto = c.req.header('x-forwarded-proto')?.split(',')[0]?.trim();
+  const forwardedHost = c.req.header('x-forwarded-host')?.split(',')[0]?.trim();
   if (forwardedProto) url.protocol = `${forwardedProto}:`;
+  if (forwardedHost) url.host = forwardedHost;
   return url.origin;
+}
+
+function parseConfiguredOrigin(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost'
+      || hostname === '127.0.0.1'
+      || hostname === '0.0.0.0'
+      || hostname === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
+export function getPublicOrigin(c: any) {
+  const requestOrigin = getOrigin(c);
+  const configuredOrigin = parseConfiguredOrigin(
+    process.env.PUBLIC_APP_URL
+    ?? process.env.APP_URL
+    ?? process.env.CLIENT_URL,
+  );
+
+  if (!configuredOrigin) return requestOrigin;
+  if (isLocalOrigin(requestOrigin) && !isLocalOrigin(configuredOrigin)) return configuredOrigin;
+  return configuredOrigin;
 }
 
 function hasFileExtension(path: string) {
@@ -206,7 +242,7 @@ async function postClerkSignupToDiscord(event: ClerkUserCreatedEvent) {
 }
 
 async function resolvePageMetadata(c: any) {
-  const origin = getOrigin(c);
+  const origin = getPublicOrigin(c);
   const url = new URL(c.req.url);
 
   if (url.pathname === '/share') {

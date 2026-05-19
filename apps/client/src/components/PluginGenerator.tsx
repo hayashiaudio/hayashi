@@ -706,70 +706,7 @@ export default function PluginGenerator() {
                       description="Describe a sound. Generate a Faust DSP DAW plugin. Preview it in the browser and export an importable bundle when it is ready."
                     />
 
-                    <HeroDitheringDescription>
-                      <div className="mt-6 max-w-4xl rounded-[32px] border border-[#183324]/12 bg-[linear-gradient(180deg,rgba(255,252,245,0.82),rgba(251,247,237,0.72))] px-5 py-5 shadow-[0_24px_54px_rgba(16,38,29,0.09)]">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                          <div>
-                            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#7d876d]">Supported DAWs</div>
-                            <div className="mt-1 text-sm text-[#66725b]">Export importable plugin bundles for the hosts most people actually use.</div>
-                          </div>
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9aa28c]">VST3 + CLAP where supported</div>
-                        </div>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                          {[
-                            {
-                              name: 'FL Studio',
-                              initials: 'FL',
-                              color: '#E85D3F',
-                              bg: '#FFF0EB',
-                            },
-                            {
-                              name: 'Ableton Live',
-                              initials: 'Ab',
-                              color: '#3B7EA5',
-                              bg: '#EEF5FA',
-                            },
-                            {
-                              name: 'Reason',
-                              initials: 'Re',
-                              color: '#C9A84C',
-                              bg: '#FAF5E6',
-                            },
-                            {
-                              name: 'Bitwig',
-                              initials: 'Bw',
-                              color: '#4E8C4A',
-                              bg: '#EEF5ED',
-                            },
-                          ].map((daw) => (
-                            <div
-                              key={daw.name}
-                              className="group relative flex min-w-0 items-center gap-3.5 rounded-[22px] border border-[#183324]/8 bg-white/60 px-4 py-3.5 shadow-[0_8px_20px_rgba(16,38,29,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_14px_32px_rgba(16,38,29,0.08)]"
-                            >
-                              <div
-                                className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-transform duration-300 group-hover:scale-[1.04]"
-                                style={{ backgroundColor: daw.bg, borderColor: `${daw.color}20` }}
-                              >
-                                <span className="text-sm font-black tracking-[-0.04em]" style={{ color: daw.color }}>
-                                  {daw.initials}
-                                </span>
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-[13px] font-bold tracking-[-0.01em] text-[#1f3426] antialiased">{daw.name}</div>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                                  <span className="rounded-full border border-[#183324]/8 bg-[#f4f0e6] px-1.5 py-[2px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5a6b52]">
-                                    VST3
-                                  </span>
-                                  <span className="rounded-full border border-[#183324]/8 bg-white/70 px-1.5 py-[2px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7a64]">
-                                    CLAP
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </HeroDitheringDescription>
+                    <HeroDitheringDescription />
 
                     <HeroDitheringActions>
                       <div className="w-full max-w-3xl rounded-[28px] border border-[#183324]/14 bg-[rgba(251,249,242,0.88)] p-1 shadow-[0_24px_60px_rgba(16,38,29,0.12)] backdrop-blur-md transition-all duration-300 focus-within:border-[rgba(212,140,46,0.28)]">
@@ -826,6 +763,51 @@ export default function PluginGenerator() {
                             </SignInButton>
                           </div>
                         </SignedOut>
+                      </div>
+
+                      <div className="mt-4 max-w-4xl rounded-[30px] border border-[#183324]/10 bg-[linear-gradient(180deg,rgba(255,252,245,0.78),rgba(245,239,223,0.52))] px-5 py-5 shadow-[0_18px_44px_rgba(16,38,29,0.08)]">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#7d876d]">Supported DAWs</div>
+                            <div className="mt-1 text-sm text-[#66725b]">Export importable plugin bundles for the hosts most people actually use.</div>
+                          </div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9aa28c]">Built for real host workflows</div>
+                        </div>
+                        <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-4 sm:gap-x-10">
+                          {[
+                            {
+                              name: 'FL Studio',
+                              icon: 'https://upload.wikimedia.org/wikipedia/en/6/69/FL_Studio_11_just_logo.png',
+                            },
+                            {
+                              name: 'Ableton Live',
+                              icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS49qJ4O94_19quKreG91qHUfI91-H7b85CSA&s',
+                            },
+                            {
+                              name: 'Reason',
+                              icon: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Reason_Software_Logo.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original',
+                            },
+                            {
+                              name: 'Bitwig',
+                              icon: 'https://dl.flathub.org/media/com/bitwig/BitwigStudio/eda5ca313649147ffa0a36ffb0e6bf9f/icons/128x128@2/com.bitwig.BitwigStudio.png',
+                            },
+                          ].map((daw) => (
+                            <div key={daw.name} className="group flex min-w-0 items-center gap-3">
+                              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-white/78 ring-1 ring-[#183324]/8 shadow-[0_10px_22px_rgba(16,38,29,0.08)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-[1.03]">
+                                <img
+                                  src={daw.icon}
+                                  alt={`${daw.name} icon`}
+                                  className="h-8 w-8 object-contain"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </div>
+                              <div className="text-[14px] font-bold tracking-[-0.02em] text-[#1f3426] antialiased">
+                                {daw.name}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center gap-2">

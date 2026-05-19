@@ -217,6 +217,18 @@ export function buildShareMetadata(origin: string, pluginId: string, args: Share
 }
 
 export function injectMetadata(html: string, metadata: OgMetadata) {
+  const primarySecureImage = metadata.image.startsWith('https://')
+    ? `<meta property="og:image:secure_url" content="${escapeHtml(metadata.image)}" />`
+    : '';
+  const secondaryImageBlock = metadata.secondaryImage
+    ? `<meta property="og:image" content="${escapeHtml(metadata.secondaryImage)}" />`
+    : '';
+  const secondarySecureImage = metadata.secondaryImage?.startsWith('https://')
+    ? `<meta property="og:image:secure_url" content="${escapeHtml(metadata.secondaryImage)}" />`
+    : '';
+  const secondaryImageType = metadata.secondaryImage
+    ? `<meta property="og:image:type" content="image/svg+xml" />`
+    : '';
   const metaBlock = `
     <title>${escapeHtml(metadata.title)}</title>
     <meta name="description" content="${escapeHtml(metadata.description)}" />
@@ -227,14 +239,14 @@ export function injectMetadata(html: string, metadata: OgMetadata) {
     <meta property="og:description" content="${escapeHtml(metadata.description)}" />
     <meta property="og:url" content="${escapeHtml(metadata.url)}" />
     <meta property="og:image" content="${escapeHtml(metadata.image)}" />
-    <meta property="og:image:secure_url" content="${escapeHtml(metadata.image)}" />
+    ${primarySecureImage}
     <meta property="og:image:alt" content="${escapeHtml(metadata.imageAlt)}" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="${OG_WIDTH}" />
     <meta property="og:image:height" content="${OG_HEIGHT}" />
-    ${metadata.secondaryImage ? `<meta property="og:image" content="${escapeHtml(metadata.secondaryImage)}" />` : ''}
-    ${metadata.secondaryImage ? `<meta property="og:image:secure_url" content="${escapeHtml(metadata.secondaryImage)}" />` : ''}
-    ${metadata.secondaryImage ? `<meta property="og:image:type" content="image/svg+xml" />` : ''}
+    ${secondaryImageBlock}
+    ${secondarySecureImage}
+    ${secondaryImageType}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(metadata.title)}" />
     <meta name="twitter:description" content="${escapeHtml(metadata.description)}" />

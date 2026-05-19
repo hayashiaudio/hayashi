@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { app } from './routes.js';
+import { app, getPublicOrigin } from './routes.js';
 import { rmSync, existsSync } from 'fs';
-import { resolve } from 'path';
 
 vi.mock('./auth/clerk.js', () => ({
   verifyClerkToken: vi.fn(async (token: string) => {
@@ -17,6 +16,7 @@ const TEST_BILLING_DIR = '/tmp/hayashi/billing';
 
 describe('routes', () => {
   beforeEach(() => {
+    delete process.env.PUBLIC_APP_URL;
     if (existsSync(TEST_ASSETS_DIR)) {
       rmSync(TEST_ASSETS_DIR, { recursive: true });
     }
@@ -129,6 +129,19 @@ describe('routes', () => {
       expect(res.headers.get('content-type')).toBe('application/javascript');
       const content = await res.text();
       expect(content.length).toBeGreaterThan(0);
+    });
+
+    it('uses the configured public origin for OG metadata', async () => {
+      process.env.PUBLIC_APP_URL = 'https://tryhayashi.io';
+      const origin = getPublicOrigin({
+        req: {
+          url: 'http://127.0.0.1:3001/',
+          header(name: string) {
+            return name === 'host' ? '127.0.0.1:3001' : undefined;
+          },
+        },
+      });
+      expect(origin).toBe('https://tryhayashi.io');
     });
   });
 });
