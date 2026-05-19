@@ -213,11 +213,11 @@ jobs:
 
           new_func = '''   std::filesystem::path get_app_path()
              {
-          #if defined(_WIN32)
+#if defined(_WIN32)
                 wchar_t wpath[MAX_PATH + 1];
                 if (GetModuleFileNameW(nullptr, wpath, MAX_PATH) != 0)
                    return std::filesystem::path(wpath);
-          #else
+#else
                 char result[PATH_MAX + 1];
                 // get the full path to the executable file of the current process.
                 if (auto count = readlink(\"/proc/self/exe\", result, PATH_MAX); count != -1)
@@ -225,7 +225,7 @@ jobs:
                    result[count] = '\\0'; // null terminate the string because readlink doesn't
                    return std::filesystem::path(result);
                 }
-          #endif
+#endif
                 throw std::runtime_error(\"Fatal Error: Failed to get application path\");
              }'''
 
