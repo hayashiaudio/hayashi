@@ -60,10 +60,8 @@ jobs:
           from pathlib import Path
           path = Path(os.environ["GITHUB_WORKSPACE"]) / ".elements" / "lib" / "host" / "macos" / "app.mm"
           content = path.read_text()
-          broken = '      _menubar = (__bridge void*) menubar_;\n'
-          if broken in content:
-              content = content.replace(broken, '')
-              path.write_text(content)
+          lines = [line for line in content.splitlines() if '_menubar = (__bridge void*) menubar_;' not in line]
+          path.write_text('\n'.join(lines) + '\n')
           PY
           cmake -S "$GITHUB_WORKSPACE/.elements" -B "$GITHUB_WORKSPACE/.elements/build" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -384,6 +382,14 @@ jobs:
       - name: Build Elements
         run: |
           git clone --depth 1 https://github.com/cycfi/elements.git "$GITHUB_WORKSPACE/.elements"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path(os.environ["GITHUB_WORKSPACE"]) / ".elements" / "lib" / "host" / "macos" / "app.mm"
+          content = path.read_text()
+          lines = [line for line in content.splitlines() if '_menubar = (__bridge void*) menubar_;' not in line]
+          path.write_text('\n'.join(lines) + '\n')
+          PY
           cmake -S "$GITHUB_WORKSPACE/.elements" -B "$GITHUB_WORKSPACE/.elements/build" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
