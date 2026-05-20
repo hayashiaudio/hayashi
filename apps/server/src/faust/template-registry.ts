@@ -773,29 +773,15 @@ function emitEq5BandParametric(spec: PluginSpec): string {
     'mix = hslider("mix", 1.0, 0, 1, 0.01);',
     'input_gain = hslider("input gain", 1.0, 0, 2, 0.01);',
     ...macros,
+    'bandGainLin(ctrl) = pow(10.0, ((ctrl - 0.5) * 24.0) / 20.0);',
     'trimGain = 0.6 + trim * 0.8;',
     ...(hasMidSideBandMacros
       ? [
-          'midLowGain = 0.5 + midLow * 1.05;',
-          'midLowMidGain = 0.45 + midLowMid * 1.05;',
-          'midMidGain = 0.45 + midMid * 1.05;',
-          'midPresenceGain = 0.45 + midPresence * 1.05;',
-          'midAirGain = 0.45 + midAir * 1.1;',
-          'sideLowGain = 0.5 + sideLow * 1.05;',
-          'sideLowMidGain = 0.45 + sideLowMid * 1.05;',
-          'sideMidGain = 0.45 + sideMid * 1.05;',
-          'sidePresenceGain = 0.45 + sidePresence * 1.05;',
-          'sideAirGain = 0.45 + sideAir * 1.1;',
-          'midEq(x) = ((x * 0.22) + ((x : fi.lowpass(2, 160 + midLow * 300)) * midLowGain) + ((x : bandpassQ(260 + midLowMid * 620, 0.8 + midLowMid * 1.4)) * midLowMidGain * 0.34) + ((x : bandpassQ(900 + midMid * 1800, 0.9 + midMid * 1.8)) * midMidGain * 0.32) + ((x : bandpassQ(2600 + midPresence * 2400, 1.1 + midPresence * 1.8)) * midPresenceGain * 0.22) + ((x : fi.highpass(2, 4200 + midAir * 2600)) * midAirGain * 0.18)) * trimGain;',
-          'sideEq(x) = ((x * 0.22) + ((x : fi.lowpass(2, 160 + sideLow * 300)) * sideLowGain) + ((x : bandpassQ(260 + sideLowMid * 620, 0.8 + sideLowMid * 1.4)) * sideLowMidGain * 0.34) + ((x : bandpassQ(900 + sideMid * 1800, 0.9 + sideMid * 1.8)) * sideMidGain * 0.32) + ((x : bandpassQ(2600 + sidePresence * 2400, 1.1 + sidePresence * 1.8)) * sidePresenceGain * 0.22) + ((x : fi.highpass(2, 4200 + sideAir * 2600)) * sideAirGain * 0.18)) * trimGain;',
+          'midEq(x) = (x + ((x : fi.lowpass(2, 160 + midLow * 300)) * ((bandGainLin(midLow) - 1.0) * 0.75)) + ((x : bandpassQ(260 + midLowMid * 620, 0.8 + midLowMid * 1.4)) * ((bandGainLin(midLowMid) - 1.0) * 0.6)) + ((x : bandpassQ(900 + midMid * 1800, 0.9 + midMid * 1.8)) * ((bandGainLin(midMid) - 1.0) * 0.58)) + ((x : bandpassQ(2600 + midPresence * 2400, 1.1 + midPresence * 1.8)) * ((bandGainLin(midPresence) - 1.0) * 0.52)) + ((x : fi.highpass(2, 4200 + midAir * 2600)) * ((bandGainLin(midAir) - 1.0) * 0.45))) * trimGain;',
+          'sideEq(x) = (x + ((x : fi.lowpass(2, 160 + sideLow * 300)) * ((bandGainLin(sideLow) - 1.0) * 0.75)) + ((x : bandpassQ(260 + sideLowMid * 620, 0.8 + sideLowMid * 1.4)) * ((bandGainLin(sideLowMid) - 1.0) * 0.6)) + ((x : bandpassQ(900 + sideMid * 1800, 0.9 + sideMid * 1.8)) * ((bandGainLin(sideMid) - 1.0) * 0.58)) + ((x : bandpassQ(2600 + sidePresence * 2400, 1.1 + sidePresence * 1.8)) * ((bandGainLin(sidePresence) - 1.0) * 0.52)) + ((x : fi.highpass(2, 4200 + sideAir * 2600)) * ((bandGainLin(sideAir) - 1.0) * 0.45))) * trimGain;',
         ]
       : [
-          'lowGain = 0.5 + low * 1.05;',
-          'lowMidGain = 0.45 + lowMid * 1.05;',
-          'midGain = 0.45 + mid * 1.05;',
-          'presenceGain = 0.45 + presence * 1.05;',
-          'airGain = 0.45 + air * 1.1;',
-          `eq(x) = ((x * 0.22) + ((x : fi.lowpass(2, ${(((parameterInit(spec, 'mid_band1_freq_hz', 160) + parameterInit(spec, 'side_band1_freq_hz', 180)) * 0.5).toFixed(3))} + low * 300)) * lowGain) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band2_freq_hz', 520) + parameterInit(spec, 'side_band2_freq_hz', 580)) * 0.5).toFixed(3))} + lowMid * 620, ${(((parameterInit(spec, 'mid_band2_q', 1.1) + parameterInit(spec, 'side_band2_q', 1.1)) * 0.5).toFixed(3))} + lowMid * 1.4)) * lowMidGain * 0.34) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band3_freq_hz', 1400) + parameterInit(spec, 'side_band3_freq_hz', 1600)) * 0.5).toFixed(3))} + mid * 1800, ${(((parameterInit(spec, 'mid_band3_q', 1.3) + parameterInit(spec, 'side_band3_q', 1.3)) * 0.5).toFixed(3))} + mid * 1.8)) * midGain * 0.32) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band4_freq_hz', 3400) + parameterInit(spec, 'side_band4_freq_hz', 3800)) * 0.5).toFixed(3))} + presence * 2400, ${(((parameterInit(spec, 'mid_band4_q', 1.5) + parameterInit(spec, 'side_band4_q', 1.5)) * 0.5).toFixed(3))} + presence * 1.8)) * presenceGain * 0.22) + ((x : fi.highpass(2, ${(((parameterInit(spec, 'mid_band5_freq_hz', 7600) + parameterInit(spec, 'side_band5_freq_hz', 8400)) * 0.5).toFixed(3))} + air * 2600)) * airGain * 0.18)) * trimGain;`,
+          `eq(x) = (x + ((x : fi.lowpass(2, ${(((parameterInit(spec, 'mid_band1_freq_hz', 160) + parameterInit(spec, 'side_band1_freq_hz', 180)) * 0.5).toFixed(3))} + low * 300)) * ((bandGainLin(low) - 1.0) * 0.75)) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band2_freq_hz', 520) + parameterInit(spec, 'side_band2_freq_hz', 580)) * 0.5).toFixed(3))} + lowMid * 620, ${(((parameterInit(spec, 'mid_band2_q', 1.1) + parameterInit(spec, 'side_band2_q', 1.1)) * 0.5).toFixed(3))} + lowMid * 1.4)) * ((bandGainLin(lowMid) - 1.0) * 0.6)) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band3_freq_hz', 1400) + parameterInit(spec, 'side_band3_freq_hz', 1600)) * 0.5).toFixed(3))} + mid * 1800, ${(((parameterInit(spec, 'mid_band3_q', 1.3) + parameterInit(spec, 'side_band3_q', 1.3)) * 0.5).toFixed(3))} + mid * 1.8)) * ((bandGainLin(mid) - 1.0) * 0.58)) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band4_freq_hz', 3400) + parameterInit(spec, 'side_band4_freq_hz', 3800)) * 0.5).toFixed(3))} + presence * 2400, ${(((parameterInit(spec, 'mid_band4_q', 1.5) + parameterInit(spec, 'side_band4_q', 1.5)) * 0.5).toFixed(3))} + presence * 1.8)) * ((bandGainLin(presence) - 1.0) * 0.52)) + ((x : fi.highpass(2, ${(((parameterInit(spec, 'mid_band5_freq_hz', 7600) + parameterInit(spec, 'side_band5_freq_hz', 8400)) * 0.5).toFixed(3))} + air * 2600)) * ((bandGainLin(air) - 1.0) * 0.45))) * trimGain;`,
         ]),
     ...(spec.io.inputs === 2
       ? hasMidSideBandMacros

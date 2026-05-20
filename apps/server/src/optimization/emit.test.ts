@@ -56,6 +56,7 @@ describe('emitParametricEqArtifacts', () => {
     expect(result.faustCode).toContain('toSide(l, r)');
     expect(result.faustCode).toContain('midEq(x) =');
     expect(result.faustCode).toContain('sideEq(x) =');
+    expect(result.faustCode).toContain('bandGainLin(ctrl) = pow(10.0, ((ctrl - 0.5) * 24.0) / 20.0);');
     expect(result.faustCode).toContain('wetL = midWet + sideWet;');
     expect(result.faustCode).toContain('wetR = midWet - sideWet;');
     expect(result.faustCode.match(/width = hslider\("width"/g)?.length ?? 0).toBe(1);
