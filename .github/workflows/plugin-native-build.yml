@@ -306,6 +306,10 @@ jobs:
           node-version: 22
       - name: Install system dependencies
         run: brew install faust cmake pkg-config asio gtk+3 cairo fontconfig freetype webp
+      - name: Configure Homebrew include paths
+        run: |
+          echo "FAUST_INCLUDE_PATH=$(brew --prefix)/include" >> "$GITHUB_ENV"
+          echo "SYSTEM_INCLUDE_PATH=$(brew --prefix)/include" >> "$GITHUB_ENV"
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle
@@ -318,10 +322,8 @@ jobs:
           from pathlib import Path
           path = Path(os.environ["GITHUB_WORKSPACE"]) / ".elements" / "lib" / "host" / "macos" / "app.mm"
           content = path.read_text()
-          broken = '      _menubar = (__bridge void*) menubar_;\n'
-          if broken in content:
-              content = content.replace(broken, '')
-              path.write_text(content)
+          lines = [line for line in content.splitlines() if '_menubar = (__bridge void*) menubar_;' not in line]
+          path.write_text('\n'.join(lines) + '\n')
           PY
           cmake -S "$GITHUB_WORKSPACE/.elements" -B "$GITHUB_WORKSPACE/.elements/build" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -375,6 +377,10 @@ jobs:
           node-version: 22
       - name: Install system dependencies
         run: brew install faust cmake pkg-config asio gtk+3 cairo fontconfig freetype webp
+      - name: Configure Homebrew include paths
+        run: |
+          echo "FAUST_INCLUDE_PATH=$(brew --prefix)/include" >> "$GITHUB_ENV"
+          echo "SYSTEM_INCLUDE_PATH=$(brew --prefix)/include" >> "$GITHUB_ENV"
       - name: Install npm dependencies
         run: npm ci
       - name: Build server bundle

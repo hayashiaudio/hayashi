@@ -335,12 +335,13 @@ export function generateDpfWrapper(
     'FAUST_INCLUDE_PATH ?= /usr/share/faust',
     'ELEMENTS_INCLUDE_PATH ?= /usr/local/include',
     'ELEMENTS_LIB_PATH ?= /usr/local/lib',
+    'SYSTEM_INCLUDE_PATH ?= /usr/local/include',
     'include $(DPF_PATH)/Makefile.plugins.mk',
     '',
     '# Extra include / link flags for Elements + Faust',
     includeUi
-      ? `BUILD_CXX_FLAGS += -std=c++20 -I"$(ELEMENTS_INCLUDE_PATH)" -I"$(ELEMENTS_INCLUDE_PATH)/elements" -I"$(FAUST_INCLUDE_PATH)" ${pkgConfigCflags}`
-      : 'BUILD_CXX_FLAGS += -std=c++20 -I"$(FAUST_INCLUDE_PATH)"',
+      ? `BUILD_CXX_FLAGS += -std=c++20 -I"$(SYSTEM_INCLUDE_PATH)" -I"$(ELEMENTS_INCLUDE_PATH)" -I"$(ELEMENTS_INCLUDE_PATH)/elements" -I"$(FAUST_INCLUDE_PATH)" ${pkgConfigCflags}`
+      : 'BUILD_CXX_FLAGS += -std=c++20 -I"$(SYSTEM_INCLUDE_PATH)" -I"$(FAUST_INCLUDE_PATH)"',
     includeUi
       ? `LINK_FLAGS += -L"$(ELEMENTS_LIB_PATH)" -lelements ${pkgConfigLibs} -lpthread${options.platform === 'windows' ? ' -lws2_32' : ''}`
       : `LINK_FLAGS += -lpthread${options.platform === 'windows' ? ' -lws2_32' : ''}`,
