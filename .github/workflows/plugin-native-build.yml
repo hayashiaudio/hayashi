@@ -38,7 +38,7 @@ jobs:
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
-      ENABLE_ELEMENTS_PLUGIN_UI: '1'
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,6 +53,7 @@ jobs:
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
       - name: Build Elements
+        if: env.ENABLE_ELEMENTS_PLUGIN_UI == '1'
         run: |
           git clone --depth 1 https://github.com/cycfi/elements.git "$GITHUB_WORKSPACE/.elements"
           python3 - <<'PY'
@@ -106,7 +107,7 @@ jobs:
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
-      ENABLE_ELEMENTS_PLUGIN_UI: '1'
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -190,10 +191,12 @@ jobs:
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
       - name: Clone Elements
+        if: env.ENABLE_ELEMENTS_PLUGIN_UI == '1'
         shell: msys2 {0}
         run: |
           git clone --depth 1 https://github.com/cycfi/elements.git "$(cygpath "$GITHUB_WORKSPACE")/.elements"
       - name: Patch Elements for Windows
+        if: env.ENABLE_ELEMENTS_PLUGIN_UI == '1'
         shell: msys2 {0}
         run: |
           _WS="$(cygpath "$GITHUB_WORKSPACE")"
@@ -248,6 +251,7 @@ jobs:
               f.write(content)
           " "$_WS"
       - name: Build Elements
+        if: env.ENABLE_ELEMENTS_PLUGIN_UI == '1'
         shell: msys2 {0}
         run: |
           cmake -S "$(cygpath "$GITHUB_WORKSPACE")/.elements" -B "$(cygpath "$GITHUB_WORKSPACE")/.elements/build" \
@@ -298,7 +302,7 @@ jobs:
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
-      ENABLE_ELEMENTS_PLUGIN_UI: '1'
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -315,6 +319,7 @@ jobs:
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
       - name: Build Elements
+        if: env.ENABLE_ELEMENTS_PLUGIN_UI == '1'
         run: |
           git clone --depth 1 https://github.com/cycfi/elements.git "$GITHUB_WORKSPACE/.elements"
           python3 - <<'PY'
@@ -369,7 +374,7 @@ jobs:
       AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
-      ENABLE_ELEMENTS_PLUGIN_UI: '1'
+      ENABLE_ELEMENTS_PLUGIN_UI: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -386,6 +391,7 @@ jobs:
       - name: Build server bundle
         run: npm --workspace @hayashi/server run build
       - name: Build Elements
+        if: env.ENABLE_ELEMENTS_PLUGIN_UI == '1'
         run: |
           git clone --depth 1 https://github.com/cycfi/elements.git "$GITHUB_WORKSPACE/.elements"
           python3 - <<'PY'
