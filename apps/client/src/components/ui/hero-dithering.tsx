@@ -38,6 +38,7 @@ interface HeroDitheringHeadingProps extends DivProps {
   eyebrow?: ReactNode;
   heading: ReactNode;
   description?: ReactNode;
+  headingClassName?: string;
 }
 
 export function HeroDitheringHeading({
@@ -45,6 +46,7 @@ export function HeroDitheringHeading({
   heading,
   description,
   className,
+  headingClassName,
   ...props
 }: HeroDitheringHeadingProps) {
   return (
@@ -55,7 +57,7 @@ export function HeroDitheringHeading({
         </div>
       ) : null}
       <div className="space-y-5">
-        <div className="max-w-[11ch] text-balance font-sans text-[clamp(3.2rem,8vw,5.8rem)] font-black leading-[0.96] tracking-[-0.08em] text-[#10261d]">
+        <div className={cn("max-w-[11ch] text-balance font-sans text-[clamp(3.2rem,8vw,5.8rem)] font-black leading-[0.96] tracking-[-0.08em] text-[#10261d]", headingClassName)}>
           {heading}
         </div>
         {description ? (

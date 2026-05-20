@@ -703,7 +703,7 @@ export default function PluginGenerator() {
                           ENGINE
                         </>
                       }
-                      description="Describe a sound. Generate a Faust DSP DAW plugin. Preview it in the browser and export an importable bundle when it is ready."
+                      description="Describe a sound. Generate a DAW-ready plugin. Preview it in the browser and export an importable bundle when it is ready."
                     />
 
                     <HeroDitheringDescription />

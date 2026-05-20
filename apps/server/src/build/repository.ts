@@ -49,6 +49,14 @@ export interface BuildExecutionPayload extends BuildRecord {
   macroJson: unknown | null;
 }
 
+function buildExecutionFaustCode(metadataJson: unknown, persistedFaustCode: string): string {
+  if (!metadataJson || typeof metadataJson !== 'object') return persistedFaustCode;
+  const requestedFaustCode = (metadataJson as { requestedFaustCode?: unknown }).requestedFaustCode;
+  return typeof requestedFaustCode === 'string' && requestedFaustCode.trim().length > 0
+    ? requestedFaustCode
+    : persistedFaustCode;
+}
+
 export type BuildLogLevel = 'info' | 'warn' | 'error';
 
 export interface BuildLogRecord {
@@ -188,7 +196,12 @@ export async function getBuildExecutionPayload(buildId: string): Promise<BuildEx
     .innerJoin(pluginVersions, eq(builds.versionId, pluginVersions.id))
     .where(eq(builds.id, buildId))
     .limit(1);
-  return rows[0] ? coerceBuildRecord(rows[0]) : null;
+  if (!rows[0]) return null;
+  const row = rows[0];
+  return coerceBuildRecord({
+    ...row,
+    faustCode: buildExecutionFaustCode(row.metadataJson, row.faustCode),
+  });
 }
 
 export async function findActiveBuildForVersion(

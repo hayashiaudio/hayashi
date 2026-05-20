@@ -5,7 +5,11 @@ import { usePluginStore } from '@/stores/pluginStore';
 import { initPreview } from '@/audio/previewEngine';
 import { usePluginPreview } from '@/hooks/usePluginPreview';
 
-export function PreviewPlayer() {
+interface PreviewPlayerProps {
+  publicMode?: boolean;
+}
+
+export function PreviewPlayer({ publicMode = false }: PreviewPlayerProps) {
   const { selectedStyle, activePluginId, plugins } = usePluginStore();
   const { previewPlaying, compiling, toggle } = usePluginPreview();
   const [ready, setReady] = useState(false);
@@ -37,14 +41,17 @@ export function PreviewPlayer() {
     await toggle();
   }, [ready, toggle]);
 
+  const accent = publicMode ? '#d48c2e' : '#ff8c61';
+  const stopColor = publicMode ? '#b84d3e' : '#ff3b30';
+
   return (
-    <div className="flex items-center gap-3 px-4 py-2 rounded-xl border" style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#0a0a0a' }}>
+    <div className="flex items-center gap-3 px-4 py-2 rounded-xl border" style={{ borderColor: publicMode ? 'rgba(24,51,36,0.08)' : 'rgba(255,255,255,0.06)', background: publicMode ? 'rgba(255,252,245,0.72)' : '#0a0a0a' }}>
       <Button
         size="sm"
         onClick={() => { void handleToggle(); }}
         disabled={compiling || missingSample}
         className="h-8 w-8 rounded-full p-0"
-        style={{ background: previewPlaying ? '#ff3b30' : '#ff8c61', color: '#0a0a0a' }}
+        style={{ background: previewPlaying ? stopColor : accent, color: publicMode ? '#fffbf0' : '#0a0a0a' }}
       >
         {compiling ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -55,8 +62,8 @@ export function PreviewPlayer() {
         )}
       </Button>
       <div className="flex flex-col">
-        <span className="text-[10px] font-bold tracking-wider text-[#737373]">{label}</span>
-        <span className="text-[11px] font-mono text-[#e5e5e5]">{status}</span>
+        <span className={`text-[10px] font-bold tracking-wider ${publicMode ? 'text-[#7d876d]' : 'text-[#737373]'}`}>{label}</span>
+        <span className={`text-[11px] font-mono ${publicMode ? 'text-[#10261d]' : 'text-[#e5e5e5]'}`}>{status}</span>
       </div>
     </div>
   );

@@ -2260,6 +2260,7 @@ app.post('/api/export/:format', async (c) => {
         requestedPluginName: pluginName,
         requestedVersion: version,
         requestedTarget: target,
+        requestedFaustCode: body.faustCode,
       },
     });
 

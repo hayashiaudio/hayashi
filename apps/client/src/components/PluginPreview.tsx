@@ -401,7 +401,8 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
                   aria-label="Plugin version"
                   value={currentVersion?.id ?? ''}
                   onChange={(e) => updatePluginFromVersion(plugin.id, e.target.value)}
-                  className="h-10 min-w-[8.5rem] text-[11px] bg-transparent border border-[#525252] text-[#a1a1a1] rounded-xl px-3 outline-none"
+                  className="h-10 min-w-[8.5rem] text-[11px] bg-transparent border rounded-xl px-3 outline-none"
+                  style={{ borderColor: publicMode ? 'rgba(24,51,36,0.14)' : '#525252', color: publicMode ? '#45604b' : '#a1a1a1' }}
                 >
                   {plugin.versions.map((version) => (
                     <option key={version.id} value={version.id}>
@@ -582,23 +583,44 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
                     return (
                       <label
                         key={param.name}
-                        className="group relative overflow-hidden rounded-[20px] border border-white/8 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),rgba(255,255,255,0.015))] p-4"
+                        className="group relative overflow-hidden rounded-[20px] border p-4"
+                        style={{
+                          borderColor: publicMode ? 'rgba(24,51,36,0.08)' : 'rgba(255,255,255,0.08)',
+                          background: publicMode
+                            ? 'radial-gradient(circle at top, rgba(255,252,245,0.72), rgba(243,236,215,0.32))'
+                            : 'radial-gradient(circle at top, rgba(255,255,255,0.06), rgba(255,255,255,0.015))',
+                        }}
                       >
                         <div className="mb-3 flex items-center justify-between gap-3">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8f8881]">{param.name}</span>
-                          <span className="font-mono text-[11px] text-[#f0e8df]">{param.value.toFixed(2)}</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: publicMode ? '#7d876d' : '#8f8881' }}>{param.name}</span>
+                          <span className="font-mono text-[11px]" style={{ color: publicMode ? '#10261d' : '#f0e8df' }}>{param.value.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center justify-center">
-                          <div className="relative h-20 w-20 rounded-full border border-white/10 bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.14),rgba(255,255,255,0.04)_38%,rgba(0,0,0,0.34)_100%)] shadow-[inset_0_10px_24px_rgba(255,255,255,0.03),0_18px_30px_rgba(0,0,0,0.22)]">
-                            <div className="absolute inset-[10px] rounded-full border border-white/6" />
+                          <div
+                            className="relative h-20 w-20 rounded-full border shadow-[inset_0_10px_24px_rgba(0,0,0,0.03),0_18px_30px_rgba(16,38,29,0.08)]"
+                            style={{
+                              borderColor: publicMode ? 'rgba(24,51,36,0.10)' : 'rgba(255,255,255,0.10)',
+                              background: publicMode
+                                ? 'radial-gradient(circle at 35% 30%, rgba(212,140,46,0.10), rgba(24,51,36,0.04) 38%, rgba(16,38,29,0.10) 100%)'
+                                : 'radial-gradient(circle at 35% 30%, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 38%, rgba(0,0,0,0.34) 100%)',
+                            }}
+                          >
                             <div
-                              className="absolute left-1/2 top-1/2 h-6 w-[2px] -translate-x-1/2 rounded-full bg-[#ff8c61] shadow-[0_0_14px_rgba(255,140,97,0.45)]"
-                              style={{ transform: `translate(-50%, -100%) rotate(${angle}deg)`, transformOrigin: 'bottom center' }}
+                              className="absolute inset-[10px] rounded-full"
+                              style={{ borderColor: publicMode ? 'rgba(24,51,36,0.06)' : 'rgba(255,255,255,0.06)', borderWidth: '1px' }}
+                            />
+                            <div
+                              className="absolute left-1/2 top-1/2 h-6 w-[2px] -translate-x-1/2 rounded-full shadow-[0_0_14px_rgba(212,140,46,0.35)]"
+                              style={{
+                                transform: `translate(-50%, -100%) rotate(${angle}deg)`,
+                                transformOrigin: 'bottom center',
+                                background: theme.accent,
+                              }}
                             />
                           </div>
                         </div>
-                        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/6">
-                          <div className="h-full rounded-full bg-[#ff8c61]/70" style={{ width: `${Math.max(0, Math.min(100, normalized * 100))}%` }} />
+                        <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: publicMode ? 'rgba(24,51,36,0.08)' : 'rgba(255,255,255,0.06)' }}>
+                          <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, normalized * 100))}%`, background: `${theme.accent}B3` }} />
                         </div>
                         <input
                           type="range"
@@ -618,7 +640,7 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
             </div>
           )}
 
-          <SpectrumAnalyzer spectrum={analysis.spectrum} height={80} />
+          <SpectrumAnalyzer spectrum={analysis.spectrum} height={80} publicMode={publicMode} />
           <FeatureReadouts
             centroid={displayFeatures.centroid}
             rms={displayFeatures.rms}
@@ -626,9 +648,10 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
             peakDb={displayFeatures.peakDb}
             isLive={previewPlaying && analysis.isActive}
             comparison={snapshotFeatures}
+            publicMode={publicMode}
           />
           <div className="flex justify-end">
-            <PreviewPlayer />
+            <PreviewPlayer publicMode={publicMode} />
           </div>
         </div>
 
@@ -688,7 +711,7 @@ export function PluginPreview({ onRefine, refining, publicMode = false }: Plugin
           <Button
             size="lg"
             className="rounded-full h-12 px-8 gap-2 text-sm font-bold"
-            style={{ background: C.accent, color: C.void }}
+            style={{ background: theme.accent, color: theme.void }}
             onClick={toggle}
             disabled={compiling || (activePreviewMode === 'sample' && !plugin.previewSampleBuffer)}
           >

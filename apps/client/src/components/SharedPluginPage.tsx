@@ -168,20 +168,11 @@ export function SharedPluginPage() {
                   eyebrow={
                     <span className="flex items-center gap-2">
                       <Eye className="h-3.5 w-3.5" />
-                      Public effect share
+                      {ownerName} shared a public effect
                     </span>
                   }
-                  heading={
-                    <>
-                      {ownerName}
-                      <br />
-                      wants you to
-                      <br />
-                      view this effect:
-                      <br />
-                      <span className="text-[#49633c]">{payload.plugin.name}</span>
-                    </>
-                  }
+                  heading={payload.plugin.name}
+                  headingClassName="max-w-[18ch] !text-[clamp(2.2rem,5.5vw,4rem)] !leading-[1.05] !tracking-[-0.05em]"
                   description="This is a live public preview. You can audition the patch, inspect the generated Faust source, switch versions, and test the same playback modes the creator uses inside Hayashi."
                 />
 
