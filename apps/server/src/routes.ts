@@ -24,7 +24,8 @@ import {
 } from './billing/events.js';
 import { getBillingRepository } from './billing/repository.js';
 import { BillingService, STRIPE_PRICE_CREATOR, STRIPE_PRICE_PRO, STRIPE_PRICE_STUDIO } from './billing/service.js';
-import { generateFaustFromPrompt, iterateFaustFromPrompt, inferPluginType } from './faust/generate.js';
+import { generateFaustFromPrompt, iterateFaustFromPrompt } from './faust/generate.js';
+import { buildAppGenerationPlan, generatePluginFromPrompt } from './generation/pipeline.js';
 import { persistGeneratedArtifacts } from './faust/artifacts.js';
 import { parseFaustParams, paramsToJson } from './faust/params.js';
 import { runDelayEchoOptimizationPass, runParametricEqOptimizationPass, runReverbSpaceOptimizationPass, runSynthOptimizationPass } from './optimization/orchestrator.js';
@@ -1365,7 +1366,8 @@ app.post('/api/plugins', async (c) => {
   }
 
   const pluginId = `plugin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const type = inferPluginType(body.prompt);
+  const generationPlan = buildAppGenerationPlan(body.prompt);
+  const type = generationPlan.pluginType;
   const name = body.prompt.slice(0, 40);
 
   // Always create the plugin row immediately so the client can poll for it
@@ -1391,7 +1393,7 @@ app.post('/api/plugins', async (c) => {
 
   // Inline fallback when Temporal is not configured or workflow start failed.
   try {
-    const generated = await generateFaustFromPrompt(body.prompt);
+    const generated = await generatePluginFromPrompt(body.prompt);
     const params = parseFaustParams(generated.faustCode);
 
     const versionId = `${pluginId}-v1`;

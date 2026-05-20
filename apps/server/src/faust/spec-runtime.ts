@@ -64,6 +64,16 @@ export interface MacroControl {
     | 'high'
     | 'presence'
     | 'air'
+    | 'midLow'
+    | 'midLowMid'
+    | 'midMid'
+    | 'midPresence'
+    | 'midAir'
+    | 'sideLow'
+    | 'sideLowMid'
+    | 'sideMid'
+    | 'sidePresence'
+    | 'sideAir'
     | 'trim'
     | 'weight'
     | 'clarity'
@@ -248,6 +258,20 @@ const ajv = new Ajv2020({ allErrors: true, strict: false });
 const validateSchema = ajv.compile(pluginSpecSchema);
 const IDENTIFIER_RE = /^[a-z][a-zA-Z0-9_]{0,31}$/;
 const NUMERIC_LITERAL_RE = /^-?\d+(\.\d+)?$/;
+const EQ_5BAND_MID_SIDE_MACROS: Array<MacroControl['id']> = [
+  'midLow',
+  'midLowMid',
+  'midMid',
+  'midPresence',
+  'midAir',
+  'sideLow',
+  'sideLowMid',
+  'sideMid',
+  'sidePresence',
+  'sideAir',
+  'width',
+  'trim',
+];
 
 function fail(message: string): never {
   throw new Error(`Invalid Faust plugin spec: ${message}`);
@@ -553,6 +577,10 @@ function sanitizePositiveStep(value: unknown): number | undefined {
   return Number.isFinite(num) && num > 0 ? num : undefined;
 }
 
+function hasEq5BandMidSideMacroSet(macroIds: Set<string>) {
+  return EQ_5BAND_MID_SIDE_MACROS.every((macroId) => macroIds.has(macroId));
+}
+
 function canonicalGraphForKind(kind: PluginKind): PluginSpec['graph'] {
   if (kind === 'effect') {
     return {
@@ -622,6 +650,9 @@ function normalizeTemplateDefaults(spec: Record<string, unknown>): Record<string
   );
 
   for (const requiredMacro of template.requiredMacros) {
+    if (template.id === 'eq_5band_parametric' && hasEq5BandMidSideMacroSet(macroIds)) {
+      break;
+    }
     if (macroIds.has(requiredMacro)) continue;
     const fallback = template.defaults.macros.find((macro) => macro.id === requiredMacro);
     if (!fallback) continue;
@@ -795,6 +826,9 @@ export function parseAndValidatePluginSpec(raw: string, expectedKind?: PluginKin
       fail(`template ${template.id} does not allow qualityProfile ${qualityProfile}`);
     }
     for (const requiredMacro of template.requiredMacros) {
+      if (template.id === 'eq_5band_parametric' && hasEq5BandMidSideMacroSet(macroIds)) {
+        break;
+      }
       if (!macroIds.has(requiredMacro)) {
         fail(`template ${template.id} requires macroControl ${requiredMacro}`);
       }

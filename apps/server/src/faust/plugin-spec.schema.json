@@ -99,7 +99,7 @@
     },
     "macroControls": {
       "type": "array",
-      "maxItems": 8,
+      "maxItems": 16,
       "items": {
         "$ref": "#/$defs/macroControl"
       }
@@ -123,7 +123,7 @@
     },
     "parameters": {
       "type": "array",
-      "maxItems": 24,
+      "maxItems": 48,
       "items": {
         "$ref": "#/$defs/parameter"
       }
@@ -159,7 +159,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "enum": ["brightness", "movement", "body", "space", "drive", "character", "width", "punch", "diffusion", "damping", "preDelay", "feedbackTone", "modDepth", "modRate", "bloom", "ducking", "resonanceShape", "sweepRange", "tracking", "saturationPre", "saturationPost", "notchAmount", "vowelShift", "low", "lowMid", "mid", "high", "presence", "air", "trim", "weight", "clarity", "color", "resonance"]
+          "enum": ["brightness", "movement", "body", "space", "drive", "character", "width", "punch", "diffusion", "damping", "preDelay", "feedbackTone", "modDepth", "modRate", "bloom", "ducking", "resonanceShape", "sweepRange", "tracking", "saturationPre", "saturationPost", "notchAmount", "vowelShift", "low", "lowMid", "mid", "high", "presence", "air", "midLow", "midLowMid", "midMid", "midPresence", "midAir", "sideLow", "sideLowMid", "sideMid", "sidePresence", "sideAir", "trim", "weight", "clarity", "color", "resonance"]
         },
         "label": {
           "type": "string",

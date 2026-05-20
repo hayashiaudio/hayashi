@@ -13,13 +13,27 @@ export function evaluateParametricEqCandidate(args: {
   const measurement = evaluateFaustSpec(args.spec, args.faustCode);
   const target = args.target.values;
   const params = args.candidate.params;
+  const averageParam = (left: string, right: string) => ((params[left] ?? 0) + (params[right] ?? 0)) * 0.5;
 
-  const lowShape = clamp01(((params.low_gain_db ?? 0) + 12) / 24);
-  const midShape = clamp01(((params.mid_gain_db ?? 0) + 12) / 24);
-  const highShape = clamp01(((params.high_gain_db ?? 0) + 12) / 24);
-  const airShape = clamp01(((params.air_gain_db ?? params.high_gain_db ?? 0) + 9) / 18);
+  const lowShape = clamp01((averageParam('mid_band1_gain_db', 'side_band1_gain_db') + 15) / 30);
+  const midShape = clamp01((averageParam('mid_band3_gain_db', 'side_band3_gain_db') + 15) / 30);
+  const highShape = clamp01((averageParam('mid_band4_gain_db', 'side_band4_gain_db') + 15) / 30);
+  const airShape = clamp01((averageParam('mid_band5_gain_db', 'side_band5_gain_db') + 15) / 30);
   const trimShape = clamp01(1 - Math.abs(params.trim_db ?? 0) / 6);
-  const qBias = clamp01((params.global_q_bias ?? params.resonant_q ?? params.mid_q ?? 1) / 4);
+  const qBias = clamp01((
+    (
+      (params.mid_band1_q ?? 0.8)
+      + (params.mid_band2_q ?? 1.1)
+      + (params.mid_band3_q ?? 1.3)
+      + (params.mid_band4_q ?? 1.5)
+      + (params.mid_band5_q ?? 0.9)
+      + (params.side_band1_q ?? 0.8)
+      + (params.side_band2_q ?? 1.1)
+      + (params.side_band3_q ?? 1.3)
+      + (params.side_band4_q ?? 1.5)
+      + (params.side_band5_q ?? 0.9)
+    ) / 10
+  ) / 4);
 
   const rawMetrics: Record<string, number> = {
     target_curve_fit: average([

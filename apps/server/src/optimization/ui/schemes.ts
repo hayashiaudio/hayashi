@@ -31,7 +31,7 @@ export interface PlannedUiScheme {
 }
 
 function pickHeroControls(controlIds: string[]): string[] {
-  const preferredOrder = ['low', 'mid', 'high', 'presence', 'air', 'weight', 'clarity', 'trim'];
+  const preferredOrder = ['midLow', 'midMid', 'sidePresence', 'width', 'low', 'mid', 'high', 'presence', 'air', 'weight', 'clarity', 'trim'];
   const heroes: string[] = [];
   for (const id of preferredOrder) {
     if (controlIds.includes(id) && heroes.length < 4) {
@@ -54,7 +54,45 @@ export function buildParametricEqUiScheme(args: {
   architecture: OptimizationArchitectureDefinition;
 }): PlannedUiScheme {
   const controls = uniqueControls(args.architecture.controlIds);
+  const isMidSideSurface = controls.some((id) => id.startsWith('mid')) && controls.some((id) => id.startsWith('side'));
   const heroControls = pickHeroControls(controls);
+
+  if (isMidSideSurface) {
+    const midControls = controls.filter((id) => id.startsWith('mid'));
+    const sideControls = controls.filter((id) => id.startsWith('side'));
+    const spreadControls = controls.filter((id) => id === 'width');
+    const outputControls = controls.filter((id) => id === 'trim');
+
+    return {
+      schemaVersion: '1.0',
+      uiFamily: 'color_fx',
+      uiStyle: 'minimal_precision',
+      title: args.pluginTitle.slice(0, 64),
+      subtitle: args.pluginSubtitle.slice(0, 96),
+      heroControls: heroControls.length > 0 ? heroControls : [...midControls.slice(0, 2), ...sideControls.slice(0, 1), ...spreadControls.slice(0, 1)].slice(0, 4),
+      sections: [
+        { id: 'mid', label: 'Mid', layout: 'grid' as const, controls: midControls },
+        { id: 'side', label: 'Side', layout: 'grid' as const, controls: sideControls },
+        { id: 'spread', label: 'Spread', layout: 'row' as const, controls: spreadControls },
+        { id: 'output', label: 'Output', layout: 'row' as const, controls: outputControls },
+      ].filter((section) => section.controls.length > 0),
+      visualizers: [
+        { type: 'filter_curve', placement: 'center' },
+        { type: 'stereo_field', placement: 'sidebar' },
+      ],
+      meters: ['input', 'output', 'width'],
+      layoutHints: {
+        density: 'comfortable',
+        heroSize: 'large',
+        sidebar: true,
+      },
+      themeTokens: {
+        accent: 'steel',
+        surface: 'graphite',
+        glow: 0.24,
+      },
+    };
+  }
 
   const toneControls = controls.filter((id) => ['low', 'mid', 'high', 'weight', 'clarity', 'color'].includes(id));
   const surgicalControls = controls.filter((id) => {
@@ -65,6 +103,8 @@ export function buildParametricEqUiScheme(args: {
     const group = getControlSemanticGroup(id);
     return group === 'trim' || group === 'output' || group === 'utility';
   });
+  const spreadControls = controls.filter((id) => id === 'width');
+  const hasSpread = spreadControls.length > 0;
 
   return {
     schemaVersion: '1.0',
@@ -76,12 +116,14 @@ export function buildParametricEqUiScheme(args: {
     sections: [
       { id: 'tone', label: 'Tone', layout: 'row' as const, controls: toneControls.length > 0 ? toneControls : controls.slice(0, 3) },
       { id: 'surgical', label: 'Surgical', layout: 'row' as const, controls: surgicalControls.length > 0 ? surgicalControls : controls.slice(0, 2) },
+      { id: 'spread', label: 'Spread', layout: 'row' as const, controls: spreadControls },
       { id: 'output', label: 'Output', layout: 'row' as const, controls: outputControls.length > 0 ? outputControls : ['trim'].filter((id) => controls.includes(id)) },
     ].filter((section) => section.controls.length > 0),
     visualizers: [
       { type: 'filter_curve', placement: 'center' },
+      ...(hasSpread ? [{ type: 'stereo_field' as const, placement: 'sidebar' as const }] : []),
     ],
-    meters: ['input', 'output'],
+    meters: hasSpread ? ['input', 'output', 'width'] : ['input', 'output'],
     layoutHints: {
       density: 'comfortable',
       heroSize: 'large',

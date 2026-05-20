@@ -47,6 +47,10 @@ function macroMap(macros: MacroControl[]) {
   return new Map(macros.map((macro) => [macro.id, macro]));
 }
 
+function parameterInit(spec: PluginSpec, id: string, fallback: number) {
+  return spec.parameters.find((param) => param.id === id)?.init ?? fallback;
+}
+
 function macroLine(macros: Map<string, MacroControl>, id: MacroControl['id'], fallbackLabel: string, fallbackInit: number) {
   const macro = macros.get(id);
   const label = macro?.label ?? fallbackLabel;
@@ -289,6 +293,21 @@ const EQ_5BAND_PARAMETRIC_MACROS: TemplateDefaultMacro[] = [
   { id: 'mid', label: 'mid', init: 0.5 },
   { id: 'presence', label: 'presence', init: 0.54 },
   { id: 'air', label: 'air', init: 0.56 },
+  { id: 'trim', label: 'trim', init: 0.5 },
+];
+
+const EQ_5BAND_PARAMETRIC_MS_MACROS: TemplateDefaultMacro[] = [
+  { id: 'midLow', label: 'mid low', init: 0.5 },
+  { id: 'midLowMid', label: 'mid lowMid', init: 0.48 },
+  { id: 'midMid', label: 'mid mid', init: 0.5 },
+  { id: 'midPresence', label: 'mid presence', init: 0.54 },
+  { id: 'midAir', label: 'mid air', init: 0.56 },
+  { id: 'sideLow', label: 'side low', init: 0.46 },
+  { id: 'sideLowMid', label: 'side lowMid', init: 0.46 },
+  { id: 'sideMid', label: 'side mid', init: 0.48 },
+  { id: 'sidePresence', label: 'side presence', init: 0.54 },
+  { id: 'sideAir', label: 'side air', init: 0.58 },
+  { id: 'width', label: 'width', init: 0.68 },
   { id: 'trim', label: 'trim', init: 0.5 },
 ];
 
@@ -744,7 +763,9 @@ function emitEq3BandMusical(spec: PluginSpec): string {
 }
 
 function emitEq5BandParametric(spec: PluginSpec): string {
-  const macros = linesForMacros(spec.macroControls, EQ_5BAND_PARAMETRIC_MACROS);
+  const hasMidSideBandMacros = spec.macroControls.some((macro) => macro.id === 'midLow') && spec.macroControls.some((macro) => macro.id === 'sideLow');
+  const macros = linesForMacros(spec.macroControls, hasMidSideBandMacros ? EQ_5BAND_PARAMETRIC_MS_MACROS : EQ_5BAND_PARAMETRIC_MACROS);
+  const input = spec.io.inputs === 2 ? '_,_' : '_';
 
   return [
     'import("stdfaust.lib");',
@@ -752,16 +773,44 @@ function emitEq5BandParametric(spec: PluginSpec): string {
     'mix = hslider("mix", 1.0, 0, 1, 0.01);',
     'input_gain = hslider("input gain", 1.0, 0, 2, 0.01);',
     ...macros,
-    'lowGain = 0.5 + low * 1.05;',
-    'lowMidGain = 0.45 + lowMid * 1.05;',
-    'midGain = 0.45 + mid * 1.05;',
-    'presenceGain = 0.45 + presence * 1.05;',
-    'airGain = 0.45 + air * 1.1;',
     'trimGain = 0.6 + trim * 0.8;',
-    'eq(x) = ((x * 0.22) + ((x : fi.lowpass(2, 160 + low * 300)) * lowGain) + ((x : bandpassQ(260 + lowMid * 620, 0.8 + lowMid * 1.4)) * lowMidGain * 0.34) + ((x : bandpassQ(900 + mid * 1800, 0.9 + mid * 1.8)) * midGain * 0.32) + ((x : bandpassQ(2600 + presence * 2400, 1.1 + presence * 1.8)) * presenceGain * 0.22) + ((x : fi.highpass(2, 4200 + air * 2600)) * airGain * 0.18)) * trimGain;',
-    spec.io.inputs === 2
-      ? `${stereoDryWetProcess('_,_', 'par(i,2,*(input_gain)) : par(i,2,eq)')};`
-      : `${monoDryWetProcess('_ * input_gain : eq')};`,
+    ...(hasMidSideBandMacros
+      ? [
+          'midLowGain = 0.5 + midLow * 1.05;',
+          'midLowMidGain = 0.45 + midLowMid * 1.05;',
+          'midMidGain = 0.45 + midMid * 1.05;',
+          'midPresenceGain = 0.45 + midPresence * 1.05;',
+          'midAirGain = 0.45 + midAir * 1.1;',
+          'sideLowGain = 0.5 + sideLow * 1.05;',
+          'sideLowMidGain = 0.45 + sideLowMid * 1.05;',
+          'sideMidGain = 0.45 + sideMid * 1.05;',
+          'sidePresenceGain = 0.45 + sidePresence * 1.05;',
+          'sideAirGain = 0.45 + sideAir * 1.1;',
+          'midEq(x) = ((x * 0.22) + ((x : fi.lowpass(2, 160 + midLow * 300)) * midLowGain) + ((x : bandpassQ(260 + midLowMid * 620, 0.8 + midLowMid * 1.4)) * midLowMidGain * 0.34) + ((x : bandpassQ(900 + midMid * 1800, 0.9 + midMid * 1.8)) * midMidGain * 0.32) + ((x : bandpassQ(2600 + midPresence * 2400, 1.1 + midPresence * 1.8)) * midPresenceGain * 0.22) + ((x : fi.highpass(2, 4200 + midAir * 2600)) * midAirGain * 0.18)) * trimGain;',
+          'sideEq(x) = ((x * 0.22) + ((x : fi.lowpass(2, 160 + sideLow * 300)) * sideLowGain) + ((x : bandpassQ(260 + sideLowMid * 620, 0.8 + sideLowMid * 1.4)) * sideLowMidGain * 0.34) + ((x : bandpassQ(900 + sideMid * 1800, 0.9 + sideMid * 1.8)) * sideMidGain * 0.32) + ((x : bandpassQ(2600 + sidePresence * 2400, 1.1 + sidePresence * 1.8)) * sidePresenceGain * 0.22) + ((x : fi.highpass(2, 4200 + sideAir * 2600)) * sideAirGain * 0.18)) * trimGain;',
+        ]
+      : [
+          'lowGain = 0.5 + low * 1.05;',
+          'lowMidGain = 0.45 + lowMid * 1.05;',
+          'midGain = 0.45 + mid * 1.05;',
+          'presenceGain = 0.45 + presence * 1.05;',
+          'airGain = 0.45 + air * 1.1;',
+          `eq(x) = ((x * 0.22) + ((x : fi.lowpass(2, ${(((parameterInit(spec, 'mid_band1_freq_hz', 160) + parameterInit(spec, 'side_band1_freq_hz', 180)) * 0.5).toFixed(3))} + low * 300)) * lowGain) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band2_freq_hz', 520) + parameterInit(spec, 'side_band2_freq_hz', 580)) * 0.5).toFixed(3))} + lowMid * 620, ${(((parameterInit(spec, 'mid_band2_q', 1.1) + parameterInit(spec, 'side_band2_q', 1.1)) * 0.5).toFixed(3))} + lowMid * 1.4)) * lowMidGain * 0.34) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band3_freq_hz', 1400) + parameterInit(spec, 'side_band3_freq_hz', 1600)) * 0.5).toFixed(3))} + mid * 1800, ${(((parameterInit(spec, 'mid_band3_q', 1.3) + parameterInit(spec, 'side_band3_q', 1.3)) * 0.5).toFixed(3))} + mid * 1.8)) * midGain * 0.32) + ((x : bandpassQ(${(((parameterInit(spec, 'mid_band4_freq_hz', 3400) + parameterInit(spec, 'side_band4_freq_hz', 3800)) * 0.5).toFixed(3))} + presence * 2400, ${(((parameterInit(spec, 'mid_band4_q', 1.5) + parameterInit(spec, 'side_band4_q', 1.5)) * 0.5).toFixed(3))} + presence * 1.8)) * presenceGain * 0.22) + ((x : fi.highpass(2, ${(((parameterInit(spec, 'mid_band5_freq_hz', 7600) + parameterInit(spec, 'side_band5_freq_hz', 8400)) * 0.5).toFixed(3))} + air * 2600)) * airGain * 0.18)) * trimGain;`,
+        ]),
+    ...(spec.io.inputs === 2
+      ? hasMidSideBandMacros
+        ? [
+            'toMid(l, r) = (l + r) * 0.5;',
+            'toSide(l, r) = (l - r) * 0.5;',
+            'sideScale = 0.2 + width * 1.6;',
+            'midWet = _,_ : toMid : *(input_gain) : midEq;',
+            'sideWet = _,_ : toSide : *(input_gain) : sideEq : *(sideScale);',
+            'wetL = midWet + sideWet;',
+            'wetR = midWet - sideWet;',
+            'process = _,_ <: par(i,2,*(1.0 - mix)), (wetL,wetR : par(i,2,*(mix))) : par(i,2,+);',
+          ]
+        : [`${stereoDryWetProcess('_,_', 'par(i,2,*(input_gain)) : par(i,2,eq)')};`]
+      : [`${monoDryWetProcess(`${input} * input_gain : eq`)};`]),
   ].join('\n');
 }
 

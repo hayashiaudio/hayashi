@@ -42,6 +42,7 @@ export interface OptimizationTargetVector {
   category: OptimizationCategory;
   family: string;
   values: Record<string, number>;
+  constraints?: unknown;
 }
 
 export interface OptimizationMetricWeights {

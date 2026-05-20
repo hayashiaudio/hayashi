@@ -10,6 +10,13 @@ import {
 } from './targets.js';
 import type { OptimizationTargetVector } from './contracts.js';
 
+export interface ParametricEqPromptConstraints {
+  mode: 'stereo' | 'mid_side';
+  preferredBandCount: 3 | 5;
+  requireQControl: boolean;
+  requestedStereoWidthControl: boolean;
+}
+
 const KEYWORD_INFLUENCES: Array<{ pattern: RegExp; updates: Partial<Record<ParametricEqTargetId, number>> }> = [
   { pattern: /\bwarm|\bvintage|\banalog\b/i, updates: { warmth: 0.75, color: 0.7, smoothness: 0.65, precision: 0.35 } },
   { pattern: /\bair|\bairy|\bopen\b/i, updates: { air: 0.8, clarity: 0.65 } },
@@ -46,12 +53,25 @@ export function inferParametricEqTargetsFromPrompt(prompt: string): Optimization
     }
   }
 
-  let family = 'musical_tone_eq';
-  if (/\btilt|\bmaster|\bbus\b/i.test(lowered)) family = 'tilt_presence_eq';
-  if (/\bsurgical|\bnotch|\bcorrective\b/i.test(lowered)) family = 'clean_parametric_eq';
-  if (/\bresonant|\bcreative|\btexture\b/i.test(lowered)) family = 'resonant_texture_eq';
+  const constraints: ParametricEqPromptConstraints = {
+    mode: /\bmid[\s-]?side|\bm\/s\b|\bms\b/i.test(lowered) ? 'mid_side' : 'stereo',
+    preferredBandCount: /\b5[\s-]?band|\bfive[\s-]?band|\bparametric\b|\bbands\b/i.test(lowered) ? 5 : 3,
+    requireQControl: /\bq\b|\bbandwidth\b|\bparametric\b|\bnotch\b/i.test(lowered),
+    requestedStereoWidthControl: /\bstereo width\b|\bwidth control\b|\bside width\b|\bwidener\b/i.test(lowered),
+  };
 
-  return createParametricEqTargetVector(values, family);
+  let family = 'musical_tone_eq';
+  if (constraints.mode === 'mid_side' || constraints.preferredBandCount === 5 || constraints.requireQControl) {
+    family = 'clean_parametric_eq';
+  } else if (/\btilt|\bmaster|\bbus\b/i.test(lowered)) {
+    family = 'tilt_presence_eq';
+  } else if (/\bresonant|\bcreative|\btexture\b/i.test(lowered)) {
+    family = 'resonant_texture_eq';
+  } else if (/\bsurgical|\bnotch|\bcorrective\b/i.test(lowered)) {
+    family = 'clean_parametric_eq';
+  }
+
+  return createParametricEqTargetVector(values, family, constraints);
 }
 
 const SYNTH_KEYWORD_INFLUENCES: Array<{ pattern: RegExp; updates: Partial<Record<SynthTargetId, number>> }> = [

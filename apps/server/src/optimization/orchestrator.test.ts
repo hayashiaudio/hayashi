@@ -26,6 +26,23 @@ describe('buildParametricEqOptimizerJob', () => {
     expect(first.corpusIds.length).toBeGreaterThan(0);
   });
 
+  it('uses structural EQ constraints to choose the internal architecture', () => {
+    const job = buildParametricEqOptimizerJob({
+      prompt: 'Generate a mid-side parametric EQ with stereo width control',
+    });
+
+    expect(job.category).toBe('parametric_eq');
+    expect(job.architectureId).toBe('eq_5band_parametric');
+    expect(job.target.constraints).toEqual({
+      mode: 'mid_side',
+      preferredBandCount: 5,
+      requireQControl: true,
+      requestedStereoWidthControl: true,
+    });
+    expect(job.parameterRanges.some((range) => range.id === 'mid_band3_freq_hz')).toBe(true);
+    expect(job.parameterRanges.some((range) => range.id === 'side_band3_q')).toBe(true);
+  });
+
   it('runs a full stubbed optimization pass to scored artifacts', async () => {
     const result = await runParametricEqOptimizationPass('warm analog mastering eq with air');
 

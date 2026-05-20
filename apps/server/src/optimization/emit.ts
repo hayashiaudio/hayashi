@@ -117,6 +117,12 @@ function deriveEqMacros(
   candidateParams: Record<string, number>,
 ): MacroControl[] {
   const values = target.values;
+  const eqConstraints = (target.constraints ?? {}) as {
+    mode?: 'stereo' | 'mid_side';
+    requestedStereoWidthControl?: boolean;
+  };
+  const wantsMidSide = eqConstraints.mode === 'mid_side';
+  const wantsWidth = wantsMidSide || eqConstraints.requestedStereoWidthControl === true;
 
   const make = (id: MacroControl['id'], label: string, init: number): MacroControl => ({
     id,
@@ -137,12 +143,29 @@ function deriveEqMacros(
         make('trim', 'trim', clamp01(((candidateParams.trim_db ?? 0) + 6) / 12)),
       ];
     case 'eq_5band_parametric':
+      if (wantsMidSide) {
+        return [
+          make('midLow', 'mid low', clamp01((((candidateParams.mid_band1_gain_db ?? 0) + 15) / 30) * 0.8 + values.weight * 0.2)),
+          make('midLowMid', 'mid lowMid', clamp01((((candidateParams.mid_band2_gain_db ?? 0) + 15) / 30) * 0.8 + values.warmth * 0.2)),
+          make('midMid', 'mid mid', clamp01((((candidateParams.mid_band3_gain_db ?? 0) + 15) / 30) * 0.8 + values.clarity * 0.2)),
+          make('midPresence', 'mid presence', clamp01((((candidateParams.mid_band4_gain_db ?? 0) + 15) / 30) * 0.75 + values.forwardness * 0.25)),
+          make('midAir', 'mid air', clamp01((((candidateParams.mid_band5_gain_db ?? 0) + 15) / 30) * 0.75 + values.air * 0.25)),
+          make('sideLow', 'side low', clamp01((((candidateParams.side_band1_gain_db ?? 0) + 15) / 30) * 0.72 + values.weight * 0.18)),
+          make('sideLowMid', 'side lowMid', clamp01((((candidateParams.side_band2_gain_db ?? 0) + 15) / 30) * 0.72 + values.warmth * 0.18)),
+          make('sideMid', 'side mid', clamp01((((candidateParams.side_band3_gain_db ?? 0) + 15) / 30) * 0.72 + values.clarity * 0.18)),
+          make('sidePresence', 'side presence', clamp01((((candidateParams.side_band4_gain_db ?? 0) + 15) / 30) * 0.7 + values.forwardness * 0.2)),
+          make('sideAir', 'side air', clamp01((((candidateParams.side_band5_gain_db ?? 0) + 15) / 30) * 0.7 + values.air * 0.2)),
+          make('width', 'width', clamp01(candidateParams.width_amt ?? 0.68)),
+          make('trim', 'trim', clamp01(((candidateParams.trim_db ?? 0) + 6) / 12)),
+        ];
+      }
       return [
-        make('low', 'low', clamp01((((candidateParams.band1_gain_db ?? 0) + 15) / 30) * 0.8 + values.weight * 0.2)),
-        make('lowMid', 'lowMid', clamp01((((candidateParams.band2_gain_db ?? 0) + 15) / 30) * 0.8 + values.warmth * 0.2)),
-        make('mid', 'mid', clamp01((((candidateParams.band3_gain_db ?? 0) + 15) / 30) * 0.8 + values.clarity * 0.2)),
-        make('presence', 'presence', clamp01((((candidateParams.band4_gain_db ?? 0) + 15) / 30) * 0.75 + values.forwardness * 0.25)),
-        make('air', 'air', clamp01((((candidateParams.band5_gain_db ?? 0) + 15) / 30) * 0.75 + values.air * 0.25)),
+        make('low', 'low', clamp01(((((candidateParams.mid_band1_gain_db ?? 0) + (candidateParams.side_band1_gain_db ?? 0)) * 0.5 + 15) / 30) * 0.8 + values.weight * 0.2)),
+        make('lowMid', 'lowMid', clamp01(((((candidateParams.mid_band2_gain_db ?? 0) + (candidateParams.side_band2_gain_db ?? 0)) * 0.5 + 15) / 30) * 0.8 + values.warmth * 0.2)),
+        make('mid', 'mid', clamp01(((((candidateParams.mid_band3_gain_db ?? 0) + (candidateParams.side_band3_gain_db ?? 0)) * 0.5 + 15) / 30) * 0.8 + values.clarity * 0.2)),
+        make('presence', 'presence', clamp01(((((candidateParams.mid_band4_gain_db ?? 0) + (candidateParams.side_band4_gain_db ?? 0)) * 0.5 + 15) / 30) * 0.75 + values.forwardness * 0.25)),
+        make('air', 'air', clamp01(((((candidateParams.mid_band5_gain_db ?? 0) + (candidateParams.side_band5_gain_db ?? 0)) * 0.5 + 15) / 30) * 0.75 + values.air * 0.25)),
+        ...(wantsWidth ? [make('width', 'width', wantsMidSide ? 0.68 : 0.54)] : []),
         make('trim', 'trim', clamp01(((candidateParams.trim_db ?? 0) + 6) / 12)),
       ];
     case 'eq_tilt_presence':
@@ -346,16 +369,23 @@ export function buildParametricEqSpec(args: {
   candidate: OptimizationCandidateResult;
 }): PluginSpec {
   const voiceArchitecture = args.candidate.architectureId as VoiceArchitecture;
+  const eqConstraints = (args.target.constraints ?? {}) as {
+    mode?: 'stereo' | 'mid_side';
+  };
+  const isMidSide = eqConstraints.mode === 'mid_side';
+  const macroControls = deriveEqMacros(args.candidate.architectureId, args.target, args.candidate.params);
   const spec: PluginSpec = {
     schemaVersion: '1.0',
     kind: 'effect',
-    name: baseNameForArchitecture(args.candidate.architectureId),
+    name: isMidSide && args.candidate.architectureId === 'eq_5band_parametric'
+      ? `Mid-Side ${baseNameForArchitecture(args.candidate.architectureId)}`
+      : baseNameForArchitecture(args.candidate.architectureId),
     description: args.prompt.slice(0, 160),
     voiceArchitecture,
     toneModel: pickToneModel(args.candidate.architectureId),
     qualityProfile: 'premium',
-    stereoProfile: 'stereo',
-    macroControls: deriveEqMacros(args.candidate.architectureId, args.target, args.candidate.params),
+    stereoProfile: isMidSide ? 'wide' : 'stereo',
+    macroControls,
     io: {
       inputs: 2,
       outputs: 2,
@@ -369,6 +399,7 @@ export function buildParametricEqSpec(args: {
     },
   };
 
+  spec.parameters = buildParameterSchema(args.candidate.architectureId, args.candidate.params);
   return parseAndValidatePluginSpec(JSON.stringify(spec));
 }
 
@@ -615,6 +646,10 @@ export function emitParametricEqArtifacts(args: {
 }): NormalizedGeneratedArtifacts & { spec: PluginSpec } {
   const spec = buildParametricEqSpec(args);
   const architecture = getOptimizationArchitecture('parametric_eq', args.candidate.architectureId);
+  const dynamicControlIds = [...new Set([
+    ...architecture.controlIds,
+    ...spec.macroControls.map((macro) => macro.id),
+  ])];
   return finalizeArtifacts(
     spec,
     {
@@ -625,7 +660,10 @@ export function emitParametricEqArtifacts(args: {
     buildParametricEqUiScheme({
       pluginTitle: spec.name,
       pluginSubtitle: spec.description ?? '',
-      architecture,
+      architecture: {
+        ...architecture,
+        controlIds: dynamicControlIds,
+      },
     }),
   );
 }

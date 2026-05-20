@@ -28,6 +28,38 @@ describe('emitParametricEqArtifacts', () => {
     expect(result.uiSpec.visualizers.some((visualizer) => visualizer.type === 'filter_curve')).toBe(true);
     expect(result.macroControls.length).toBeGreaterThan(0);
   });
+
+  it('emits a true mid-side parametric EQ shape when the prompt requests it', () => {
+    const job = buildParametricEqOptimizerJob({
+      prompt: 'Generate a mid-side parametric EQ with stereo width control',
+    });
+
+    const candidate = {
+      architectureId: job.architectureId,
+      params: Object.fromEntries(job.parameterRanges.map((range) => [range.id, range.initial])),
+      score: 0,
+      metrics: [],
+    };
+
+    const result = emitParametricEqArtifacts({
+      prompt: 'Generate a mid-side parametric EQ with stereo width control',
+      target: job.target,
+      candidate,
+    });
+
+    expect(result.spec.name).toContain('Mid-Side');
+    expect(result.macroControls.some((macro) => macro.id === 'width')).toBe(true);
+    expect(result.uiSpec.meters).toEqual(['input', 'output', 'width']);
+    expect(result.parameterSchema.some((param) => param.id === 'mid_band3_freq_hz')).toBe(true);
+    expect(result.parameterSchema.some((param) => param.id === 'side_band4_q')).toBe(true);
+    expect(result.faustCode).toContain('toMid(l, r)');
+    expect(result.faustCode).toContain('toSide(l, r)');
+    expect(result.faustCode).toContain('midEq(x) =');
+    expect(result.faustCode).toContain('sideEq(x) =');
+    expect(result.faustCode).toContain('wetL = midWet + sideWet;');
+    expect(result.faustCode).toContain('wetR = midWet - sideWet;');
+    expect(result.faustCode.match(/width = hslider\("width"/g)?.length ?? 0).toBe(1);
+  });
 });
 
 describe('emitSynthArtifacts', () => {

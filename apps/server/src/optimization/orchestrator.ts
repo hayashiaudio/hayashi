@@ -12,6 +12,13 @@ import { inferDelayEchoTargetsFromPrompt, inferParametricEqTargetsFromPrompt, in
 import { summarizeOptimizationScores, type OptimizationScoreSummary } from './scoring.js';
 import { runOptimizerJob } from './worker.js';
 
+interface ParametricEqConstraints {
+  mode?: 'stereo' | 'mid_side';
+  preferredBandCount?: 3 | 5;
+  requireQControl?: boolean;
+  requestedStereoWidthControl?: boolean;
+}
+
 function seedFromPrompt(prompt: string): number {
   const digest = createHash('sha256').update(prompt).digest();
   return digest.readUInt32BE(0);
@@ -22,13 +29,27 @@ function chooseArchitecture(category: OptimizationCategory, family: string): Opt
   return definition.architectures.find((architecture) => architecture.family === family) ?? definition.architectures[0];
 }
 
+function chooseParametricEqArchitecture(family: string, constraints?: ParametricEqConstraints): OptimizationArchitectureDefinition {
+  if (constraints?.mode === 'mid_side' || constraints?.preferredBandCount === 5 || constraints?.requireQControl) {
+    return getOptimizationCategory('parametric_eq').architectures.find((architecture) => architecture.id === 'eq_5band_parametric')
+      ?? chooseArchitecture('parametric_eq', family);
+  }
+
+  if (constraints?.requestedStereoWidthControl) {
+    return getOptimizationCategory('parametric_eq').architectures.find((architecture) => architecture.id === 'eq_resonant_creative')
+      ?? chooseArchitecture('parametric_eq', family);
+  }
+
+  return chooseArchitecture('parametric_eq', family);
+}
+
 export function buildParametricEqOptimizerJob(args: {
   prompt: string;
   corpusIds?: string[];
   maxEvaluations?: number;
 }): OptimizerJobInput {
   const target = inferParametricEqTargetsFromPrompt(args.prompt);
-  const architecture = chooseArchitecture('parametric_eq', target.family);
+  const architecture = chooseParametricEqArchitecture(target.family, target.constraints as ParametricEqConstraints | undefined);
 
   return {
     category: 'parametric_eq',

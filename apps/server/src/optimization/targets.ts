@@ -44,11 +44,13 @@ export function normalizeParametricEqTargets(values: Partial<Record<ParametricEq
 export function createParametricEqTargetVector(
   values: Partial<Record<ParametricEqTargetId, number>>,
   family = 'musical_tone_eq',
+  constraints?: OptimizationTargetVector['constraints'],
 ): OptimizationTargetVector {
   return {
     category: 'parametric_eq',
     family,
     values: normalizeParametricEqTargets(values),
+    constraints,
   };
 }
 

@@ -1,8 +1,9 @@
 import { Context } from '@temporalio/activity';
-import { generateFaustFromPrompt, iterateFaustFromPrompt, type GeneratedFaustResult } from '../faust/generate.js';
+import { iterateFaustFromPrompt, type GeneratedFaustResult } from '../faust/generate.js';
 import { parseFaustParams, paramsToJson } from '../faust/params.js';
 import { persistGeneratedArtifacts } from '../faust/artifacts.js';
 import { compileDspToNative } from '../export/compiler.js';
+import { generatePluginFromPrompt } from '../generation/pipeline.js';
 import {
   addVersion,
   addMessage,
@@ -39,7 +40,7 @@ interface ExportBuildInput {
 
 export async function generatePluginActivity(input: GeneratePluginInput): Promise<GeneratedFaustResult> {
   console.log(`[Temporal] Starting generation for plugin ${input.pluginId}`);
-  const result = await generateFaustFromPrompt(input.prompt);
+  const result = await generatePluginFromPrompt(input.prompt);
   console.log(`[Temporal] Generation complete for plugin ${input.pluginId}`);
   return result;
 }

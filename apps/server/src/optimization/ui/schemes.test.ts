@@ -22,6 +22,23 @@ describe('buildParametricEqUiScheme', () => {
     expect(ui.sections.find((section) => section.id === 'surgical')?.controls).toEqual(['presence']);
     expect(ui.sections.find((section) => section.id === 'output')?.controls).toEqual(['trim']);
   });
+
+  it('adds spread controls and width metering when EQ exposes width', () => {
+    const architecture = {
+      ...getOptimizationArchitecture('parametric_eq', 'eq_5band_parametric'),
+      controlIds: ['low', 'lowMid', 'mid', 'presence', 'air', 'width', 'trim'],
+    };
+    const ui = buildParametricEqUiScheme({
+      pluginTitle: 'Mid-Side Parametric Studio EQ',
+      pluginSubtitle: 'mid-side parametric EQ',
+      architecture,
+    });
+
+    expect(ui.sections.map((section) => section.id)).toEqual(['tone', 'surgical', 'spread', 'output']);
+    expect(ui.sections.find((section) => section.id === 'spread')?.controls).toEqual(['width']);
+    expect(ui.meters).toEqual(['input', 'output', 'width']);
+    expect(ui.visualizers.some((visualizer) => visualizer.type === 'stereo_field')).toBe(true);
+  });
 });
 
 describe('buildSynthUiScheme', () => {
